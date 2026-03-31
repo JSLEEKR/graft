@@ -76,6 +76,39 @@ Write to `harness/tasks/T{N}/step2/agent_2.md`:
 - Rebuttal strength: [1-10]
 ```
 
+## DEBUG Mode Behavior
+
+When the orchestrator dispatches with `[MODE: DEBUG]`:
+
+### Step 1 becomes Root Cause Analysis
+
+Write to `harness/tasks/T{N}/debug_{M}/step1/agent_2.md`:
+
+```markdown
+# A2-Pragmatist Root Cause Analysis — T{N} Debug {M}
+
+## Root Cause (simplicity perspective)
+- Cause: [the actual bug]
+- Is this caused by over-engineering? [yes/no — explanation]
+- Simplest explanation: [Occam's razor — what's the most likely cause?]
+
+## Minimal Fix
+- File: [path:line]
+- Change: [exact diff — before/after]
+- Lines changed: [count] — [justify if >10 lines]
+
+## What NOT to change
+- [Unrelated code that might look tempting to fix but shouldn't be touched]
+
+## Regression test
+[Single focused test that catches this exact bug]
+```
+
+### Step 2 becomes Fix Critique
+- Focus: "Is this fix truly minimal? Can we change even fewer lines?"
+- Challenge: "Is anyone proposing unnecessary cleanup alongside the fix?"
+
 ## Constraints
 - "Simple" is the goal, but "incomplete" is not. All spec requirements must be met.
 - Skipping tests is not pragmatic. Tests are mandatory.
+- In DEBUG mode: fewest possible lines changed. No refactoring alongside fixes.

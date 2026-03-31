@@ -177,6 +177,160 @@ Subagent Memory Verifier:
   Output: verified common_memory.md
 ```
 
+## Process Modes: CREATE vs DEBUG/FIX
+
+Every step operates in one of two modes with distinct rules.
+The orchestrator determines the mode based on context.
+
+### Mode Detection
+
+```
+CREATE mode: default for first attempt at any task
+DEBUG mode:  triggered when:
+  - Step 5 returns NEEDS_CHANGES
+  - Tests fail during Step 4
+  - A previous debate cycle failed on this task
+  - Runtime error encountered during implementation
+```
+
+### CREATE Mode Rules (building something new)
+
+```
+Step 0 (Research):
+  - Broad exploration: look for patterns, alternatives, prior art
+  - Output: possibilities and recommendations
+
+Step 1 (Independent Analysis):
+  - Each agent proposes a COMPLETE implementation from scratch
+  - Must include full code, not patches
+  - Freedom to deviate from implementation plan if justified
+  - Self-assessed convergence score reflects confidence in the approach
+
+Step 2 (Cross-Critique):
+  - Critique focuses on DESIGN CHOICES: "is this the right approach?"
+  - Forced dissenter challenges the fundamental premise, not details
+  - Goal: find the best design before any code is written
+
+Step 3 (Convergence):
+  - Produces a complete implementation spec with full code
+  - Ratchet items are NEW locked decisions
+
+Step 4 (Implementation):
+  - TDD: write test → verify fail → implement → verify pass
+  - Follow convergence spec exactly
+  - Commit after each passing test group
+
+Step 5 (Code Review):
+  - Review scope: does it match convergence spec?
+  - Check: correctness, completeness, test coverage
+  - PASS threshold: all convergence requirements met, all tests pass
+```
+
+### DEBUG/FIX Mode Rules (repairing something broken)
+
+```
+TRIGGER: Step 5 NEEDS_CHANGES or test failure
+
+Step 0 (Research) — SKIPPED in debug mode
+  - The problem is in known code, not in missing knowledge
+
+Step 1 (Root Cause Analysis — replaces Independent Analysis):
+  - Each agent receives: failing tests, error messages, review feedback
+  - Task is NOT "propose a new implementation"
+  - Task IS "diagnose WHY it failed"
+  - Each agent must:
+    1. State the root cause (not symptoms)
+    2. Explain the causal chain: input → bug → failure
+    3. Propose a MINIMAL fix (smallest change that resolves the root cause)
+    4. Explain why this fix doesn't introduce new issues
+  - Output format changes: "Root Cause Analysis" instead of "Proposed Implementation"
+
+Step 2 (Fix Critique — replaces Cross-Critique):
+  - Critique focuses on DIAGNOSIS ACCURACY: "is this the real root cause?"
+  - Each agent reviews others' diagnoses:
+    - Does the root cause explain ALL failing tests, not just some?
+    - Is the fix truly minimal, or does it over-correct?
+    - Does the fix break any existing passing tests?
+  - Forced dissenter: must argue the root cause is WRONG and propose alternative
+  - Goal: ensure the fix is correct, not just that it silences the error
+
+Step 3 (Fix Convergence — replaces Convergence):
+  - Produces a PATCH, not a full rewrite
+  - Must include:
+    - Confirmed root cause
+    - Exact lines to change (file:line format)
+    - Before/after for each change
+    - Regression test: a test that would have caught this bug
+  - MUST NOT: rewrite unrelated code, add features, refactor
+
+Step 4 (Fix Implementation):
+  - Apply ONLY the patch from fix convergence
+  - Add regression test first, verify it reproduces the bug
+  - Apply fix, verify regression test passes
+  - Run ALL existing tests, verify no regressions
+  - Changes must be atomic — one commit for the fix
+
+Step 5 (Fix Review):
+  - Stricter than CREATE review:
+    - Is the fix MINIMAL? (reject if unrelated changes included)
+    - Does the fix address the ROOT CAUSE, not just symptoms?
+    - Are there any tests that pass "by accident" (wrong assertion)?
+    - Regression test added? Does it actually test the failure mode?
+  - PASS threshold: root cause resolved, no regressions, fix is minimal
+```
+
+### Debug Escalation Path
+
+```
+Attempt 1: DEBUG mode (Steps 1-5 with fix rules)
+  ↓ NEEDS_CHANGES
+Attempt 2: DEBUG mode (fresh diagnosis, previous failure in common_memory)
+  ↓ NEEDS_CHANGES
+Attempt 3: RE-DEBATE — full CREATE mode restart
+  - Previous failure causes added to common_memory as "failed approaches"
+  - All agents receive the failure history
+  - This is a fresh design, not a patch
+  ↓ NEEDS_CHANGES (after CREATE Step 5)
+Attempt 4: ORCHESTRATOR INTERVENTION
+  - Orchestrator resolves directly without subagents
+  - Records resolution in common_memory
+```
+
+### Mode-Specific Agent Prompt Prefixes
+
+When dispatching agents, the orchestrator MUST prefix the prompt with the mode:
+
+```
+CREATE mode prefix:
+  "[MODE: CREATE] You are building T{N} from scratch.
+   Follow the CREATE rules in CLAUDE.md."
+
+DEBUG mode prefix:
+  "[MODE: DEBUG] T{N} implementation failed.
+   Failure info: {error messages / review feedback}.
+   Follow the DEBUG rules in CLAUDE.md.
+   Your task is ROOT CAUSE ANALYSIS, not reimplementation."
+```
+
+### Output Path Differentiation
+
+```
+CREATE outputs:
+  harness/tasks/T{N}/step1/agent_{1-4}.md
+  harness/tasks/T{N}/step3/convergence.md
+
+DEBUG outputs (attempt M):
+  harness/tasks/T{N}/debug_M/step1/agent_{1-4}.md     ← root cause analyses
+  harness/tasks/T{N}/debug_M/step3/fix_convergence.md  ← patch spec
+  harness/tasks/T{N}/debug_M/step5/fix_review.md       ← fix review
+
+RE-DEBATE outputs:
+  harness/tasks/T{N}/redebate/step1/agent_{1-4}.md     ← fresh proposals
+  harness/tasks/T{N}/redebate/step3/convergence.md
+```
+
+---
+
 ## Ratchet Rules
 
 Confirmed design decisions are ratchet-locked:

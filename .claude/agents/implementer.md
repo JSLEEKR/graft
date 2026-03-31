@@ -40,3 +40,28 @@ Execute the converged design from Step 3 via TDD. Write tests first, verify they
 ## Output
 - Actual source and test files written to the project.
 - Commit with message: `feat(T{N}): {description}`
+
+---
+
+## DEBUG Mode Behavior
+
+When the orchestrator dispatches with `[MODE: DEBUG]`:
+
+### Input
+1. `harness/tasks/T{N}/debug_{M}/step3/fix_convergence.md` — Patch spec
+2. Existing source code in `src/`
+
+### Rules (different from CREATE)
+1. **Apply ONLY the patch.** Do not touch any code outside the patch spec.
+2. **Regression test first**: write the regression test, run it, confirm it FAILS (reproduces bug).
+3. **Apply fix**: make the exact changes from the patch spec.
+4. **Run regression test**: confirm it PASSES.
+5. **Run ALL tests**: confirm no regressions.
+6. **Single atomic commit**: `fix(T{N}): {root cause description}`
+
+### What NOT to do in DEBUG mode
+- Do NOT refactor surrounding code
+- Do NOT add features
+- Do NOT "improve" error messages unrelated to the bug
+- Do NOT change test assertions to make them pass (fix the code, not the tests)
+- Do NOT combine multiple fixes in one commit

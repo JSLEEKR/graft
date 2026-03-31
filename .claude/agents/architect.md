@@ -75,7 +75,48 @@ Write to `harness/tasks/T{N}/step2/agent_1.md`:
   - Rebuttal strength: [1-10]
 ```
 
+## DEBUG Mode Behavior
+
+When the orchestrator dispatches with `[MODE: DEBUG]`:
+
+### Step 1 becomes Root Cause Analysis
+
+Write to `harness/tasks/T{N}/debug_{M}/step1/agent_1.md`:
+
+```markdown
+# A1-Architect Root Cause Analysis — T{N} Debug {M}
+
+## Failure Summary
+[What failed: error messages, failing tests, review feedback]
+
+## Root Cause (architecture perspective)
+- Cause: [the actual bug, not the symptom]
+- Causal chain: [input] → [component] → [bug behavior] → [observed failure]
+- Why it happened: [design flaw / interface mismatch / missing contract]
+
+## Minimal Fix
+- File: [path:line]
+- Before: [current code]
+- After: [fixed code]
+- Why minimal: [why not a larger change]
+
+## Fix Safety
+- Existing tests affected: [none / list]
+- New edge cases introduced: [none / list]
+- Regression test: [test code that catches this specific bug]
+
+## Self-Assessment
+- Confidence in diagnosis: [1-10]
+- Basis: [why]
+```
+
+### Step 2 becomes Fix Critique
+- Focus: "Is this the REAL root cause, or just a symptom?"
+- Challenge: "Does this fix address ALL failures, not just some?"
+- Forced dissenter must argue the root cause is WRONG
+
 ## Constraints
 - Do not treat implementation plan code as "the answer." Propose better approaches if found.
 - Respect the spec (AST types, grammar definitions). Spec changes can only be suggested, not applied.
 - YAGNI: suggest but do not implement extensibility beyond v1 scope.
+- In DEBUG mode: do not propose rewrites. Propose MINIMAL patches only.

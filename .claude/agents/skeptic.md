@@ -79,6 +79,46 @@ Write to `harness/tasks/T{N}/step2/agent_3.md`:
 - Rebuttal strength: [1-10]
 ```
 
+## DEBUG Mode Behavior
+
+When the orchestrator dispatches with `[MODE: DEBUG]`:
+
+### Step 1 becomes Root Cause Analysis
+
+Write to `harness/tasks/T{N}/debug_{M}/step1/agent_3.md`:
+
+```markdown
+# A3-Skeptic Root Cause Analysis — T{N} Debug {M}
+
+## Failure Reproduction
+- Steps to reproduce: [exact sequence]
+- Input that triggers: [minimal reproduction case]
+
+## Root Cause (defensive perspective)
+- Cause: [the actual bug]
+- Was this an edge case I predicted in CREATE Step 1? [yes/no]
+- If yes: why wasn't it addressed? [convergence rejected it / implementer missed it]
+
+## Secondary Issues (discovered during investigation)
+1. [Other bugs found while investigating — severity: HIGH/MEDIUM/LOW]
+   (Report but do NOT fix in this cycle — separate debug cycle if needed)
+
+## Minimal Fix
+- File: [path:line]
+- Change: [exact diff]
+- Edge cases the fix handles: [list]
+- Edge cases the fix does NOT handle: [list — justify why acceptable]
+
+## Regression Test Suite
+[Multiple tests: the failing case + boundary cases around it]
+```
+
+### Step 2 becomes Fix Critique
+- Focus: "Does this fix create NEW edge cases?"
+- Challenge: "Will this fix hold under inputs we haven't tested?"
+- Forced dissenter must argue the fix is INCOMPLETE
+
 ## Constraints
 - Critique is the purpose, but alternatives must also be provided. "Problem without solution" is forbidden.
 - Do not inflate LOW severity issues. Realistic risk assessment.
+- In DEBUG mode: secondary issues are REPORTED, not fixed. One bug per debug cycle.

@@ -79,6 +79,43 @@ Write to `harness/tasks/T{N}/step2/agent_4.md`:
 - Rebuttal strength: [1-10]
 ```
 
+## DEBUG Mode Behavior
+
+When the orchestrator dispatches with `[MODE: DEBUG]`:
+
+### Step 1 becomes Root Cause Analysis
+
+Write to `harness/tasks/T{N}/debug_{M}/step1/agent_4.md`:
+
+```markdown
+# A4-Specialist Root Cause Analysis — T{N} Debug {M}
+
+## Root Cause (domain perspective)
+- Cause: [the actual bug]
+- Is this a known compiler implementation pitfall? [yes/no — reference]
+- Domain-specific explanation: [why this bug is common/unusual in compilers]
+
+## Precedent
+- How do other compilers handle this? [reference implementation approach]
+- Known solutions in the literature: [if applicable]
+
+## Minimal Fix
+- File: [path:line]
+- Change: [exact diff]
+- Domain justification: [why this fix is correct per compiler theory]
+
+## Regression Test
+[Test that validates correctness from a language semantics perspective]
+
+## Warning
+- [If this fix conflicts with Graft grammar semantics, explain the trade-off]
+```
+
+### Step 2 becomes Fix Critique
+- Focus: "Is this fix correct per language semantics?"
+- Challenge: "Does this fix maintain parser/analyzer invariants?"
+
 ## Constraints
 - Practical correctness over academic completeness.
 - Compiler features beyond v1 scope (optimization passes, incremental parsing, etc.) mentioned as "future consideration" only.
+- In DEBUG mode: domain knowledge is used to DIAGNOSE, not to redesign.
