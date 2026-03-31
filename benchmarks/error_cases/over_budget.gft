@@ -1,0 +1,45 @@
+// Error case: node budgets far exceed the graph budget
+// Expected warning: estimated token usage exceeds graph budget
+// Node budgets sum to 25k input + 12k output = 37k total, but graph budget is only 10k
+
+context LargeInput(max_tokens: 5k) {
+  corpus: String
+  instructions: String
+}
+
+node HeavyAnalyzer(model: opus, budget: 10k/5k) {
+  reads: [LargeInput]
+  on_failure: retry(2)
+
+  produces HeavyAnalysis {
+    detailed_report: String
+    metrics: Map<String, Float>
+  }
+}
+
+node HeavySynthesizer(model: opus, budget: 8k/4k) {
+  reads: [LargeInput, HeavyAnalysis]
+
+  produces HeavySynthesis {
+    output: String
+    confidence: Float(0..1)
+  }
+}
+
+node HeavyFormatter(model: sonnet, budget: 7k/3k) {
+  reads: [HeavySynthesis, HeavyAnalysis]
+
+  produces FinalOutput {
+    document: String
+  }
+}
+
+edge HeavyAnalyzer -> HeavySynthesizer
+  | compact
+
+edge HeavySynthesizer -> HeavyFormatter
+  | compact
+
+graph OverBudgetPipeline(input: LargeInput, output: FinalOutput, budget: 10k) {
+  HeavyAnalyzer -> HeavySynthesizer -> HeavyFormatter -> done
+}

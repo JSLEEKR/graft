@@ -1,0 +1,25 @@
+// Error case: valid nodes and edges but NO graph declaration
+// Expected error: missing graph declaration
+
+context Prompt(max_tokens: 500) {
+  text: String
+}
+
+node Summarizer(model: haiku, budget: 1k/500) {
+  reads: [Prompt]
+
+  produces Summary {
+    short: String
+  }
+}
+
+node Formatter(model: haiku, budget: 500/300) {
+  reads: [Summary]
+
+  produces Output {
+    formatted: String
+  }
+}
+
+edge Summarizer -> Formatter
+  | compact

@@ -1,0 +1,80 @@
+// AllTypes: exercises every TypeExpr variant in the v1 type system
+
+context DocumentationInput(max_tokens: 2k) {
+  // String
+  title: String
+  // Int
+  version: Int
+  // Float
+  score: Float
+  // Float(min..max)
+  confidence: Float(0..1)
+  // Bool
+  is_public: Bool
+  // List<T>
+  tags: List<String>
+  // Map<K, V>
+  metadata: Map<String, String>
+  // Optional<T>
+  parent_doc: Optional<String>
+  // TokenBounded<T, max>
+  abstract: TokenBounded<String, 200>
+  // enum(...)
+  status: enum(draft, review, published, archived)
+  // inline struct
+  author: Author {
+    name: String
+    email: String
+  }
+  // FilePath (domain type)
+  source_file: FilePath
+  // FileDiff (domain type)
+  pending_changes: Optional<FileDiff>
+}
+
+node DocProcessor(model: sonnet, budget: 5k/3k) {
+  reads: [DocumentationInput]
+  tools: [file_read]
+
+  produces ProcessedDoc {
+    content: TokenBounded<String, 1000>
+    word_count: Int
+    reading_time_minutes: Float
+    quality_score: Float(0..1)
+    sections: List<Section {
+      heading: String
+      body: String
+      level: Int
+      subsections: List<String>
+    }>
+    changelog: List<ChangeEntry {
+      date: String
+      author: String
+      diff: FileDiff
+      description: TokenBounded<String, 100>
+    }>
+    category: enum(tutorial, reference, guide, changelog, api)
+    cross_references: Map<String, FilePath>
+    is_complete: Bool
+    review_status: Optional<enum(pending, approved, rejected)>
+  }
+}
+
+node DocPublisher(model: haiku, budget: 2k/1k) {
+  reads: [ProcessedDoc]
+
+  produces PublishedDoc {
+    url: String
+    published: Bool
+  }
+}
+
+edge DocProcessor -> DocPublisher
+  | select(content)
+  | select(category)
+  | select(is_complete)
+  | compact
+
+graph DocumentationPipeline(input: DocumentationInput, output: PublishedDoc, budget: 12k) {
+  DocProcessor -> DocPublisher -> done
+}

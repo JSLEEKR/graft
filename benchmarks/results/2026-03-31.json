@@ -1,0 +1,153 @@
+{
+  "timestamp": "2026-03-31T14:25:25.057Z",
+  "compiler_version": "0.1.0",
+  "total": 14,
+  "passed": 14,
+  "failed": 0,
+  "results": [
+    {
+      "name": "all_failures",
+      "category": "correctness",
+      "status": "pass",
+      "duration_ms": 11.92,
+      "tokens_best": 17070,
+      "tokens_worst": 25610,
+      "tokens_budget": 40000,
+      "file_count": 15,
+      "errors": []
+    },
+    {
+      "name": "all_types",
+      "category": "correctness",
+      "status": "pass",
+      "duration_ms": 0.54,
+      "tokens_best": 6056,
+      "tokens_worst": 6056,
+      "tokens_budget": 12000,
+      "file_count": 7,
+      "errors": []
+    },
+    {
+      "name": "basic_pipeline",
+      "category": "correctness",
+      "status": "pass",
+      "duration_ms": 0.19,
+      "tokens_best": 2362,
+      "tokens_worst": 2362,
+      "tokens_budget": 5000,
+      "file_count": 7,
+      "errors": []
+    },
+    {
+      "name": "conditional_edge",
+      "category": "correctness",
+      "status": "pass",
+      "duration_ms": 0.46,
+      "tokens_best": 7700,
+      "tokens_worst": 18100,
+      "tokens_budget": 15000,
+      "file_count": 11,
+      "errors": []
+    },
+    {
+      "name": "inline_structs",
+      "category": "correctness",
+      "status": "pass",
+      "duration_ms": 0.27,
+      "tokens_best": 8400,
+      "tokens_worst": 8400,
+      "tokens_budget": 14000,
+      "file_count": 7,
+      "errors": []
+    },
+    {
+      "name": "multi_node",
+      "category": "correctness",
+      "status": "pass",
+      "duration_ms": 0.29,
+      "tokens_best": 23194,
+      "tokens_worst": 34248,
+      "tokens_budget": 30000,
+      "file_count": 11,
+      "errors": []
+    },
+    {
+      "name": "bad_field",
+      "category": "error_cases",
+      "status": "pass",
+      "duration_ms": 0.1,
+      "errors": [
+        "select: field 'nonexistent_field' does not exist in 'Analyzer' output"
+      ]
+    },
+    {
+      "name": "bad_ref",
+      "category": "error_cases",
+      "status": "pass",
+      "duration_ms": 0.07,
+      "errors": [
+        "'NonExistentContext' is not declared as a context or produces output"
+      ]
+    },
+    {
+      "name": "missing_graph",
+      "category": "error_cases",
+      "status": "pass",
+      "duration_ms": 0.04,
+      "errors": [
+        "No graph declaration found"
+      ]
+    },
+    {
+      "name": "no_graph",
+      "category": "error_cases",
+      "status": "pass",
+      "duration_ms": 0.05,
+      "errors": [
+        "No graph declaration found"
+      ]
+    },
+    {
+      "name": "over_budget",
+      "category": "error_cases",
+      "status": "pass",
+      "duration_ms": 0.16,
+      "tokens_best": 33300,
+      "tokens_worst": 53300,
+      "tokens_budget": 10000,
+      "file_count": 9,
+      "errors": [
+        "Node 'HeavySynthesizer' estimated input (8500) exceeds budgetIn (8000)",
+        "Node 'HeavyFormatter' estimated input (7800) exceeds budgetIn (7000)",
+        "Worst-case token usage (53300) exceeds budget (10000)"
+      ]
+    },
+    {
+      "name": "syntax_error",
+      "category": "error_cases",
+      "status": "pass",
+      "duration_ms": 0.07,
+      "errors": [
+        "Expected 'Colon', got 'Processor' (Identifier)"
+      ]
+    },
+    {
+      "name": "undefined_context_ref",
+      "category": "error_cases",
+      "status": "pass",
+      "duration_ms": 0.05,
+      "errors": [
+        "'MissingContext' is not declared as a context or produces output"
+      ]
+    },
+    {
+      "name": "undefined_node_ref",
+      "category": "error_cases",
+      "status": "pass",
+      "duration_ms": 0.05,
+      "errors": [
+        "Node 'MissingNode' in graph flow is not declared"
+      ]
+    }
+  ]
+}

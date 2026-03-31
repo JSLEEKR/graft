@@ -1,0 +1,69 @@
+// FeaturePipeline: four-node pipeline for planning, implementing, testing, and reviewing a feature
+
+context FeatureRequest(max_tokens: 1k) {
+  title: String
+  requirements: List<String>
+  acceptance_criteria: List<String>
+}
+
+node Planner(model: opus, budget: 4k/2k) {
+  reads: [FeatureRequest]
+  on_failure: retry(2)
+
+  produces Plan {
+    approach: String
+    subtasks: List<String>
+    estimated_complexity: enum(trivial, small, medium, large, epic)
+    files_to_modify: List<FilePath>
+  }
+}
+
+node Implementer(model: sonnet, budget: 8k/4k) {
+  reads: [FeatureRequest, Plan]
+  tools: [file_read, file_write]
+  on_failure: retry(1)
+
+  produces Implementation {
+    changes: List<FileDiff>
+    notes: String
+  }
+}
+
+node Tester(model: sonnet, budget: 4k/2k) {
+  reads: [Plan.subtasks, Implementation]
+  tools: [test_run, file_read]
+
+  produces TestResults {
+    passed: Bool
+    test_count: Int
+    failures: List<String>
+    coverage_estimate: Float(0..1)
+  }
+}
+
+node Reviewer(model: opus, budget: 6k/3k) {
+  reads: [FeatureRequest, Plan, Implementation, TestResults]
+
+  produces Review {
+    approved: Bool
+    issues: List<String>
+    suggestions: List<String>
+    quality_score: Float(0..1)
+  }
+}
+
+edge Planner -> Implementer
+  | select(approach)
+  | select(subtasks)
+  | select(files_to_modify)
+
+edge Implementer -> Tester
+  | select(changes)
+  | compact
+
+edge Tester -> Reviewer
+  | drop(coverage_estimate)
+
+graph FeaturePipeline(input: FeatureRequest, output: Review, budget: 30k) {
+  Planner -> Implementer -> Tester -> Reviewer -> done
+}

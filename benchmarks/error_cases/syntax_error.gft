@@ -1,0 +1,17 @@
+// Error case: malformed syntax (missing closing brace)
+// Expected error: parse error
+
+context Input(max_tokens: 500) {
+  text: String
+
+node Processor(model: sonnet, budget: 2k/1k) {
+  reads: [Input]
+
+  produces Output {
+    result: String
+  }
+}
+
+graph Pipeline(input: Input, output: Output, budget: 5k) {
+  Processor -> done
+}

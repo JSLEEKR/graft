@@ -1,0 +1,18 @@
+// Error case: graph references a node that was never declared
+// Expected error: scope error for undefined node
+
+context Input(max_tokens: 500) {
+  text: String
+}
+
+node Analyzer(model: sonnet, budget: 2k/1k) {
+  reads: [Input]
+
+  produces Analysis {
+    summary: String
+  }
+}
+
+graph Pipeline(input: Input, output: Analysis, budget: 5k) {
+  Analyzer -> MissingNode -> done
+}

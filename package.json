@@ -10,7 +10,8 @@
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "bench": "npx tsx benchmarks/run.ts"
   },
   "engines": {
     "node": ">=20"

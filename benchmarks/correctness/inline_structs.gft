@@ -1,0 +1,51 @@
+// IssueTracker: exercises deeply nested inline struct types
+
+context ProjectContext(max_tokens: 2k) {
+  project_name: String
+  repositories: List<Repository {
+    name: String
+    path: FilePath
+    language: enum(typescript, python, rust, go, java)
+  }>
+}
+
+node IssueAnalyzer(model: opus, budget: 6k/4k) {
+  reads: [ProjectContext]
+  tools: [file_read, ast_parse]
+
+  produces IssueReport {
+    issues: List<Issue {
+      title: String
+      file: FilePath
+      line: Int
+      severity: enum(info, warning, error, critical)
+      fields: List<Field {
+        name: String
+        type: enum(string, number, boolean, object, array, null)
+        required: Bool
+      }>
+      related_issues: List<IssueRef>
+      metadata: Map<String, String>
+    }>
+    summary: String
+    total_count: Int
+    critical_count: Int
+  }
+}
+
+node ReportFormatter(model: haiku, budget: 2k/1k) {
+  reads: [IssueReport]
+
+  produces FormattedReport {
+    markdown: TokenBounded<String, 500>
+    stats: Map<String, Int>
+  }
+}
+
+edge IssueAnalyzer -> ReportFormatter
+  | filter(issues, severity >= warning)
+  | compact
+
+graph IssueTracker(input: ProjectContext, output: FormattedReport, budget: 14k) {
+  IssueAnalyzer -> ReportFormatter -> done
+}

@@ -1,0 +1,79 @@
+name: Benchmark Bug Report
+description: Report a bug found during benchmark runs
+title: "[BENCH] "
+labels: ["benchmark", "bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to report bugs discovered while running the Graft compiler benchmarks.
+
+  - type: input
+    id: benchmark-file
+    attributes:
+      label: Benchmark File
+      description: Which .gft benchmark file triggered the bug?
+      placeholder: benchmarks/basic_arithmetic.gft
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What should the compiler produce for this benchmark?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What did the compiler actually produce?
+    validations:
+      required: true
+
+  - type: textarea
+    id: error-output
+    attributes:
+      label: Error Output
+      description: Paste the full error output or diff from the benchmark run.
+      render: shell
+    validations:
+      required: false
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is this bug?
+      options:
+        - critical
+        - medium
+        - low
+    validations:
+      required: true
+
+  - type: dropdown
+    id: compiler-phase
+    attributes:
+      label: Compiler Phase
+      description: Which compiler phase is affected?
+      options:
+        - lexer
+        - parser
+        - analyzer
+        - codegen
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Reproduction Steps
+      description: Step-by-step instructions to reproduce the bug.
+      value: |
+        1. Run `npm run bench`
+        2. ...
+    validations:
+      required: true

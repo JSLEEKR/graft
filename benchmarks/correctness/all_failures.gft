@@ -1,0 +1,108 @@
+// AllFailures: exercises every failure strategy on different nodes
+
+context MigrationSpec(max_tokens: 1k) {
+  source_schema: String
+  target_schema: String
+  data_volume: Int
+}
+
+// retry(N) strategy
+node SchemaValidator(model: sonnet, budget: 3k/1k) {
+  reads: [MigrationSpec]
+  on_failure: retry(2)
+
+  produces ValidationResult {
+    valid: Bool
+    errors: List<String>
+  }
+}
+
+// fallback(NodeName) strategy
+node PrimaryMigrator(model: opus, budget: 6k/3k) {
+  reads: [MigrationSpec, ValidationResult]
+  tools: [file_read, file_write]
+  on_failure: fallback(FallbackMigrator)
+
+  produces MigrationResult {
+    success: Bool
+    changes: List<FileDiff>
+    rows_affected: Int
+  }
+}
+
+// The fallback node for PrimaryMigrator
+node FallbackMigrator(model: sonnet, budget: 4k/2k) {
+  reads: [MigrationSpec, ValidationResult]
+  tools: [file_read, file_write]
+
+  produces MigrationResult {
+    success: Bool
+    changes: List<FileDiff>
+    rows_affected: Int
+  }
+}
+
+// retry(N, fallback(NodeName)) combined strategy
+node DataVerifier(model: sonnet, budget: 4k/2k) {
+  reads: [MigrationResult]
+  tools: [test_run]
+  on_failure: retry(2, fallback(ManualVerifier))
+
+  produces VerificationResult {
+    passed: Bool
+    mismatches: List<String>
+    sample_checks: Int
+  }
+}
+
+// The fallback node for DataVerifier
+node ManualVerifier(model: opus, budget: 5k/2k) {
+  reads: [MigrationResult]
+  tools: [file_read]
+
+  produces VerificationResult {
+    passed: Bool
+    mismatches: List<String>
+    sample_checks: Int
+  }
+}
+
+// skip strategy
+node ReportGenerator(model: haiku, budget: 2k/1k) {
+  reads: [VerificationResult]
+  on_failure: skip
+
+  produces MigrationReport {
+    summary: String
+    detailed: Bool
+  }
+}
+
+// abort strategy
+node FinalAudit(model: opus, budget: 3k/1k) {
+  reads: [MigrationResult, VerificationResult]
+  on_failure: abort
+
+  produces AuditRecord {
+    audit_passed: Bool
+    timestamp: String
+    notes: String
+  }
+}
+
+edge SchemaValidator -> PrimaryMigrator
+  | compact
+
+edge PrimaryMigrator -> DataVerifier
+  | select(success)
+  | select(changes)
+
+edge DataVerifier -> ReportGenerator
+  | drop(sample_checks)
+
+edge DataVerifier -> FinalAudit
+  | compact
+
+graph DatabaseMigration(input: MigrationSpec, output: AuditRecord, budget: 40k) {
+  SchemaValidator -> PrimaryMigrator -> DataVerifier -> ReportGenerator -> FinalAudit -> done
+}

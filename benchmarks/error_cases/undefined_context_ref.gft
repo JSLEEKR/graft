@@ -1,0 +1,18 @@
+// Error case: edge references an undeclared context
+// Expected error: scope error for undefined context reference
+
+context Input(max_tokens: 500) {
+  text: String
+}
+
+node Worker(model: sonnet, budget: 2k/1k) {
+  reads: [MissingContext]
+
+  produces Output {
+    result: String
+  }
+}
+
+graph Pipeline(input: Input, output: Output, budget: 5k) {
+  Worker -> done
+}

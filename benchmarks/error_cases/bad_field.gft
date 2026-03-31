@@ -1,0 +1,32 @@
+// Error case: edge select references a field that does not exist on the source produces
+// Expected error: type error — 'nonexistent_field' does not exist in AnalysisResult
+
+context CodeInput(max_tokens: 1k) {
+  source_code: String
+  language: String
+}
+
+node Analyzer(model: sonnet, budget: 3k/1k) {
+  reads: [CodeInput]
+
+  produces AnalysisResult {
+    complexity: Int
+    issues: List<String>
+  }
+}
+
+node Reporter(model: haiku, budget: 1k/500) {
+  reads: [AnalysisResult]
+
+  produces Report {
+    summary: String
+  }
+}
+
+edge Analyzer -> Reporter
+  | select(nonexistent_field)
+  | compact
+
+graph BadFieldGraph(input: CodeInput, output: Report, budget: 6k) {
+  Analyzer -> Reporter -> done
+}

@@ -1,0 +1,68 @@
+// APIDesignReview: routes API proposals to different reviewers based on risk assessment
+
+context APIProposal(max_tokens: 1500) {
+  endpoint: String
+  method: enum(GET, POST, PUT, DELETE, PATCH)
+  description: String
+  breaking_change: Bool
+}
+
+node RiskAssessor(model: sonnet, budget: 3k/1k) {
+  reads: [APIProposal]
+
+  produces RiskAssessment {
+    risk_score: Float(0..1)
+    breaking: Bool
+    concerns: List<String>
+  }
+}
+
+node DetailedReviewer(model: opus, budget: 6k/3k) {
+  reads: [APIProposal, RiskAssessment]
+  on_failure: retry(2)
+
+  produces DetailedReview {
+    approved: Bool
+    required_changes: List<String>
+    migration_plan: String
+  }
+}
+
+node StandardReviewer(model: sonnet, budget: 3k/1500) {
+  reads: [APIProposal, RiskAssessment]
+
+  produces StandardReview {
+    approved: Bool
+    comments: List<String>
+  }
+}
+
+node AutoApprove(model: haiku, budget: 1k/500) {
+  reads: [RiskAssessment]
+
+  produces AutoApproval {
+    approved: Bool
+    note: String
+  }
+}
+
+edge RiskAssessor -> {
+  when risk_score > 0.7 -> DetailedReviewer
+  when risk_score > 0.3 -> StandardReviewer
+  else -> AutoApprove
+}
+
+edge RiskAssessor -> DetailedReviewer
+  | compact
+
+edge RiskAssessor -> StandardReviewer
+  | select(risk_score)
+  | select(concerns)
+
+edge RiskAssessor -> AutoApprove
+  | select(risk_score)
+  | compact
+
+graph APIDesignReview(input: APIProposal, output: DetailedReview, budget: 15k) {
+  RiskAssessor -> DetailedReviewer -> done
+}

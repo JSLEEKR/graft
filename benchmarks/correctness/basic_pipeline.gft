@@ -1,0 +1,36 @@
+// BugTriage: a two-node pipeline that classifies a bug report and assigns priority
+
+context BugReport(max_tokens: 800) {
+  title: String
+  description: String
+  stack_trace: Optional<String>
+}
+
+node Classifier(model: sonnet, budget: 2k/1k) {
+  reads: [BugReport]
+
+  produces Classification {
+    category: enum(crash, regression, feature_request, performance, security)
+    priority: enum(p0, p1, p2, p3)
+    confidence: Float(0..1)
+  }
+}
+
+node Assigner(model: haiku, budget: 1k/500) {
+  reads: [Classification]
+
+  produces Assignment {
+    team: String
+    suggested_owner: String
+    reason: String
+  }
+}
+
+edge Classifier -> Assigner
+  | select(category)
+  | select(priority)
+  | compact
+
+graph BugTriage(input: BugReport, output: Assignment, budget: 5k) {
+  Classifier -> Assigner -> done
+}

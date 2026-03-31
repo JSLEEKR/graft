@@ -1,0 +1,14 @@
+// Error case: no graph declaration
+// Expected error: "No graph declaration found"
+
+context Input(max_tokens: 500) {
+  text: String
+}
+
+node Processor(model: sonnet, budget: 2k/1k) {
+  reads: [Input]
+
+  produces Output {
+    result: String
+  }
+}

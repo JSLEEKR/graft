@@ -1,0 +1,18 @@
+// Error case: reads references a context that does not exist
+// Expected error: scope error — 'NonExistentContext' is not declared
+
+context UserInput(max_tokens: 500) {
+  query: String
+}
+
+node Processor(model: sonnet, budget: 2k/1k) {
+  reads: [NonExistentContext]
+
+  produces Result {
+    answer: String
+  }
+}
+
+graph BadRefGraph(input: UserInput, output: Result, budget: 4k) {
+  Processor -> done
+}
