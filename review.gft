@@ -1,0 +1,221 @@
+// review.gft — Code Review Pipeline
+// Graft Language Example
+
+import memory ProductKB from "./knowledge/product.mem"
+
+// ─────────────────────────────────────────────
+// Context Declarations
+// ─────────────────────────────────────────────
+
+context CodebaseMap : Indexed {
+  source: ProductKB
+  retrieval: graph_traverse(start: "current_feature", hops: 2)
+  max_tokens: 3000
+  lifetime: session
+}
+
+context TaskSpec : Structured {
+  schema {
+    description: String
+    acceptance_criteria: List<String>
+    related_issues: List<IssueRef>
+  }
+  max_tokens: 1000
+  lifetime: graph
+}
+
+context ReviewStandards : Structured {
+  schema {
+    style_guide: String
+    security_checklist: List<String>
+    performance_thresholds: Map<String, Float>
+  }
+  max_tokens: 800
+  lifetime: persistent
+}
+
+// ─────────────────────────────────────────────
+// Node Declarations
+// ─────────────────────────────────────────────
+
+node Planner {
+  model: sonnet
+  reads: [TaskSpec, CodebaseMap]
+
+  produces: Plan {
+    schema {
+      steps: List<Step {
+        action: enum(create, modify, delete, test)
+        target: FilePath
+        description: TokenBounded<String, 100>
+        estimated_complexity: enum(low, medium, high)
+      }>
+      total_complexity: enum(low, medium, high)
+    }
+  }
+
+  tools: [file_read]
+  budget { input: 5000, output: 1500 }
+}
+
+node Implementer {
+  model: sonnet
+  reads: [Plan.steps[current], CodebaseMap]
+
+  produces: Implementation {
+    schema {
+      files_changed: List<FileDiff>
+      tests_added: List<TestFile>
+      notes: Optional<TokenBounded<String, 200>>
+    }
+  }
+
+  tools: [file_read, file_write, terminal]
+  budget { input: 8000, output: 4000 }
+  on_failure: retry(max: 2)
+}
+
+node Verifier {
+  model: haiku
+  reads: [Implementation.files_changed, TaskSpec.acceptance_criteria]
+
+  produces: VerificationResult {
+    schema {
+      passed: Bool
+      test_results: List<TestResult {
+        name: String
+        passed: Bool
+        error: Optional<String>
+      }>
+      lint_issues: List<LintIssue>
+      suggestions: Optional<List<TokenBounded<String, 50>>>
+    }
+  }
+
+  tools: [terminal, file_read]
+  budget { input: 3000, output: 500 }
+}
+
+node SecurityReviewer {
+  model: sonnet
+  reads: [Implementation.files_changed, ReviewStandards.security_checklist]
+
+  produces: SecurityReport {
+    schema {
+      vulnerabilities: List<Vulnerability {
+        severity: enum(low, medium, high, critical)
+        file: FilePath
+        description: TokenBounded<String, 80>
+        fix_suggestion: TokenBounded<String, 80>
+      }>
+      overall_risk: enum(safe, caution, danger)
+    }
+  }
+
+  tools: [file_read]
+  budget { input: 4000, output: 1000 }
+}
+
+node Aggregator {
+  model: haiku
+  reads: [
+    Verifier.output,
+    SecurityReviewer.output
+  ]
+
+  produces: FinalReport {
+    schema {
+      status: enum(approved, needs_changes, rejected)
+      summary: TokenBounded<String, 300>
+      action_items: List<TokenBounded<String, 50>>
+    }
+  }
+
+  budget { input: 3000, output: 800 }
+}
+
+// ─────────────────────────────────────────────
+// Edge Declarations
+// ─────────────────────────────────────────────
+
+edge Planner -> Implementer {
+  // Implementer는 현재 스텝만 필요 (foreach에서 자동 처리)
+  transform {
+    format: compact
+  }
+}
+
+edge Implementer -> Verifier {
+  transform {
+    select: files_changed
+    drop: notes
+    format: compact
+  }
+}
+
+edge Implementer -> SecurityReviewer {
+  transform {
+    select: files_changed
+    drop: tests_added
+    drop: notes
+    format: compact
+  }
+}
+
+edge Verifier -> Aggregator {
+  transform {
+    select: test_results where passed == false
+    select: lint_issues
+    format: compact
+  }
+  // 통과한 테스트는 Aggregator에게 전달하지 않음 → 토큰 절약
+}
+
+edge SecurityReviewer -> Aggregator {
+  transform {
+    select: vulnerabilities where severity >= "medium"
+    select: overall_risk
+    format: compact
+  }
+}
+
+// ─────────────────────────────────────────────
+// Graph Declaration
+// ─────────────────────────────────────────────
+
+graph CodeReviewPipeline {
+  input: TaskSpec
+  output: FinalReport
+  budget: 35000 tokens
+
+  flow {
+    Planner
+    -> foreach(Planner.output.steps as current_step, max_iterations: 5) {
+      Implementer(current: current_step)
+      -> parallel {
+        Verifier
+        SecurityReviewer
+      }
+      -> when(!Verifier.output.passed) {
+        Implementer(
+          additional_context: Verifier.output.suggestions,
+          retry: 1
+        )
+        -> Verifier
+      }
+    }
+    -> Aggregator
+    -> done
+  }
+
+  shared_context: [ReviewStandards]
+
+  on_complete {
+    store Aggregator.output -> ProductKB as pattern(
+      "code_review",
+      complexity: Planner.output.total_complexity,
+      result: Aggregator.output.status
+    )
+    emit token_report
+  }
+}

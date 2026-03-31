@@ -1,0 +1,55 @@
+// hello.gft — Minimal Graft Example
+// 가장 간단한 2-노드 파이프라인
+
+context UserRequest : Structured {
+  schema {
+    question: String
+  }
+  max_tokens: 500
+  lifetime: graph
+}
+
+node Researcher {
+  model: sonnet
+  reads: [UserRequest]
+
+  produces: Research {
+    schema {
+      findings: List<String>
+      confidence: Float(0..1)
+    }
+  }
+
+  budget { input: 2000, output: 1000 }
+}
+
+node Writer {
+  model: haiku
+  reads: [Research.findings]  // findings만 읽음, confidence는 불필요
+
+  produces: Answer {
+    schema {
+      response: String
+    }
+  }
+
+  budget { input: 1500, output: 800 }
+}
+
+edge Researcher -> Writer {
+  transform {
+    select: findings
+    drop: confidence
+    format: compact
+  }
+}
+
+graph SimpleQA {
+  input: UserRequest
+  output: Answer
+  budget: 6000 tokens
+
+  flow {
+    Researcher -> Writer -> done
+  }
+}
