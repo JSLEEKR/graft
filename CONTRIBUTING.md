@@ -1,56 +1,56 @@
 # Contributing to Graft
 
-Graft는 초기 설계 단계입니다. 모든 형태의 기여를 환영합니다.
+Graft is in its early design phase. All forms of contribution are welcome.
 
-## 현재 기여 가능한 영역
+## Areas Open for Contribution
 
-### 1. Language Design (가장 임팩트 있음)
-- 문법 개선 제안 (RFC 형태)
-- 타입 시스템 확장
-- 새로운 추상화 제안
-- 기존 설계의 edge case 발견
+### 1. Language Design (highest impact)
+- Grammar improvement proposals (RFC format)
+- Type system extensions
+- New abstraction proposals
+- Discovering edge cases in existing design
 
 ### 2. Specification
-- 명세서의 모호한 부분 명확화
-- 예제 추가
-- 다른 언어/시스템과의 비교 분석
+- Clarifying ambiguous parts of the spec
+- Adding examples
+- Comparative analysis with other languages/systems
 
-### 3. Compiler (향후)
-- Parser 구현
-- AST 정의
+### 3. Compiler (future)
+- Parser implementation
+- AST definition
 - Token Flow Analyzer
-- Claude Code 백엔드 코드 생성기
+- Claude Code backend code generator
 
 ### 4. Benchmarks
-- 기존 멀티에이전트 방식 대비 토큰 절감률 측정
-- 다양한 도메인에서의 Graft 효과 검증
-- 컴파일 시간 벤치마크
+- Measuring token savings vs. existing multi-agent approaches
+- Validating Graft effectiveness across various domains
+- Compilation time benchmarks
 
 ### 5. Documentation
-- 튜토리얼 작성
-- 도메인별 예제 (.gft 파일)
+- Writing tutorials
+- Domain-specific examples (.gft files)
 - FAQ
 
 ## RFC Process
 
-언어 설계 변경은 RFC(Request for Comments)를 통해 진행합니다:
+Language design changes go through an RFC (Request for Comments) process:
 
-1. `docs/rfcs/` 디렉토리에 `NNNN-제목.md` 파일 생성
-2. 문제 정의, 제안, 대안, 트레이드오프를 기술
-3. PR 생성
-4. 논의 후 머지 또는 수정
+1. Create a file named `NNNN-title.md` in the `docs/rfcs/` directory
+2. Describe the problem, proposal, alternatives, and trade-offs
+3. Create a PR
+4. Merge or revise after discussion
 
-## Code Style (향후 컴파일러 구현 시)
+## Code Style (for future compiler implementation)
 
-- 언어: 미정 (Rust, Go, TypeScript 중 논의 예정)
-- 테스트: 모든 파서 규칙과 분석기에 대한 유닛 테스트 필수
-- 문서: 공개 API에 대한 문서 필수
+- Language: TBD (Rust, Go, or TypeScript under discussion)
+- Testing: unit tests required for all parser rules and analyzers
+- Documentation: documentation required for all public APIs
 
 ## Issue Labels
 
-- `language-design` — 언어 설계 관련
-- `specification` — 명세서 관련
-- `compiler` — 컴파일러 구현
-- `example` — 예제 파일
-- `question` — 질문/논의
-- `good-first-issue` — 처음 기여자에게 적합
+- `language-design` -- language design topics
+- `specification` -- specification topics
+- `compiler` -- compiler implementation
+- `example` -- example files
+- `question` -- questions/discussions
+- `good-first-issue` -- suitable for first-time contributors
