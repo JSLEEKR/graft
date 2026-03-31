@@ -147,6 +147,69 @@ describe('ScopeChecker', () => {
     // (plus Ghost1 undeclared graph input)
     expect(errors.length).toBeGreaterThanOrEqual(2);
   });
+
+  it('reports error for undeclared node in parallel block', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 1k/500) {
+        reads: [Spec]
+        produces Out { data: String }
+      }
+      node B(model: haiku, budget: 1k/500) {
+        reads: [Spec]
+        produces Out2 { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) {
+        parallel { A, B, GhostNode } -> done
+      }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    const ghostError = errors.find(e => e.message.includes('GhostNode'));
+    expect(ghostError).toBeDefined();
+  });
+
+  it('reports error for undeclared foreach source node', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 1k/500) {
+        reads: [Spec]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) {
+        foreach(GhostSource.output.data as item, max_iterations: 3) {
+          A
+        } -> done
+      }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    const srcError = errors.find(e => e.message.includes('GhostSource'));
+    expect(srcError).toBeDefined();
+  });
+
+  it('reports error for missing field in foreach source produces', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node Planner(model: sonnet, budget: 1k/500) {
+        reads: [Spec]
+        produces Plan { steps: List<String> }
+      }
+      node Worker(model: haiku, budget: 1k/500) {
+        reads: [Plan]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) {
+        Planner -> foreach(Planner.output.nonexistent as item, max_iterations: 3) {
+          Worker
+        } -> done
+      }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    const fieldError = errors.find(e => e.message.includes('nonexistent'));
+    expect(fieldError).toBeDefined();
+  });
 });
 
 describe('TypeChecker', () => {
@@ -215,6 +278,50 @@ describe('TypeChecker', () => {
     expect(errors.length).toBeGreaterThan(0);
     expect(errors[0].message).toContain('ghost_field');
   });
+
+  it('validates multi-field select against source produces', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out {
+          findings: List<String>
+          score: Float(0..1)
+        }
+      }
+      node B(model: haiku, budget: 1k/500) {
+        reads: [Out]
+        produces Final { result: String }
+      }
+      edge A -> B
+        | select(findings, score)
+      graph G(input: Spec, output: Final, budget: 5k) { A -> B -> done }
+    `);
+    const checker = new TypeChecker(program);
+    const errors = checker.check();
+    expect(errors).toEqual([]);
+  });
+
+  it('reports error for multi-field select with non-existent field', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out { findings: List<String> }
+      }
+      node B(model: haiku, budget: 1k/500) {
+        reads: [Out]
+        produces Final { result: String }
+      }
+      edge A -> B
+        | select(findings, ghost)
+      graph G(input: Spec, output: Final, budget: 5k) { A -> B -> done }
+    `);
+    const checker = new TypeChecker(program);
+    const errors = checker.check();
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors[0].message).toContain('ghost');
+  });
 });
 
 describe('TokenEstimator', () => {
@@ -279,5 +386,82 @@ describe('TokenEstimator', () => {
     // BigContext is 5000 tokens, budgetIn is 1000 -- should warn
     const nodeWarning = report.warnings.find(w => w.message.includes('exceeds budgetIn'));
     expect(nodeWarning).toBeDefined();
+  });
+
+  it('estimates parallel as sum of all branch costs', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 1k/500) {
+        reads: [Spec]
+        produces OutA { data: String }
+      }
+      node B(model: haiku, budget: 1k/500) {
+        reads: [Spec]
+        produces OutB { data: String }
+      }
+      graph G(input: Spec, output: OutA, budget: 10k) {
+        parallel { A, B } -> done
+      }
+    `);
+    const estimator = new TokenEstimator(program);
+    const report = estimator.estimate();
+    // A: 500 in + 500 out = 1000; B: 500 in + 500 out = 1000; total = 2000
+    expect(report.bestCase).toBe(2000);
+    expect(report.nodes).toHaveLength(2);
+  });
+
+  it('estimates foreach as best=1x worst=Nx body cost', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node Planner(model: sonnet, budget: 1k/500) {
+        reads: [Spec]
+        produces Plan { steps: List<String> }
+      }
+      node Worker(model: haiku, budget: 1k/500) {
+        reads: [Plan]
+        produces Out { data: String }
+      }
+      edge Planner -> Worker
+      graph G(input: Spec, output: Out, budget: 20k) {
+        Planner -> foreach(Planner.output.steps as step, max_iterations: 3) {
+          Worker
+        } -> done
+      }
+    `);
+    const estimator = new TokenEstimator(program);
+    const report = estimator.estimate();
+    // Planner: 500 in + 500 out = 1000
+    // Worker: 500 in (reads Plan) + 500 out = 1000; body cost = 1000
+    // Best = 1000 (Planner) + 1000 * 1 (foreach best) = 2000
+    // Worst = 1000 (Planner) + 1000 * 3 (foreach worst) = 4000
+    expect(report.bestCase).toBe(2000);
+    expect(report.worstCase).toBe(4000);
+  });
+
+  it('scales multi-field select reduction by field count', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out {
+          a: String
+          b: String
+          c: String
+        }
+      }
+      node B(model: haiku, budget: 1k/500) {
+        reads: [Out]
+        produces Final { result: String }
+      }
+      edge A -> B
+        | select(a, b)
+      graph G(input: Spec, output: Final, budget: 10k) { A -> B -> done }
+    `);
+    const estimator = new TokenEstimator(program);
+    const report = estimator.estimate();
+    // A output = 1000; select(a,b) = 1000 * 0.3 * 2 = 600; B reads Out = 600 in + 500 out
+    const writerNode = report.nodes.find(n => n.name === 'B');
+    expect(writerNode).toBeDefined();
+    expect(writerNode!.estimatedIn).toBe(600);
   });
 });

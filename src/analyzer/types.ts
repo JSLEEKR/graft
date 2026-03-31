@@ -29,11 +29,13 @@ export class TypeChecker {
       for (const transform of edge.transforms) {
         // TODO: condition type compatibility -- e.g., >= on String fields (v2)
         if (transform.type === 'select') {
-          if (!sourceFields.has(transform.field)) {
-            errors.push(new GraftError(
-              `select: field '${transform.field}' does not exist in '${edge.source}' output`,
-              edge.location,
-            ));
+          for (const f of transform.fields) {
+            if (!sourceFields.has(f)) {
+              errors.push(new GraftError(
+                `select: field '${f}' does not exist in '${edge.source}' output`,
+                edge.location,
+              ));
+            }
           }
         } else if (transform.type === 'filter') {
           if (!sourceFields.has(transform.field)) {

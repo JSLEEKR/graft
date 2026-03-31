@@ -1,5 +1,5 @@
-import { Program } from '../parser/ast.js';
-import { GraftError } from '../errors/diagnostics.js';
+import { Program, FlowNode } from '../parser/ast.js';
+import { GraftError, SourceLocation } from '../errors/diagnostics.js';
 
 export class ScopeChecker {
   private program: Program;
@@ -114,13 +114,60 @@ export class ScopeChecker {
         ));
       }
 
-      // Validate flow node names
-      for (const nodeName of graph.flow) {
-        if (!this.nodeNames.has(nodeName)) {
-          errors.push(new GraftError(
-            `Node '${nodeName}' in graph flow is not declared`,
-            graph.location,
-          ));
+      // Walk FlowNode tree
+      this.walkFlowNodes(graph.flow, graph.location, errors);
+    }
+  }
+
+  private walkFlowNodes(nodes: FlowNode[], location: SourceLocation, errors: GraftError[]): void {
+    for (const step of nodes) {
+      switch (step.kind) {
+        case 'node':
+          if (!this.nodeNames.has(step.name)) {
+            errors.push(new GraftError(
+              `Node '${step.name}' in graph flow is not declared`,
+              location,
+            ));
+          }
+          break;
+        case 'parallel':
+          for (const branch of step.branches) {
+            if (!this.nodeNames.has(branch)) {
+              errors.push(new GraftError(
+                `Node '${branch}' in parallel block is not declared`,
+                location,
+              ));
+            }
+          }
+          break;
+        case 'foreach': {
+          // Validate source node exists
+          if (!this.nodeNames.has(step.source)) {
+            errors.push(new GraftError(
+              `Foreach source node '${step.source}' is not declared`,
+              location,
+            ));
+          }
+          // Validate source node produces the referenced field
+          const sourceNode = this.program.nodes.find(n => n.name === step.source);
+          if (sourceNode) {
+            const fieldNames = new Set(sourceNode.produces.fields.map(f => f.name));
+            if (!fieldNames.has(step.field)) {
+              errors.push(new GraftError(
+                `Field '${step.field}' does not exist in '${step.source}' produces output`,
+                location,
+              ));
+            }
+          }
+          if (step.maxIterations < 1) {
+            errors.push(new GraftError(
+              'foreach max_iterations must be at least 1',
+              location,
+            ));
+          }
+          // Recurse into body
+          this.walkFlowNodes(step.body, location, errors);
+          break;
         }
       }
     }

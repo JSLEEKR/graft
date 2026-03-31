@@ -1,5 +1,5 @@
-import { Program } from '../parser/ast.js';
-import { TokenReport } from '../analyzer/estimator.js';
+import { Program, FlowNode } from '../parser/ast.js';
+import { TokenReport, NodeTokenReport } from '../analyzer/estimator.js';
 
 export function generateOrchestration(program: Program, report: TokenReport): string {
   const graph = program.graphs[0];
@@ -12,31 +12,7 @@ export function generateOrchestration(program: Program, report: TokenReport): st
     }
   }
 
-  let steps = '';
-  for (let i = 0; i < graph.flow.length; i++) {
-    const nodeName = graph.flow[i];
-    const nodeReport = report.nodes.find(n => n.name === nodeName);
-    const lowerName = nodeName.toLowerCase();
-
-    let inputSource = '';
-    if (i > 0) {
-      const prevNode = graph.flow[i - 1];
-      const hasTransform = edgeMap.has(`${prevNode}->${nodeName}`);
-      if (hasTransform) {
-        inputSource = `\n- Input: \`.graft/session/node_outputs/${prevNode.toLowerCase()}_to_${lowerName}.json\``;
-      } else {
-        inputSource = `\n- Input: \`.graft/session/node_outputs/${prevNode.toLowerCase()}.json\``;
-      }
-    }
-
-    steps += `
-### Step ${i + 1}: ${nodeName} [sequential]
-- Agent: ${lowerName}${inputSource}
-- Expected tokens: input ~${nodeReport?.estimatedIn.toLocaleString('en-US') || '?'} / output ~${nodeReport?.estimatedOut.toLocaleString('en-US') || '?'}
-- Completion: \`===NODE_COMPLETE:${lowerName}===\`
-- Output: \`.graft/session/node_outputs/${lowerName}.json\`
-`;
-  }
+  const { text: steps } = generateSteps(graph.flow, report, edgeMap, 1, null);
 
   return `# Graft Orchestration: ${graph.name}
 
@@ -59,4 +35,88 @@ Check \`.graft/token_log.txt\` after each step.
 - Token overrun: switch to compact mode, then skip non-critical steps
 - Complete failure: intermediate results preserved in \`.graft/session/\`
 `;
+}
+
+function generateSteps(
+  flow: FlowNode[],
+  report: TokenReport,
+  edgeMap: Map<string, boolean>,
+  startStep: number,
+  prevNode: string | null,
+): { text: string; nextStep: number; lastNode: string | null } {
+  let text = '';
+  let stepNum = startStep;
+  let prev = prevNode;
+
+  for (const step of flow) {
+    switch (step.kind) {
+      case 'node': {
+        const lowerName = step.name.toLowerCase();
+        const nodeReport = report.nodes.find(n => n.name === step.name);
+
+        let inputSource = '';
+        if (prev) {
+          const hasTransform = edgeMap.has(`${prev}->${step.name}`);
+          if (hasTransform) {
+            inputSource = `\n- Input: \`.graft/session/node_outputs/${prev.toLowerCase()}_to_${lowerName}.json\``;
+          } else {
+            inputSource = `\n- Input: \`.graft/session/node_outputs/${prev.toLowerCase()}.json\``;
+          }
+        }
+
+        text += `
+### Step ${stepNum}: ${step.name} [sequential]
+- Agent: ${lowerName}${inputSource}
+- Expected tokens: input ~${nodeReport?.estimatedIn.toLocaleString('en-US') || '?'} / output ~${nodeReport?.estimatedOut.toLocaleString('en-US') || '?'}
+- Completion: \`===NODE_COMPLETE:${lowerName}===\`
+- Output: \`.graft/session/node_outputs/${lowerName}.json\`
+`;
+        prev = step.name;
+        stepNum++;
+        break;
+      }
+
+      case 'parallel': {
+        const branchList = step.branches.join(', ');
+        text += `
+### Step ${stepNum}: [parallel] ${branchList}
+- Run concurrently, wait for all to complete
+`;
+        for (const branchName of step.branches) {
+          const lowerName = branchName.toLowerCase();
+          const nodeReport = report.nodes.find(n => n.name === branchName);
+          text += `- Agent: ${lowerName} -- tokens: input ~${nodeReport?.estimatedIn.toLocaleString('en-US') || '?'} / output ~${nodeReport?.estimatedOut.toLocaleString('en-US') || '?'}
+`;
+        }
+        text += `- Completion: all ${step.branches.length} \`===NODE_COMPLETE===\` signals received
+`;
+        // After parallel, prev is ambiguous; set to null
+        prev = null;
+        stepNum++;
+        break;
+      }
+
+      case 'foreach': {
+        text += `
+### Step ${stepNum}: [foreach over ${step.source}.output.${step.field}, max ${step.maxIterations} iterations]
+- For each \`${step.binding}\` in list:
+`;
+        let subLetter = 'a';
+        for (const bodyStep of step.body) {
+          if (bodyStep.kind === 'node') {
+            text += `  - Sub-step ${stepNum}${subLetter}: ${bodyStep.name} [foreach-body]
+`;
+            subLetter = String.fromCharCode(subLetter.charCodeAt(0) + 1);
+          }
+        }
+        text += `- Completion: all iterations done or list exhausted
+`;
+        prev = null;
+        stepNum++;
+        break;
+      }
+    }
+  }
+
+  return { text, nextStep: stepNum, lastNode: prev };
 }

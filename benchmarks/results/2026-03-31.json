@@ -1,15 +1,15 @@
 {
-  "timestamp": "2026-03-31T14:49:46.879Z",
+  "timestamp": "2026-03-31T15:29:09.392Z",
   "compiler_version": "0.1.0",
-  "total": 14,
-  "passed": 14,
+  "total": 16,
+  "passed": 16,
   "failed": 0,
   "results": [
     {
       "name": "all_failures",
       "category": "correctness",
       "status": "pass",
-      "duration_ms": 11.84,
+      "duration_ms": 12.25,
       "tokens_best": 17070,
       "tokens_worst": 25610,
       "tokens_budget": 40000,
@@ -20,7 +20,7 @@
       "name": "all_types",
       "category": "correctness",
       "status": "pass",
-      "duration_ms": 0.61,
+      "duration_ms": 0.58,
       "tokens_best": 6056,
       "tokens_worst": 6056,
       "tokens_budget": 12000,
@@ -31,7 +31,7 @@
       "name": "basic_pipeline",
       "category": "correctness",
       "status": "pass",
-      "duration_ms": 0.22,
+      "duration_ms": 0.25,
       "tokens_best": 2362,
       "tokens_worst": 2362,
       "tokens_budget": 5000,
@@ -42,7 +42,7 @@
       "name": "conditional_edge",
       "category": "correctness",
       "status": "pass",
-      "duration_ms": 0.46,
+      "duration_ms": 0.6,
       "tokens_best": 7700,
       "tokens_worst": 18100,
       "tokens_budget": 15000,
@@ -50,10 +50,21 @@
       "errors": []
     },
     {
+      "name": "foreach_flow",
+      "category": "correctness",
+      "status": "pass",
+      "duration_ms": 0.35,
+      "tokens_best": 7109,
+      "tokens_worst": 57745,
+      "tokens_budget": 40000,
+      "file_count": 9,
+      "errors": []
+    },
+    {
       "name": "inline_structs",
       "category": "correctness",
       "status": "pass",
-      "duration_ms": 0.26,
+      "duration_ms": 0.29,
       "tokens_best": 8400,
       "tokens_worst": 8400,
       "tokens_budget": 14000,
@@ -64,7 +75,7 @@
       "name": "multi_node",
       "category": "correctness",
       "status": "pass",
-      "duration_ms": 0.31,
+      "duration_ms": 0.22,
       "tokens_best": 23194,
       "tokens_worst": 34248,
       "tokens_budget": 30000,
@@ -72,10 +83,21 @@
       "errors": []
     },
     {
+      "name": "parallel_flow",
+      "category": "correctness",
+      "status": "pass",
+      "duration_ms": 0.25,
+      "tokens_best": 10445,
+      "tokens_worst": 10445,
+      "tokens_budget": 20000,
+      "file_count": 11,
+      "errors": []
+    },
+    {
       "name": "bad_field",
       "category": "error_cases",
       "status": "pass",
-      "duration_ms": 0.12,
+      "duration_ms": 0.08,
       "errors": [
         "select: field 'nonexistent_field' does not exist in 'Analyzer' output"
       ]
@@ -84,7 +106,7 @@
       "name": "bad_ref",
       "category": "error_cases",
       "status": "pass",
-      "duration_ms": 0.05,
+      "duration_ms": 0.06,
       "errors": [
         "'NonExistentContext' is not declared as a context or produces output"
       ]
@@ -93,7 +115,7 @@
       "name": "missing_graph",
       "category": "error_cases",
       "status": "pass",
-      "duration_ms": 0.05,
+      "duration_ms": 0.03,
       "errors": [
         "No graph declaration found"
       ]
@@ -102,7 +124,7 @@
       "name": "no_graph",
       "category": "error_cases",
       "status": "pass",
-      "duration_ms": 0.06,
+      "duration_ms": 0.04,
       "errors": [
         "No graph declaration found"
       ]
@@ -111,7 +133,7 @@
       "name": "over_budget",
       "category": "error_cases",
       "status": "pass",
-      "duration_ms": 0.18,
+      "duration_ms": 0.14,
       "tokens_best": 33300,
       "tokens_worst": 53300,
       "tokens_budget": 10000,
@@ -126,7 +148,7 @@
       "name": "syntax_error",
       "category": "error_cases",
       "status": "pass",
-      "duration_ms": 0.08,
+      "duration_ms": 0.07,
       "errors": [
         "Expected 'Colon', got 'Processor' (Identifier)"
       ]
@@ -135,7 +157,7 @@
       "name": "undefined_context_ref",
       "category": "error_cases",
       "status": "pass",
-      "duration_ms": 0.07,
+      "duration_ms": 0.04,
       "errors": [
         "'MissingContext' is not declared as a context or produces output"
       ]
@@ -144,7 +166,7 @@
       "name": "undefined_node_ref",
       "category": "error_cases",
       "status": "pass",
-      "duration_ms": 0.06,
+      "duration_ms": 0.03,
       "errors": [
         "Node 'MissingNode' in graph flow is not declared"
       ]

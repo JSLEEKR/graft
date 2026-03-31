@@ -1,0 +1,56 @@
+// foreach_flow.gft — Tests foreach iteration in graph flow
+// Planner produces steps, each step goes through Implementer -> Verifier
+
+context TaskSpec(max_tokens: 1k) {
+  description: String
+  acceptance_criteria: List<String>
+}
+
+node Planner(model: sonnet, budget: 4k/2k) {
+  reads: [TaskSpec]
+
+  produces Plan {
+    steps: List<Step {
+      action: enum(create, modify, delete, test)
+      target: FilePath
+      description: TokenBounded<String, 100>
+    }>
+    complexity: enum(low, medium, high)
+  }
+}
+
+node Implementer(model: sonnet, budget: 6k/3k) {
+  reads: [Plan.steps]
+  tools: [file_read, file_write, terminal]
+  on_failure: retry(2)
+
+  produces Implementation {
+    files_changed: List<FileDiff>
+    notes: Optional<String>
+  }
+}
+
+node Verifier(model: haiku, budget: 2k/500) {
+  reads: [Implementation.files_changed]
+  tools: [terminal]
+
+  produces Verification {
+    passed: Bool
+    failures: Optional<List<String>>
+  }
+}
+
+edge Planner -> Implementer
+  | compact
+
+edge Implementer -> Verifier
+  | select(files_changed)
+  | compact
+
+graph IterativeImpl(input: TaskSpec, output: Verification, budget: 40k) {
+  Planner
+  -> foreach(Planner.output.steps as step, max_iterations: 5) {
+    Implementer -> Verifier
+  }
+  -> done
+}

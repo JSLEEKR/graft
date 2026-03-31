@@ -54,13 +54,20 @@ export interface ConditionalBranch {
   target: string;
 }
 
+// Flow control nodes (v1.1)
+export type FlowNode =
+  | { kind: 'node'; name: string }
+  | { kind: 'parallel'; branches: string[] }
+  | { kind: 'foreach'; source: string; field: string; binding: string;
+      maxIterations: number; body: FlowNode[] };
+
 // graph SimpleQA(...) { Researcher -> Writer -> done }
 export interface GraphDecl {
   name: string;
   input: string;
   output: string;
   budget: number;
-  flow: string[];  // v1: sequential node names, 'done' excluded
+  flow: FlowNode[];
   location: SourceLocation;
 }
 
@@ -99,7 +106,7 @@ export interface Condition {
 
 // Transform operations on edges
 export type Transform =
-  | { type: 'select'; field: string }
+  | { type: 'select'; fields: string[] }
   | { type: 'filter'; field: string; condition: Condition }
   | { type: 'drop'; field: string }
   | { type: 'compact' }

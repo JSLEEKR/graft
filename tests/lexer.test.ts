@@ -27,6 +27,26 @@ describe('Lexer', () => {
     expect(tokens[1].type).toBe(TokenType.MaxTokens);
   });
 
+  it('tokenizes parallel keyword', () => {
+    const tokens = new Lexer('parallel').tokenize();
+    expect(tokens[0]).toMatchObject({ type: TokenType.Parallel, value: 'parallel' });
+  });
+
+  it('tokenizes foreach keyword', () => {
+    const tokens = new Lexer('foreach').tokenize();
+    expect(tokens[0]).toMatchObject({ type: TokenType.Foreach, value: 'foreach' });
+  });
+
+  it('tokenizes as keyword', () => {
+    const tokens = new Lexer('as').tokenize();
+    expect(tokens[0]).toMatchObject({ type: TokenType.As, value: 'as' });
+  });
+
+  it('tokenizes max_iterations keyword', () => {
+    const tokens = new Lexer('max_iterations').tokenize();
+    expect(tokens[0]).toMatchObject({ type: TokenType.MaxIterations, value: 'max_iterations' });
+  });
+
   // --- Identifiers ---
 
   it('tokenizes identifiers', () => {

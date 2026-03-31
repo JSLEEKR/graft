@@ -30,6 +30,10 @@ export enum TokenType {
   Enum = 'Enum',
   True = 'True',
   False = 'False',
+  Parallel = 'Parallel',
+  Foreach = 'Foreach',
+  As = 'As',
+  MaxIterations = 'MaxIterations',
 
   // Type keywords
   String = 'String',
@@ -114,6 +118,10 @@ export const KEYWORDS: Record<string, TokenType> = {
   enum: TokenType.Enum,
   true: TokenType.True,
   false: TokenType.False,
+  parallel: TokenType.Parallel,
+  foreach: TokenType.Foreach,
+  as: TokenType.As,
+  max_iterations: TokenType.MaxIterations,
   String: TokenType.String,
   Int: TokenType.Int,
   Float: TokenType.Float,

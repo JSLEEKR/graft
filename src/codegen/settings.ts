@@ -1,4 +1,4 @@
-import { Program, EdgeDecl } from '../parser/ast.js';
+import { Program, EdgeDecl, FlowNode } from '../parser/ast.js';
 
 // Keep in sync with agents.ts MODEL_MAP
 const MODEL_MAP: Record<string, string> = {
@@ -34,10 +34,29 @@ interface HookEntry {
   command: string;
 }
 
+/**
+ * Find the first 'node'-kind FlowNode name from a FlowNode array.
+ * Returns undefined if no node-kind step exists.
+ */
+function findFirstNodeName(flow: FlowNode[]): string | undefined {
+  for (const step of flow) {
+    switch (step.kind) {
+      case 'node':
+        return step.name;
+      case 'parallel':
+        return step.branches[0];
+      case 'foreach':
+        return findFirstNodeName(step.body);
+    }
+  }
+  return undefined;
+}
+
 export function generateSettings(program: Program, sourceFile: string): GraftSettings {
   const graph = program.graphs[0];
-  const firstNodeModel = graph
-    ? program.nodes.find(n => n.name === graph.flow[0])?.model
+  const firstNodeName = graph ? findFirstNodeName(graph.flow) : undefined;
+  const firstNodeModel = firstNodeName
+    ? program.nodes.find(n => n.name === firstNodeName)?.model
     : undefined;
   const defaultModel = firstNodeModel
     ? (MODEL_MAP[firstNodeModel] || firstNodeModel)

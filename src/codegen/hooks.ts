@@ -50,7 +50,7 @@ function transformsToJq(transforms: Transform[]): string {
   for (const t of transforms) {
     switch (t.type) {
       case 'select':
-        selectFields.push(t.field);
+        selectFields.push(...t.fields);
         break;
       case 'drop':
         dropFields.push(t.field);

@@ -226,7 +226,7 @@ describe('Parser', () => {
       `);
       const edge = program.edges[0];
       expect(edge.transforms).toEqual([
-        { type: 'select', field: 'findings' },
+        { type: 'select', fields: ['findings'] },
         { type: 'drop', field: 'reasoning_trace' },
         { type: 'compact' },
       ]);
@@ -271,6 +271,26 @@ describe('Parser', () => {
         ],
       });
     });
+
+    it('parses multi-field select', () => {
+      const program = parse(`
+        edge A -> B
+          | select(vulnerabilities, risk)
+      `);
+      expect(program.edges[0].transforms).toEqual([
+        { type: 'select', fields: ['vulnerabilities', 'risk'] },
+      ]);
+    });
+
+    it('parses single-field select as fields array', () => {
+      const program = parse(`
+        edge A -> B
+          | select(findings)
+      `);
+      expect(program.edges[0].transforms).toEqual([
+        { type: 'select', fields: ['findings'] },
+      ]);
+    });
   });
 
   describe('graph', () => {
@@ -286,7 +306,58 @@ describe('Parser', () => {
       expect(graph.input).toBe('UserRequest');
       expect(graph.output).toBe('Answer');
       expect(graph.budget).toBe(6000);
-      expect(graph.flow).toEqual(['Researcher', 'Writer']);
+      expect(graph.flow).toEqual([
+        { kind: 'node', name: 'Researcher' },
+        { kind: 'node', name: 'Writer' },
+      ]);
+    });
+
+    it('parses graph with parallel block', () => {
+      const program = parse(`
+        graph G(input: X, output: Y, budget: 10k) {
+          parallel { A B C } -> D -> done
+        }
+      `);
+      const graph = program.graphs[0];
+      expect(graph.flow).toEqual([
+        { kind: 'parallel', branches: ['A', 'B', 'C'] },
+        { kind: 'node', name: 'D' },
+      ]);
+    });
+
+    it('parses graph with parallel block using optional commas', () => {
+      const program = parse(`
+        graph G(input: X, output: Y, budget: 10k) {
+          parallel { A, B, C } -> D -> done
+        }
+      `);
+      const graph = program.graphs[0];
+      expect(graph.flow[0]).toEqual({ kind: 'parallel', branches: ['A', 'B', 'C'] });
+    });
+
+    it('parses graph with foreach block', () => {
+      const program = parse(`
+        graph G(input: X, output: Y, budget: 10k) {
+          Planner -> foreach(Planner.output.steps as step, max_iterations: 5) {
+            Worker -> Checker
+          } -> done
+        }
+      `);
+      const graph = program.graphs[0];
+      expect(graph.flow).toHaveLength(2);
+      expect(graph.flow[0]).toEqual({ kind: 'node', name: 'Planner' });
+      const fe = graph.flow[1];
+      expect(fe.kind).toBe('foreach');
+      if (fe.kind === 'foreach') {
+        expect(fe.source).toBe('Planner');
+        expect(fe.field).toBe('steps');
+        expect(fe.binding).toBe('step');
+        expect(fe.maxIterations).toBe(5);
+        expect(fe.body).toEqual([
+          { kind: 'node', name: 'Worker' },
+          { kind: 'node', name: 'Checker' },
+        ]);
+      }
     });
 
     it('reports error on graph flow without done terminator', () => {
@@ -295,6 +366,46 @@ describe('Parser', () => {
           X -> Y
         }
       `)).toThrow("Expected '-> done' to terminate graph flow");
+    });
+
+    it('reports error on parallel block with fewer than 2 branches', () => {
+      expect(() => parse(`
+        graph G(input: X, output: Y, budget: 1k) {
+          parallel { A } -> done
+        }
+      `)).toThrow('parallel block must contain at least 2 branches');
+    });
+
+    it('reports error on done inside foreach body', () => {
+      expect(() => parse(`
+        graph G(input: X, output: Y, budget: 1k) {
+          foreach(A.output.b as c, max_iterations: 1) {
+            D -> done
+          } -> done
+        }
+      `)).toThrow("'done' is not allowed inside a foreach or parallel block");
+    });
+
+    it('reports error on foreach max_iterations < 1', () => {
+      expect(() => parse(`
+        graph G(input: X, output: Y, budget: 1k) {
+          foreach(A.output.b as c, max_iterations: 0) {
+            D
+          } -> done
+        }
+      `)).toThrow('max_iterations must be at least 1');
+    });
+
+    it('reports error on nested foreach', () => {
+      expect(() => parse(`
+        graph G(input: X, output: Y, budget: 1k) {
+          foreach(A.output.b as c, max_iterations: 1) {
+            foreach(D.output.e as f, max_iterations: 1) {
+              G
+            }
+          } -> done
+        }
+      `)).toThrow('Nested parallel or foreach inside foreach is not supported in v1.1');
     });
   });
 
@@ -446,7 +557,7 @@ describe('Parser', () => {
           | drop(output)
       `);
       expect(program.edges[0].transforms).toEqual([
-        { type: 'select', field: 'input' },
+        { type: 'select', fields: ['input'] },
         { type: 'drop', field: 'output' },
       ]);
     });

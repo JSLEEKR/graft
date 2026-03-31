@@ -1,4 +1,4 @@
-import { Program, NodeDecl, EdgeDecl, Transform } from '../parser/ast.js';
+import { Program, NodeDecl, EdgeDecl, Transform, FlowNode } from '../parser/ast.js';
 import { GraftError } from '../errors/diagnostics.js';
 
 export interface NodeTokenReport {
@@ -45,57 +45,14 @@ export class TokenEstimator {
 
     const warnings: GraftError[] = [];
     const nodeReports: NodeTokenReport[] = [];
-    let bestCase = 0;
-    let worstCase = 0;
 
-    for (let i = 0; i < graph.flow.length; i++) {
-      const nodeName = graph.flow[i];
-      const node = this.nodeMap.get(nodeName);
-      if (!node) continue;
+    // Populate node reports (for display)
+    this.collectNodeReports(graph.flow, nodeReports, warnings);
 
-      // Estimate input: sum of reads token costs
-      let estimatedIn = 0;
-      for (const ref of node.reads) {
-        // If reading a context
-        const ctx = this.program.contexts.find(c => c.name === ref.context);
-        if (ctx) {
-          estimatedIn += ref.field ? Math.floor(ctx.maxTokens * 0.3) : ctx.maxTokens;
-          continue;
-        }
-        // If reading a produces output from upstream node
-        const sourceNode = this.program.nodes.find(n => n.produces.name === ref.context);
-        if (sourceNode) {
-          let upstreamTokens = sourceNode.budgetOut;
-          // Check for edge transform reductions
-          const edgeKey = `${sourceNode.name}->${nodeName}`;
-          const edge = this.edgeMap.get(edgeKey);
-          if (edge) {
-            upstreamTokens = this.applyTransformReductions(upstreamTokens, edge.transforms);
-          }
-          estimatedIn += ref.field ? Math.floor(upstreamTokens * 0.3) : upstreamTokens;
-        }
-      }
-
-      // Per-node budgetIn warning (spec: "Warn if estimated > declared")
-      if (estimatedIn > node.budgetIn) {
-        warnings.push(new GraftError(
-          `Node '${nodeName}' estimated input (${estimatedIn}) exceeds budgetIn (${node.budgetIn})`,
-          node.location,
-          'warning',
-        ));
-      }
-
-      const estimatedOut = node.budgetOut;
-      const nodeTokens = estimatedIn + estimatedOut;
-      bestCase += nodeTokens;
-
-      // Worst case: account for retries
-      const retryMultiplier = this.getRetryMultiplier(node);
-      worstCase += nodeTokens * retryMultiplier;
-      // TODO: retry_then_fallback worst-case should include fallback node cost (v2)
-
-      nodeReports.push({ name: nodeName, estimatedIn, estimatedOut });
-    }
+    // Compute best/worst case costs
+    const { best, worst } = this.computeFlowCosts(graph.flow);
+    const bestCase = best;
+    const worstCase = worst;
 
     if (worstCase > graph.budget) {
       warnings.push(new GraftError(
@@ -115,12 +72,121 @@ export class TokenEstimator {
     };
   }
 
+  private collectNodeReports(steps: FlowNode[], reports: NodeTokenReport[], warnings: GraftError[]): void {
+    for (const step of steps) {
+      switch (step.kind) {
+        case 'node': {
+          const node = this.nodeMap.get(step.name);
+          if (!node) break;
+          const estimatedIn = this.getEstimatedIn(step.name, node);
+          if (estimatedIn > node.budgetIn) {
+            warnings.push(new GraftError(
+              `Node '${step.name}' estimated input (${estimatedIn}) exceeds budgetIn (${node.budgetIn})`,
+              node.location,
+              'warning',
+            ));
+          }
+          reports.push({ name: step.name, estimatedIn, estimatedOut: node.budgetOut });
+          break;
+        }
+        case 'parallel':
+          for (const branchName of step.branches) {
+            const node = this.nodeMap.get(branchName);
+            if (!node) continue;
+            const estimatedIn = this.getEstimatedIn(branchName, node);
+            if (estimatedIn > node.budgetIn) {
+              warnings.push(new GraftError(
+                `Node '${branchName}' estimated input (${estimatedIn}) exceeds budgetIn (${node.budgetIn})`,
+                node.location,
+                'warning',
+              ));
+            }
+            reports.push({ name: branchName, estimatedIn, estimatedOut: node.budgetOut });
+          }
+          break;
+        case 'foreach':
+          this.collectNodeReports(step.body, reports, warnings);
+          break;
+      }
+    }
+  }
+
+  private computeFlowCosts(steps: FlowNode[]): { best: number; worst: number } {
+    let best = 0;
+    let worst = 0;
+
+    for (const step of steps) {
+      switch (step.kind) {
+        case 'node': {
+          const node = this.nodeMap.get(step.name);
+          if (!node) break;
+          const cost = this.getNodeCost(step.name, node);
+          const retryMul = this.getRetryMultiplier(node);
+          best += cost;
+          worst += cost * retryMul;
+          break;
+        }
+        case 'parallel': {
+          // Parallel: all branches run. Total tokens = sum of all branches.
+          for (const branchName of step.branches) {
+            const node = this.nodeMap.get(branchName);
+            if (!node) continue;
+            const cost = this.getNodeCost(branchName, node);
+            const retryMul = this.getRetryMultiplier(node);
+            best += cost;
+            worst += cost * retryMul;
+          }
+          break;
+        }
+        case 'foreach': {
+          // Foreach: body runs up to maxIterations times.
+          // Best case = 1 iteration. Worst case = maxIterations iterations.
+          const bodyCosts = this.computeFlowCosts(step.body);
+          best += bodyCosts.best * 1;
+          worst += bodyCosts.worst * step.maxIterations;
+          break;
+        }
+      }
+    }
+
+    return { best, worst };
+  }
+
+  private getNodeCost(nodeName: string, node: NodeDecl): number {
+    return this.getEstimatedIn(nodeName, node) + node.budgetOut;
+  }
+
+  private getEstimatedIn(nodeName: string, node: NodeDecl): number {
+    let estimatedIn = 0;
+    for (const ref of node.reads) {
+      // If reading a context
+      const ctx = this.program.contexts.find(c => c.name === ref.context);
+      if (ctx) {
+        estimatedIn += ref.field ? Math.floor(ctx.maxTokens * 0.3) : ctx.maxTokens;
+        continue;
+      }
+      // If reading a produces output from upstream node
+      const sourceNode = this.program.nodes.find(n => n.produces.name === ref.context);
+      if (sourceNode) {
+        let upstreamTokens = sourceNode.budgetOut;
+        // Check for edge transform reductions
+        const edgeKey = `${sourceNode.name}->${nodeName}`;
+        const edge = this.edgeMap.get(edgeKey);
+        if (edge) {
+          upstreamTokens = this.applyTransformReductions(upstreamTokens, edge.transforms);
+        }
+        estimatedIn += ref.field ? Math.floor(upstreamTokens * 0.3) : upstreamTokens;
+      }
+    }
+    return estimatedIn;
+  }
+
   private applyTransformReductions(tokens: number, transforms: Transform[]): number {
     let result = tokens;
     for (const t of transforms) {
       switch (t.type) {
         case 'select':
-          result = Math.floor(result * 0.3); // keep ~one field
+          result = Math.floor(result * Math.min(0.3 * t.fields.length, 1.0));
           break;
         case 'filter':
           result = Math.floor(result * 0.5); // filter reduces ~50%

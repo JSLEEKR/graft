@@ -6,6 +6,7 @@ import {
   Field, TypeExpr, ContextRef, ProducesDecl,
   Transform, Condition, FailureStrategy,
   EdgeTarget, ConditionalBranch,
+  FlowNode,
 } from './ast.js';
 
 // Build a Set of all keyword token types for O(1) lookup.
@@ -258,9 +259,14 @@ export class Parser {
     if (this.check(TokenType.Select)) {
       this.advance();
       this.expect(TokenType.LParen);
-      const field = this.expectIdentifierOrKeyword();
+      const fields: string[] = [];
+      fields.push(this.expectIdentifierOrKeyword());
+      while (this.check(TokenType.Comma)) {
+        this.advance();
+        fields.push(this.expectIdentifierOrKeyword());
+      }
       this.expect(TokenType.RParen);
-      return { type: 'select', field };
+      return { type: 'select', fields };
     }
     if (this.check(TokenType.Filter)) {
       this.advance();
@@ -369,26 +375,144 @@ export class Parser {
     const budget = this.parseTokenValue();
     this.expect(TokenType.RParen);
 
-    // Body: { Node -> Node -> done }
+    // Body: { FlowNodes -> done }
     this.expect(TokenType.LBrace);
-    const flow: string[] = [];
-    flow.push(this.expectIdentifier());
-    let sawDone = false;
-    while (this.check(TokenType.Arrow)) {
-      this.advance();
-      if (this.check(TokenType.Done)) {
-        this.advance();
-        sawDone = true;
-        break;
-      }
-      flow.push(this.expectIdentifier());
-    }
-    if (!sawDone) {
-      throw this.error("Expected '-> done' to terminate graph flow");
-    }
+    const flow = this.parseFlowNodes(/* insideBlock */ false);
     this.expect(TokenType.RBrace);
 
     return { name, input, output, budget, flow, location: loc };
+  }
+
+  /**
+   * Parse a sequence of flow nodes separated by arrows.
+   * When insideBlock=true, stops when no more arrows (next token should be RBrace).
+   * When insideBlock=false, expects -> done to terminate.
+   */
+  private parseFlowNodes(insideBlock: boolean): FlowNode[] {
+    const steps: FlowNode[] = [];
+
+    // Parse first step
+    steps.push(this.parseFlowNode());
+
+    while (this.check(TokenType.Arrow)) {
+      this.advance(); // consume ->
+
+      // Check for 'done'
+      if (this.check(TokenType.Done)) {
+        this.advance();
+        if (insideBlock) {
+          throw this.error("'done' is not allowed inside a foreach or parallel block");
+        }
+        return steps;
+      }
+
+      // Check for RBrace -- end of foreach body after arrow would be an error
+      if (this.check(TokenType.RBrace)) {
+        throw this.error("Expected flow step after '->'");
+      }
+
+      steps.push(this.parseFlowNode());
+    }
+
+    // If we get here without 'done' at top level, that's an error
+    if (!insideBlock) {
+      throw this.error("Expected '-> done' to terminate graph flow");
+    }
+
+    // insideBlock: we stop when no more arrows (next token should be RBrace)
+    return steps;
+  }
+
+  /**
+   * Parse a single flow node: identifier, parallel block, or foreach block.
+   */
+  private parseFlowNode(): FlowNode {
+    if (this.check(TokenType.Parallel)) {
+      return this.parseParallelStep();
+    }
+    if (this.check(TokenType.Foreach)) {
+      return this.parseForeachStep();
+    }
+    // Regular node reference
+    const name = this.expectIdentifier();
+    return { kind: 'node', name };
+  }
+
+  /**
+   * parallel { SecurityReviewer  PerformanceReviewer  StyleReviewer }
+   *
+   * Branches are whitespace-separated identifiers (no commas required).
+   * Optional commas are accepted for user convenience.
+   */
+  private parseParallelStep(): FlowNode {
+    this.expect(TokenType.Parallel);
+    this.expect(TokenType.LBrace);
+
+    const branches: string[] = [];
+    while (!this.check(TokenType.RBrace)) {
+      if (branches.length > 0 && this.check(TokenType.Comma)) {
+        this.advance(); // optional comma
+      }
+      branches.push(this.expectIdentifier());
+    }
+    this.expect(TokenType.RBrace);
+
+    if (branches.length < 2) {
+      throw this.error('parallel block must contain at least 2 branches');
+    }
+
+    return { kind: 'parallel', branches };
+  }
+
+  /**
+   * foreach(Planner.output.steps as step, max_iterations: 5) {
+   *   Implementer -> Verifier
+   * }
+   */
+  private parseForeachStep(): FlowNode {
+    this.expect(TokenType.Foreach);
+    this.expect(TokenType.LParen);
+
+    // Source: Planner.output.steps
+    const source = this.expectIdentifier();     // "Planner"
+    this.expect(TokenType.Dot);
+    this.expect(TokenType.Output);               // "output" keyword token
+    this.expect(TokenType.Dot);
+    const field = this.expectIdentifierOrKeyword(); // "steps"
+
+    // Binding: as step
+    this.expect(TokenType.As);
+    const binding = this.expectIdentifierOrKeyword(); // "step"
+
+    // max_iterations: 5
+    this.expect(TokenType.Comma);
+    this.expect(TokenType.MaxIterations);
+    this.expect(TokenType.Colon);
+    const maxIterations = this.parseIntValue();
+
+    if (maxIterations < 1) {
+      throw this.error('max_iterations must be at least 1');
+    }
+
+    this.expect(TokenType.RParen);
+
+    // Body: { Implementer -> Verifier }
+    this.expect(TokenType.LBrace);
+    const body = this.parseFlowNodes(/* insideBlock */ true);
+    this.expect(TokenType.RBrace);
+
+    if (body.length === 0) {
+      throw this.error('foreach body must contain at least one step');
+    }
+
+    // v1.1: enforce no nesting (body must contain only 'node' kind entries)
+    for (const step of body) {
+      if (step.kind !== 'node') {
+        throw this.error('Nested parallel or foreach inside foreach is not supported in v1.1');
+      }
+    }
+
+    return { kind: 'foreach', source, field, binding, maxIterations, body };
   }
 
   // --- Types --------------------------------------------------

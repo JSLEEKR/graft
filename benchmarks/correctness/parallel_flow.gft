@@ -1,0 +1,68 @@
+// parallel_flow.gft — Tests parallel execution in graph flow
+// Three reviewers run in parallel, then aggregate
+
+context CodeDiff(max_tokens: 2k) {
+  diff: String
+  files: List<FilePath>
+}
+
+node SecurityReviewer(model: sonnet, budget: 4k/1k) {
+  reads: [CodeDiff]
+  tools: [file_read]
+
+  produces SecurityReport {
+    vulnerabilities: List<String>
+    risk: enum(safe, low, medium, high, critical)
+  }
+}
+
+node PerformanceReviewer(model: haiku, budget: 3k/1k) {
+  reads: [CodeDiff]
+  tools: [file_read]
+
+  produces PerfReport {
+    issues: List<String>
+    impact: enum(none, minor, major)
+  }
+}
+
+node StyleReviewer(model: haiku, budget: 2k/500) {
+  reads: [CodeDiff]
+  tools: [file_read]
+
+  produces StyleReport {
+    violations: List<String>
+    clean: Bool
+  }
+}
+
+node Aggregator(model: haiku, budget: 3k/1k) {
+  reads: [SecurityReport, PerfReport, StyleReport]
+
+  produces FinalReview {
+    approved: Bool
+    blocking: List<String>
+    suggestions: List<String>
+  }
+}
+
+edge SecurityReviewer -> Aggregator
+  | select(vulnerabilities, risk)
+  | compact
+
+edge PerformanceReviewer -> Aggregator
+  | select(issues, impact)
+  | compact
+
+edge StyleReviewer -> Aggregator
+  | select(violations)
+  | compact
+
+graph ParallelReview(input: CodeDiff, output: FinalReview, budget: 20k) {
+  parallel {
+    SecurityReviewer
+    PerformanceReviewer
+    StyleReviewer
+  }
+  -> Aggregator -> done
+}

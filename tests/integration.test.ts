@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { compile } from '../src/compiler.js';
 import { GraftError } from '../src/errors/diagnostics.js';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 const HELLO_GFT = `
 context UserRequest(max_tokens: 500) {
@@ -129,5 +131,24 @@ describe('end-to-end compilation', () => {
     expect(result.success).toBe(false);
     expect(result.errors.length).toBeGreaterThan(0);
     expect(result.errors[0].message).toContain('No graph declaration found');
+  });
+
+  it('compiles parallel_flow.gft end-to-end', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, '../benchmarks/correctness/parallel_flow.gft'), 'utf-8');
+    const result = compile(source, 'parallel_flow.gft');
+    expect(result.success).toBe(true);
+    expect(result.errors).toEqual([]);
+    expect(result.report).toBeDefined();
+    expect(result.report!.nodes.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('compiles foreach_flow.gft end-to-end', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, '../benchmarks/correctness/foreach_flow.gft'), 'utf-8');
+    const result = compile(source, 'foreach_flow.gft');
+    expect(result.success).toBe(true);
+    expect(result.errors).toEqual([]);
+    expect(result.report).toBeDefined();
+    // Foreach best case should be much less than worst case
+    expect(result.report!.worstCase).toBeGreaterThan(result.report!.bestCase);
   });
 });

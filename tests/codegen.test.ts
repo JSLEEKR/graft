@@ -261,7 +261,7 @@ describe('generateHook', () => {
     expect(sh).toContain('del(.debug)');
   });
 
-  it('generates select projection for multiple fields', () => {
+  it('generates select projection for multiple fields via multi-field select', () => {
     const program = parse(`
       context Spec(max_tokens: 500) { name: String }
       node A(model: sonnet, budget: 2k/1k) {
@@ -277,8 +277,7 @@ describe('generateHook', () => {
         produces Final { result: String }
       }
       edge A -> B
-        | select(a)
-        | select(b)
+        | select(a, b)
       graph G(input: Spec, output: Final, budget: 5k) { A -> B -> done }
     `);
     const sh = generateHook(program.edges[0]);
@@ -373,6 +372,76 @@ describe('generateOrchestration', () => {
     };
     const md = generateOrchestration(program, report);
     expect(md).toBe('');
+  });
+
+  it('generates parallel step output', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 1k/500) {
+        reads: [Spec]
+        produces OutA { data: String }
+      }
+      node B(model: haiku, budget: 1k/500) {
+        reads: [Spec]
+        produces OutB { data: String }
+      }
+      node C(model: haiku, budget: 1k/500) {
+        reads: [OutA, OutB]
+        produces Final { result: String }
+      }
+      graph G(input: Spec, output: Final, budget: 10k) {
+        parallel { A, B } -> C -> done
+      }
+    `);
+    const report: TokenReport = {
+      graphName: 'G',
+      budget: 10000,
+      bestCase: 3000,
+      worstCase: 3000,
+      nodes: [
+        { name: 'A', estimatedIn: 500, estimatedOut: 500 },
+        { name: 'B', estimatedIn: 500, estimatedOut: 500 },
+        { name: 'C', estimatedIn: 1000, estimatedOut: 500 },
+      ],
+      warnings: [],
+    };
+    const md = generateOrchestration(program, report);
+    expect(md).toContain('[parallel]');
+    expect(md).toContain('===NODE_COMPLETE===');
+  });
+
+  it('generates foreach step output', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node Planner(model: sonnet, budget: 1k/500) {
+        reads: [Spec]
+        produces Plan { steps: List<String> }
+      }
+      node Worker(model: haiku, budget: 1k/500) {
+        reads: [Plan]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 20k) {
+        Planner -> foreach(Planner.output.steps as step, max_iterations: 5) {
+          Worker
+        } -> done
+      }
+    `);
+    const report: TokenReport = {
+      graphName: 'G',
+      budget: 20000,
+      bestCase: 2000,
+      worstCase: 6000,
+      nodes: [
+        { name: 'Planner', estimatedIn: 500, estimatedOut: 500 },
+        { name: 'Worker', estimatedIn: 500, estimatedOut: 500 },
+      ],
+      warnings: [],
+    };
+    const md = generateOrchestration(program, report);
+    expect(md).toContain('[foreach');
+    expect(md).toContain('max 5 iterations');
+    expect(md).toContain('foreach-body');
   });
 });
 
