@@ -1,0 +1,153 @@
+import { Program, NodeDecl, EdgeDecl, Transform } from '../parser/ast.js';
+import { GraftError } from '../errors/diagnostics.js';
+
+export interface NodeTokenReport {
+  name: string;
+  estimatedIn: number;
+  estimatedOut: number;
+}
+
+export interface TokenReport {
+  graphName: string;
+  budget: number;
+  bestCase: number;
+  worstCase: number;
+  nodes: NodeTokenReport[];
+  warnings: GraftError[];
+}
+
+export class TokenEstimator {
+  private program: Program;
+  private nodeMap: Map<string, NodeDecl>;
+  private edgeMap: Map<string, EdgeDecl>; // "source->target" key
+
+  constructor(program: Program) {
+    this.program = program;
+    this.nodeMap = new Map();
+    this.edgeMap = new Map();
+
+    for (const node of program.nodes) {
+      this.nodeMap.set(node.name, node);
+    }
+    for (const edge of program.edges) {
+      if (edge.target.kind === 'direct') {
+        this.edgeMap.set(`${edge.source}->${edge.target.node}`, edge);
+      }
+      // TODO: store conditional edge branches for token estimation (v2)
+    }
+  }
+
+  estimate(): TokenReport {
+    const graph = this.program.graphs[0]; // v1: single graph
+    if (!graph) {
+      return { graphName: '', budget: 0, bestCase: 0, worstCase: 0, nodes: [], warnings: [] };
+    }
+
+    const warnings: GraftError[] = [];
+    const nodeReports: NodeTokenReport[] = [];
+    let bestCase = 0;
+    let worstCase = 0;
+
+    for (let i = 0; i < graph.flow.length; i++) {
+      const nodeName = graph.flow[i];
+      const node = this.nodeMap.get(nodeName);
+      if (!node) continue;
+
+      // Estimate input: sum of reads token costs
+      let estimatedIn = 0;
+      for (const ref of node.reads) {
+        // If reading a context
+        const ctx = this.program.contexts.find(c => c.name === ref.context);
+        if (ctx) {
+          estimatedIn += ref.field ? Math.floor(ctx.maxTokens * 0.3) : ctx.maxTokens;
+          continue;
+        }
+        // If reading a produces output from upstream node
+        const sourceNode = this.program.nodes.find(n => n.produces.name === ref.context);
+        if (sourceNode) {
+          let upstreamTokens = sourceNode.budgetOut;
+          // Check for edge transform reductions
+          const edgeKey = `${sourceNode.name}->${nodeName}`;
+          const edge = this.edgeMap.get(edgeKey);
+          if (edge) {
+            upstreamTokens = this.applyTransformReductions(upstreamTokens, edge.transforms);
+          }
+          estimatedIn += ref.field ? Math.floor(upstreamTokens * 0.3) : upstreamTokens;
+        }
+      }
+
+      // Per-node budgetIn warning (spec: "Warn if estimated > declared")
+      if (estimatedIn > node.budgetIn) {
+        warnings.push(new GraftError(
+          `Node '${nodeName}' estimated input (${estimatedIn}) exceeds budgetIn (${node.budgetIn})`,
+          node.location,
+          'warning',
+        ));
+      }
+
+      const estimatedOut = node.budgetOut;
+      const nodeTokens = estimatedIn + estimatedOut;
+      bestCase += nodeTokens;
+
+      // Worst case: account for retries
+      const retryMultiplier = this.getRetryMultiplier(node);
+      worstCase += nodeTokens * retryMultiplier;
+      // TODO: retry_then_fallback worst-case should include fallback node cost (v2)
+
+      nodeReports.push({ name: nodeName, estimatedIn, estimatedOut });
+    }
+
+    if (worstCase > graph.budget) {
+      warnings.push(new GraftError(
+        `Worst-case token usage (${worstCase}) exceeds budget (${graph.budget})`,
+        graph.location,
+        'warning',
+      ));
+    }
+
+    return {
+      graphName: graph.name,
+      budget: graph.budget,
+      bestCase,
+      worstCase,
+      nodes: nodeReports,
+      warnings,
+    };
+  }
+
+  private applyTransformReductions(tokens: number, transforms: Transform[]): number {
+    let result = tokens;
+    for (const t of transforms) {
+      switch (t.type) {
+        case 'select':
+          result = Math.floor(result * 0.3); // keep ~one field
+          break;
+        case 'filter':
+          result = Math.floor(result * 0.5); // filter reduces ~50%
+          break;
+        case 'drop':
+          result = Math.floor(result * 0.85); // drop one field ~15% savings
+          break;
+        case 'compact':
+          result = Math.floor(result * 0.7); // compact ~30% reduction
+          break;
+        case 'truncate':
+          result = Math.min(result, t.tokens);
+          break;
+      }
+    }
+    return result;
+  }
+
+  private getRetryMultiplier(node: NodeDecl): number {
+    if (!node.onFailure) return 1;
+    switch (node.onFailure.type) {
+      case 'retry':
+        return 1 + node.onFailure.max;
+      case 'retry_then_fallback':
+        return 1 + node.onFailure.max;
+      default:
+        return 1;
+    }
+  }
+}

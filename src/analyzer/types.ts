@@ -1,0 +1,56 @@
+import { Program } from '../parser/ast.js';
+import { GraftError } from '../errors/diagnostics.js';
+
+export class TypeChecker {
+  private program: Program;
+  private producesFieldsMap: Map<string, Set<string>>; // node name -> produces field names
+
+  constructor(program: Program) {
+    this.program = program;
+    this.producesFieldsMap = new Map();
+
+    for (const node of program.nodes) {
+      const fieldNames = new Set(node.produces.fields.map(f => f.name));
+      this.producesFieldsMap.set(node.name, fieldNames);
+    }
+  }
+
+  check(): GraftError[] {
+    const errors: GraftError[] = [];
+    this.checkEdgeTransforms(errors);
+    return errors;
+  }
+
+  private checkEdgeTransforms(errors: GraftError[]): void {
+    for (const edge of this.program.edges) {
+      const sourceFields = this.producesFieldsMap.get(edge.source);
+      if (!sourceFields) continue; // scope checker will catch this
+
+      for (const transform of edge.transforms) {
+        // TODO: condition type compatibility -- e.g., >= on String fields (v2)
+        if (transform.type === 'select') {
+          if (!sourceFields.has(transform.field)) {
+            errors.push(new GraftError(
+              `select: field '${transform.field}' does not exist in '${edge.source}' output`,
+              edge.location,
+            ));
+          }
+        } else if (transform.type === 'filter') {
+          if (!sourceFields.has(transform.field)) {
+            errors.push(new GraftError(
+              `filter: field '${transform.field}' does not exist in '${edge.source}' output`,
+              edge.location,
+            ));
+          }
+        } else if (transform.type === 'drop') {
+          if (!sourceFields.has(transform.field)) {
+            errors.push(new GraftError(
+              `drop: field '${transform.field}' does not exist in '${edge.source}' output`,
+              edge.location,
+            ));
+          }
+        }
+      }
+    }
+  }
+}
