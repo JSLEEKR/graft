@@ -1,0 +1,4 @@
+# Ensure LF line endings for TypeScript files
+# Prevents CRLF shebang bug: #!/usr/bin/env node\r fails on Unix
+*.ts text eol=lf
+*.js text eol=lf

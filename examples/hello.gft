@@ -1,0 +1,30 @@
+// SimpleQA: a two-node pipeline that researches a question and writes an answer
+
+context UserRequest(max_tokens: 500) {
+  question: String
+}
+
+node Researcher(model: sonnet, budget: 2k/1k) {
+  reads: [UserRequest]
+
+  produces Research {
+    findings: List<String>
+    confidence: Float(0..1)
+  }
+}
+
+node Writer(model: haiku, budget: 1500/800) {
+  reads: [Research.findings]
+
+  produces Answer {
+    response: String
+  }
+}
+
+edge Researcher -> Writer
+  | select(findings)
+  | compact
+
+graph SimpleQA(input: UserRequest, output: Answer, budget: 6k) {
+  Researcher -> Writer -> done
+}
