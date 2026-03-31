@@ -1,7 +1,9 @@
-# Graft compiled output
-.claude/
+# Graft compiled output (runtime generated)
 .graft/session/
 .graft/token_log.txt
+
+# Keep harness agent definitions in .claude/
+# (compiled output goes to target project, not here)
 
 # Keep knowledge base templates
 !.graft/knowledge/.gitkeep
