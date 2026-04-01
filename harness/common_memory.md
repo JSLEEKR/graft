@@ -1,7 +1,7 @@
 # Common Memory — Graft Compiler
-## Last updated: v2.1-R2 completed
+## Last updated: v2.1-R3 completed
 
-## Ratchet-Locked Decisions (100 total, 2 unlocked)
+## Ratchet-Locked Decisions (107 total, 2 unlocked)
 
 ### T1-T6 (abbreviated — all LOCKED)
 T1: tsc-only, ESM, NodeNext, explicit vitest, shebang, strict, no barrels, .js extensions
@@ -93,6 +93,15 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - [v2.1-R09] Parallel memory write detection via nodeWritesMap in ScopeChecker.walkFlowNodes — LOCKED
 - [v2.1-R10] compiler.ts filters diagnostics by severity; warnings don't block compilation — LOCKED
 
+### v2.1-R3 Ratchets (Token Tracking Core)
+- [v2.1-R11] TokenUsage and parseCLIOutput in subprocess.ts with heuristic envelope detection — LOCKED
+- [v2.1-R12] TokenTracker as standalone class in src/runtime/token-tracker.ts — LOCKED
+- [v2.1-R13] Token log cleared on session start, appended per node — LOCKED
+- [v2.1-R14] RunResult.tokenUsage with budget/consumed/fraction/perNode — LOCKED
+- [v2.1-R15] Budget enforcement advisory only; no hard abort — LOCKED
+- [v2.1-R16] Estimates from nodeDecl.budgetIn/budgetOut, not TokenEstimator — LOCKED
+- [v2.1-R17] Switch from --print to --output-format json in executor — LOCKED
+
 ## Review Feedback
 - T1-T7: ALL PASS. Test progression: 5 → 31 → 31 → 64 → 78 → 101 → 110
 - v1.2: PASS. 171 tests (135 existing + 36 new). All 12 ratchet items compliant.
@@ -103,6 +112,7 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v2.0-R5: PASS. 249 tests (241 existing + 8 new). All 3 ratchet items compliant. Zero deviations.
 - v2.1-R1: PASS. 249 tests (0 new — pure refactoring). 6 new ratchet items, 2 unlocked. Zero deviations. MEDIUM tier (2 agents).
 - v2.1-R2: PASS. 263 tests (249 existing + 14 new). 4 new ratchet items. Zero deviations. MEDIUM tier (2 agents).
+- v2.1-R3: PASS. 282 tests (263 existing + 19 new). 7 new ratchet items. Zero deviations. HIGH tier (4 agents, cross-critique skipped).
 
 ## Recurring Patterns
 - A3-Skeptic: critical bugs every task (T2-T7 consecutively)
@@ -121,10 +131,12 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v2.0-R4: A3 found foreach memory staleness bug (all 3 others missed); A2 forced dissenter self-rebutted all 3 positions (shallow merge, buildContextSection load, empty scaffold)
 - v2.1-R1: MEDIUM tier effective for mechanical refactoring (2 agents, 6 total calls vs 14). A3's 0.3 semantic trap warning (line 195) overruled by convergence — same concept applies.
 - v2.1-R2: Both A3 and A4 independently found compiler.ts warning routing bug (critical prerequisite). A3 scored 7/10, A4 scored 8/10 — high consensus.
+- v2.1-R3: A3 found CLI format uncertainty (usage field may not exist). A2 found mock spawner backward-compat issue with result key collision. Both resolved in convergence. Cross-critique skipped due to high consensus (6-8 range).
 
 ## Debate ROI
 - v2.1-R1 (MEDIUM): 6 agent calls, 0 bugs found, 0 design changes. Appropriate for mechanical refactoring.
 - v2.1-R2 (MEDIUM): 6 agent calls, 1 critical bug found (compiler.ts warning routing), 0 design changes. Both agents caught the same bug independently.
+- v2.1-R3 (HIGH, reduced): 7 agent calls (skipped 4 cross-critique), 2 design issues found (CLI format uncertainty, mock compat), 1 design change (heuristic envelope detection). Skipping cross-critique when consensus is high saves 4 calls with no quality loss.
 
 ## Notes for Future
 - Conditional edge routing: deferred to v1.3
@@ -132,7 +144,9 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - Token budget enforcement (Graft tokens vs Claude CLI dollars): approximation only
 - Memory importability: deferred (v2.0-R13 locked as excluded)
 - entryFile guard in resolver: scopes name merging to entry file only (justified deviation from convergence spec)
-- All 263 tests currently passing
+- All 282 tests currently passing
 - v2.0 complete: import system + memory across all pipeline stages (lexer → parser → resolver → analyzer → codegen → runtime → integration)
 - v2.1-R1 complete: constants/utils/memory extracted to shared modules, MODEL_MAP deduplication resolved
 - v2.1-R2 complete: writes schema validation, max_tokens > 0, parallel write detection, compiler.ts warning routing
+- v2.1-R3 complete: token tracking (TokenUsage, TokenTracker, parseCLIOutput, token log, RunResult extension, budget advisory)
+- Token budget enforcement is advisory only (v2.1-R15); hard abort deferred to future version
