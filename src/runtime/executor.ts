@@ -1,9 +1,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Program, NodeDecl, EdgeDecl, FlowNode } from '../parser/ast.js';
-import { SpawnOptions, SpawnResult, spawnClaude } from './subprocess.js';
-import { extractJson } from './subprocess.js';
+import { SpawnOptions, SpawnResult, spawnClaude, parseCLIOutput, TokenUsage } from './subprocess.js';
 import { applyTransforms } from './transforms.js';
+import { TokenTracker } from './token-tracker.js';
 import { MODEL_MAP } from '../constants.js';
 import { fieldsToJsonExample } from '../utils.js';
 import { loadMemory, saveMemory } from './memory.js';
@@ -26,6 +26,7 @@ export interface NodeResult {
   durationMs: number;
   success: boolean;
   error?: string;
+  tokenUsage?: TokenUsage;
 }
 
 export interface RunResult {
@@ -35,6 +36,12 @@ export interface RunResult {
   finalOutput: unknown;
   totalDurationMs: number;
   errors: string[];
+  tokenUsage?: {
+    budget: number;
+    consumed: number;
+    fraction: number;
+    perNode: Array<{ node: string; actual?: number; estimated: number }>;
+  };
 }
 
 export class Executor {
@@ -48,6 +55,7 @@ export class Executor {
   private nodeOutputDir: string;
   private memoryDir: string;
   private memoryNames: Set<string>;
+  private tracker!: TokenTracker;
 
   constructor(program: Program, options: RunOptions) {
     this.program = program;
@@ -100,6 +108,12 @@ export class Executor {
     // Ensure session directory exists
     fs.mkdirSync(this.nodeOutputDir, { recursive: true });
 
+    // Initialize token tracker
+    const tokenLogPath = path.join(this.options.workDir, '.graft', 'token_log.txt');
+    fs.mkdirSync(path.dirname(tokenLogPath), { recursive: true });
+    fs.writeFileSync(tokenLogPath, '');
+    this.tracker = new TokenTracker(graph.budget, tokenLogPath);
+
     // Ensure memory directory exists (if memories declared)
     if (this.program.memories.length > 0) {
       fs.mkdirSync(this.memoryDir, { recursive: true });
@@ -141,6 +155,7 @@ export class Executor {
       finalOutput,
       totalDurationMs: Date.now() - startTime,
       errors,
+      tokenUsage: this.tracker.getSummary(),
     };
   }
 
@@ -256,6 +271,8 @@ export class Executor {
     if (this.options.dryRun) {
       const mockOutput = this.generateMockOutput(nodeDecl);
       this.storeOutput(nodeDecl, mockOutput);
+      const estimated = { in: nodeDecl.budgetIn, out: nodeDecl.budgetOut };
+      this.tracker.record(name, undefined, estimated);
       return {
         node: name,
         output: mockOutput,
@@ -269,7 +286,7 @@ export class Executor {
     const resolvedModel = MODEL_MAP[nodeDecl.model] || nodeDecl.model;
 
     const args = [
-      '--print',
+      '--output-format', 'json',
       '--model', resolvedModel,
       '--max-tokens', String(nodeDecl.budgetOut),
       '-p', prompt,
@@ -289,13 +306,18 @@ export class Executor {
       if (result.exitCode !== 0) {
         // Try to extract output anyway
         try {
-          const output = extractJson(result.stdout);
+          const cliOutput = parseCLIOutput(result.stdout);
+          const output = cliOutput.content;
+          const tokenUsage = cliOutput.tokenUsage;
           this.storeOutput(nodeDecl, output);
+          const estimated = { in: nodeDecl.budgetIn, out: nodeDecl.budgetOut };
+          this.tracker.record(name, tokenUsage, estimated);
           return {
             node: name,
             output,
             durationMs: Date.now() - startTime,
             success: true,
+            tokenUsage,
           };
         } catch {
           return {
@@ -308,14 +330,28 @@ export class Executor {
         }
       }
 
-      const output = extractJson(result.stdout);
+      const cliOutput = parseCLIOutput(result.stdout);
+      const output = cliOutput.content;
+      const tokenUsage = cliOutput.tokenUsage;
       this.storeOutput(nodeDecl, output);
+
+      const estimated = { in: nodeDecl.budgetIn, out: nodeDecl.budgetOut };
+      this.tracker.record(name, tokenUsage, estimated);
+
+      if (this.options.verbose) {
+        if (this.tracker.isCritical) {
+          console.log(`[BUDGET] Critical: ${Math.round(this.tracker.fraction * 100)}% of budget consumed`);
+        } else if (this.tracker.isWarning) {
+          console.log(`[BUDGET] Warning: ${Math.round(this.tracker.fraction * 100)}% of budget consumed`);
+        }
+      }
 
       return {
         node: name,
         output,
         durationMs: Date.now() - startTime,
         success: true,
+        tokenUsage,
       };
     } catch (e) {
       return {

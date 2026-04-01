@@ -55,6 +55,40 @@ export function spawnClaude(options: SpawnOptions): Promise<SpawnResult> {
   });
 }
 
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
+export function parseCLIOutput(stdout: string): { content: unknown; tokenUsage?: TokenUsage } {
+  const trimmed = stdout.trim();
+  try {
+    const parsed = JSON.parse(trimmed);
+    // Only treat as CLI envelope if result AND a metadata field present
+    if (typeof parsed === 'object' && parsed !== null && 'result' in parsed &&
+        ('usage' in parsed || 'model' in parsed || 'cost_usd' in parsed)) {
+      let tokenUsage: TokenUsage | undefined;
+      if (parsed.usage && typeof parsed.usage === 'object' &&
+          typeof parsed.usage.input_tokens === 'number' &&
+          typeof parsed.usage.output_tokens === 'number') {
+        tokenUsage = {
+          inputTokens: parsed.usage.input_tokens,
+          outputTokens: parsed.usage.output_tokens,
+        };
+      }
+      let content: unknown;
+      if (typeof parsed.result === 'string') {
+        try { content = JSON.parse(parsed.result); } catch { content = parsed.result; }
+      } else {
+        content = parsed.result;
+      }
+      return { content, tokenUsage };
+    }
+  } catch { /* not JSON */ }
+  const content = extractJson(stdout);
+  return { content, tokenUsage: undefined };
+}
+
 export function extractJson(stdout: string): unknown {
   const trimmed = stdout.trim();
   try { return JSON.parse(trimmed); } catch { /* fallback */ }

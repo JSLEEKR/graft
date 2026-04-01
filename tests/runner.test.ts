@@ -324,8 +324,8 @@ graph ForeachRun(input: Items, output: ProcessedItem, budget: 10k) {
     const result = await executor.execute();
     expect(result.success).toBe(true);
     expect(calls.length).toBe(1);
-    // Should use --print flag for JSON output
-    expect(calls[0].args).toContain('--print');
+    // Should use --output-format json for structured output
+    expect(calls[0].args).toContain('--output-format');
   });
 
   it('parallel nodes execute concurrently via mock', async () => {
