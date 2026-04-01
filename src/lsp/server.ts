@@ -4,7 +4,9 @@ import {
   TextDocuments,
   ProposedFeatures,
   TextDocumentSyncKind,
+  CodeActionKind,
 } from 'vscode-languageserver/node';
+import type { CodeAction } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import * as fs from 'node:fs';
@@ -14,7 +16,7 @@ import { Lexer } from '../lexer/lexer.js';
 import { Parser } from '../parser/parser.js';
 import type { Program } from '../parser/ast.js';
 import type { ProgramIndex } from '../program-index.js';
-import { toDiagnostics, getHoverInfo, getDefinitionLocation, getWordAtPosition, getCompletions } from './features.js';
+import { toDiagnostics, getHoverInfo, getDefinitionLocation, getWordAtPosition, getCompletions, extractUndefinedName, buildAutoImportEdit, computeRelativeImportPath } from './features.js';
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
@@ -47,16 +49,32 @@ const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 // Track import dependencies: importedFile → Set of URIs that import it
 const importDeps = new Map<string, Set<string>>();
 
-connection.onInitialize(() => ({
-  capabilities: {
-    textDocumentSync: TextDocumentSyncKind.Full,
-    hoverProvider: true,
-    definitionProvider: true,
-    completionProvider: {
-      triggerCharacters: ['.', '[', '{'],
+// Workspace export cache for auto-import code actions
+const workspaceExports = new Map<string, string[]>();
+let workspaceRoot: string | null = null;
+let workspaceScanDone = false;
+
+connection.onInitialize((params) => {
+  const folders = params.workspaceFolders;
+  if (folders && folders.length > 0) {
+    workspaceRoot = fileURLToPath(folders[0].uri);
+  } else if (params.rootUri) {
+    workspaceRoot = fileURLToPath(params.rootUri);
+  }
+  return {
+    capabilities: {
+      textDocumentSync: TextDocumentSyncKind.Full,
+      hoverProvider: true,
+      definitionProvider: true,
+      completionProvider: {
+        triggerCharacters: ['.', '[', '{'],
+      },
+      codeActionProvider: {
+        codeActionKinds: [CodeActionKind.QuickFix],
+      },
     },
-  },
-}));
+  };
+});
 
 function validateDocument(doc: TextDocument): void {
   const uri = doc.uri;
@@ -98,6 +116,11 @@ documents.onDidChangeContent((change) => {
     const doc = documents.get(uri);
     if (doc) {
       validateDocument(doc);
+      // Update workspace export cache for changed file
+      if (uri.startsWith('file:')) {
+        const changedPath = fileURLToPath(uri);
+        if (changedPath.endsWith('.gft')) parseAndCacheExports(changedPath);
+      }
       // Invalidate dependents of this file
       const dependents = importDeps.get(uri);
       if (dependents) {
@@ -166,6 +189,98 @@ connection.onCompletion((params) => {
     state ?? null,
     resolveImportNames,
   );
+});
+
+// --- Workspace Export Scanning ---
+
+function scanWorkspaceExports(rootDir: string, excludeFile?: string): void {
+  try { scanDir(rootDir, excludeFile); } catch { /* best-effort */ }
+}
+
+function scanDir(dir: string, excludeFile?: string): void {
+  let entries: string[];
+  try { entries = fs.readdirSync(dir); } catch { return; }
+  for (const entry of entries) {
+    if (entry.startsWith('.') || entry === 'node_modules' || entry === 'dist') continue;
+    const full = path.join(dir, entry);
+    let stat: fs.Stats;
+    try { stat = fs.statSync(full); } catch { continue; }
+    if (stat.isDirectory()) scanDir(full, excludeFile);
+    else if (entry.endsWith('.gft') && full !== excludeFile) parseAndCacheExports(full);
+  }
+}
+
+function parseAndCacheExports(filePath: string): void {
+  try {
+    // Prefer open document buffer over disk
+    const uri = pathToFileURL(filePath).toString();
+    const openDoc = documents.get(uri);
+    const source = openDoc ? openDoc.getText() : fs.readFileSync(filePath, 'utf-8');
+    const tokens = new Lexer(source).tokenize();
+    const { program } = new Parser(tokens).parse();
+    workspaceExports.set(filePath, [
+      ...program.contexts.map(c => c.name),
+      ...program.nodes.map(n => n.name),
+    ]);
+  } catch { /* skip unparseable files */ }
+}
+
+// --- Code Actions ---
+
+connection.onCodeAction((params) => {
+  const doc = documents.get(params.textDocument.uri);
+  if (!doc || !params.textDocument.uri.startsWith('file:')) return [];
+
+  const currentFilePath = fileURLToPath(params.textDocument.uri);
+
+  // Lazy workspace scan
+  if (!workspaceScanDone && workspaceRoot) {
+    scanWorkspaceExports(workspaceRoot, currentFilePath);
+    workspaceScanDone = true;
+  }
+
+  if (!workspaceRoot) return [];
+
+  const actions: CodeAction[] = [];
+  const docText = doc.getText();
+
+  // Collect already-imported names
+  const importedNames = new Set<string>();
+  for (const line of docText.split('\n')) {
+    const m = line.match(/^\s*import\s+\{([^}]+)\}/);
+    if (m) {
+      for (const n of m[1].split(',')) importedNames.add(n.trim());
+    }
+  }
+
+  for (const diag of params.context.diagnostics) {
+    if (diag.code !== 'SCOPE_UNDEFINED_REF') continue;
+
+    const name = extractUndefinedName(diag.message, docText, diag.range.start.line, diag.range.start.character);
+    if (!name || importedNames.has(name)) continue;
+
+    for (const [filePath, exports] of workspaceExports) {
+      if (filePath === currentFilePath || !exports.includes(name)) continue;
+
+      const relPath = computeRelativeImportPath(currentFilePath, filePath);
+      const edit = buildAutoImportEdit(name, relPath, docText);
+
+      actions.push({
+        title: `Import '${name}' from "${relPath}"`,
+        kind: CodeActionKind.QuickFix,
+        edit: {
+          changes: {
+            [params.textDocument.uri]: [{
+              range: { start: { line: edit.insertLine, character: 0 }, end: { line: edit.insertLine, character: 0 } },
+              newText: edit.newText,
+            }],
+          },
+        },
+      });
+    }
+  }
+
+  return actions;
 });
 
 documents.listen(connection);

@@ -1,6 +1,7 @@
 import type { Diagnostic, Hover, Location, CompletionItem } from 'vscode-languageserver/node';
 import { DiagnosticSeverity, MarkupKind, CompletionItemKind, InsertTextFormat } from 'vscode-languageserver/node';
 import { pathToFileURL } from 'node:url';
+import * as path from 'node:path';
 import type { GraftError, SourceLocation } from '../errors/diagnostics.js';
 import type { Program, TypeExpr } from '../parser/ast.js';
 import type { ProgramIndex } from '../program-index.js';
@@ -483,4 +484,34 @@ function topLevelCompletions(): CompletionItem[] {
       insertTextFormat: InsertTextFormat.Snippet,
     },
   ];
+}
+
+// --- Auto-Import Helpers ---
+
+export function extractUndefinedName(message: string, docText: string, line: number, character: number): string | null {
+  // Primary: extract from message (all SCOPE_UNDEFINED_REF messages quote name in single quotes)
+  const msgMatch = message.match(/'([^']+)'/);
+  if (msgMatch) return msgMatch[1];
+  // Fallback: extract word at diagnostic range
+  return getWordAtPosition(docText, line, character);
+}
+
+export function buildAutoImportEdit(
+  name: string, fromPath: string, docText: string,
+): { insertLine: number; newText: string } {
+  const lines = docText.split('\n');
+  let insertLine = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (/^\s*import\s+\{/.test(lines[i])) {
+      insertLine = i + 1;
+    }
+  }
+  return { insertLine, newText: `import { ${name} } from "${fromPath}"\n` };
+}
+
+export function computeRelativeImportPath(fromFile: string, toFile: string): string {
+  let rel = path.relative(path.dirname(fromFile), toFile);
+  rel = rel.replace(/\\/g, '/');  // Windows path normalization
+  if (!rel.startsWith('.')) rel = './' + rel;
+  return rel;
 }
