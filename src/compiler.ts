@@ -1,3 +1,4 @@
+import * as path from 'node:path';
 import { Lexer } from './lexer/lexer.js';
 import { Parser } from './parser/parser.js';
 import { resolve } from './resolver/resolver.js';
@@ -44,6 +45,11 @@ export function compile(source: string, sourceFile: string): CompileResult {
     }
     throw e;
   }
+
+  // Set sourceFile on all entry declarations
+  const absSourceFile = path.resolve(sourceFile);
+  for (const c of program.contexts) c.sourceFile = absSourceFile;
+  for (const n of program.nodes) n.sourceFile = absSourceFile;
 
   // Resolve imports
   if (program.imports.length > 0) {

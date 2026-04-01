@@ -39,6 +39,7 @@ export class ScopeChecker {
     this.checkNodeReads(errors);
     this.checkNodeWrites(errors);
     this.checkEdges(errors);
+    this.checkMultipleGraphs(errors);
     this.checkGraphFlow(errors);
     return errors;
   }
@@ -191,6 +192,27 @@ export class ScopeChecker {
           }
         }
       }
+
+      // C-02: Warn on transforms applied to conditional edges
+      if (edge.target.kind === 'conditional' && edge.transforms.length > 0) {
+        errors.push(new GraftError(
+          `Transforms on conditional edge from '${edge.source}' may not be applied at runtime`,
+          edge.location,
+          'warning',
+          'TRANSFORM_ON_CONDITIONAL',
+        ));
+      }
+    }
+  }
+
+  private checkMultipleGraphs(errors: GraftError[]): void {
+    if (this.program.graphs.length > 1) {
+      errors.push(new GraftError(
+        `Multiple graphs declared; only the first graph '${this.program.graphs[0].name}' will be executed`,
+        this.program.graphs[1].location,
+        'warning',
+        'GRAPH_MULTIPLE',
+      ));
     }
   }
 
@@ -276,6 +298,37 @@ export class ScopeChecker {
               location,
               'error',
               'SCOPE_INVALID_FOREACH',
+            ));
+          }
+          // C-01: Foreach binding name collision detection
+          const binding = step.binding;
+          if (this.nodeNames.has(binding)) {
+            errors.push(new GraftError(
+              `Foreach binding '${binding}' collides with declared node '${binding}'`,
+              location,
+              'warning',
+              'SCOPE_BINDING_COLLISION',
+            ));
+          } else if (this.producesMap.has(binding)) {
+            errors.push(new GraftError(
+              `Foreach binding '${binding}' collides with produces declaration '${binding}'`,
+              location,
+              'warning',
+              'SCOPE_BINDING_COLLISION',
+            ));
+          } else if (this.contextNames.has(binding)) {
+            errors.push(new GraftError(
+              `Foreach binding '${binding}' collides with declared context '${binding}'`,
+              location,
+              'warning',
+              'SCOPE_BINDING_COLLISION',
+            ));
+          } else if (this.memoryNames.has(binding)) {
+            errors.push(new GraftError(
+              `Foreach binding '${binding}' collides with declared memory '${binding}'`,
+              location,
+              'warning',
+              'SCOPE_BINDING_COLLISION',
             ));
           }
           // Recurse into body

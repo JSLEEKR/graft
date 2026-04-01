@@ -27,7 +27,11 @@ export type GraftErrorCode =
   | 'IMPORT_INVALID_PATH'
   | 'IMPORT_PARSE_ERROR'
   // Graph errors
-  | 'GRAPH_MISSING';
+  | 'GRAPH_MISSING'
+  | 'GRAPH_MULTIPLE'
+  // Scope warnings
+  | 'SCOPE_BINDING_COLLISION'
+  | 'TRANSFORM_ON_CONDITIONAL';
 
 export class GraftError extends Error {
   constructor(

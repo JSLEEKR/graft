@@ -198,7 +198,13 @@ function resolveImport(
     }
 
     ctx.declaredNames.set(name, targetPath);
-    if (context) importingProgram.contexts.push(context);
-    if (node) importingProgram.nodes.push(node);
+    if (context) {
+      context.sourceFile = targetPath;
+      importingProgram.contexts.push(context);
+    }
+    if (node) {
+      node.sourceFile = targetPath;
+      importingProgram.nodes.push(node);
+    }
   }
 }

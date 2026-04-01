@@ -31,6 +31,7 @@ export interface ContextDecl {
   maxTokens: number;
   fields: Field[];
   location: SourceLocation;
+  sourceFile?: string;
 }
 
 // node Analyzer(model: sonnet, budget: 5k/2k) { ... }
@@ -45,6 +46,7 @@ export interface NodeDecl {
   onFailure?: FailureStrategy;
   produces: ProducesDecl;
   location: SourceLocation;
+  sourceFile?: string;
 }
 
 // produces Research { ... }

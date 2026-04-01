@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import * as path from 'node:path';
 import { Lexer } from '../src/lexer/lexer.js';
 import { Parser } from '../src/parser/parser.js';
 import { ScopeChecker } from '../src/analyzer/scope.js';
@@ -883,6 +884,221 @@ describe('ScopeChecker — parallel memory write detection', () => {
   });
 });
 
+describe('ScopeChecker — foreach binding collision', () => {
+  it('warns when binding collides with node name', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node Planner(model: sonnet, budget: 1k/500) {
+        reads: [Spec]
+        produces Plan { steps: List<String> }
+      }
+      node Worker(model: haiku, budget: 1k/500) {
+        reads: [Plan]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 20k) {
+        Planner -> foreach(Planner.output.steps as Worker, max_iterations: 3) {
+          Worker
+        } -> done
+      }
+    `);
+    const checker = new ScopeChecker(program);
+    const diagnostics = checker.check();
+    const warning = diagnostics.find(d => d.severity === 'warning' && d.code === 'SCOPE_BINDING_COLLISION');
+    expect(warning).toBeDefined();
+    expect(warning!.message).toContain("collides with declared node");
+    expect(warning!.message).toContain("Worker");
+  });
+
+  it('warns when binding collides with produces name', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node Planner(model: sonnet, budget: 1k/500) {
+        reads: [Spec]
+        produces Plan { steps: List<String> }
+      }
+      node Worker(model: haiku, budget: 1k/500) {
+        reads: [Plan]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 20k) {
+        Planner -> foreach(Planner.output.steps as Plan, max_iterations: 3) {
+          Worker
+        } -> done
+      }
+    `);
+    const checker = new ScopeChecker(program);
+    const diagnostics = checker.check();
+    const warning = diagnostics.find(d => d.severity === 'warning' && d.code === 'SCOPE_BINDING_COLLISION');
+    expect(warning).toBeDefined();
+    expect(warning!.message).toContain("collides with produces declaration");
+    expect(warning!.message).toContain("Plan");
+  });
+
+  it('warns when binding collides with context name', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node Planner(model: sonnet, budget: 1k/500) {
+        reads: [Spec]
+        produces Plan { steps: List<String> }
+      }
+      node Worker(model: haiku, budget: 1k/500) {
+        reads: [Plan]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 20k) {
+        Planner -> foreach(Planner.output.steps as Spec, max_iterations: 3) {
+          Worker
+        } -> done
+      }
+    `);
+    const checker = new ScopeChecker(program);
+    const diagnostics = checker.check();
+    const warning = diagnostics.find(d => d.severity === 'warning' && d.code === 'SCOPE_BINDING_COLLISION');
+    expect(warning).toBeDefined();
+    expect(warning!.message).toContain("collides with declared context");
+    expect(warning!.message).toContain("Spec");
+  });
+
+  it('warns when binding collides with memory name', () => {
+    const program = parse(`
+      memory Cache(max_tokens: 2k) { history: List<String> }
+      context Spec(max_tokens: 500) { name: String }
+      node Planner(model: sonnet, budget: 1k/500) {
+        reads: [Spec]
+        produces Plan { steps: List<String> }
+      }
+      node Worker(model: haiku, budget: 1k/500) {
+        reads: [Plan]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 20k) {
+        Planner -> foreach(Planner.output.steps as Cache, max_iterations: 3) {
+          Worker
+        } -> done
+      }
+    `);
+    const checker = new ScopeChecker(program);
+    const diagnostics = checker.check();
+    const warning = diagnostics.find(d => d.severity === 'warning' && d.code === 'SCOPE_BINDING_COLLISION');
+    expect(warning).toBeDefined();
+    expect(warning!.message).toContain("collides with declared memory");
+    expect(warning!.message).toContain("Cache");
+  });
+
+  it('does not warn when binding is unique', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node Planner(model: sonnet, budget: 1k/500) {
+        reads: [Spec]
+        produces Plan { steps: List<String> }
+      }
+      node Worker(model: haiku, budget: 1k/500) {
+        reads: [Plan]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 20k) {
+        Planner -> foreach(Planner.output.steps as item, max_iterations: 3) {
+          Worker
+        } -> done
+      }
+    `);
+    const checker = new ScopeChecker(program);
+    const diagnostics = checker.check();
+    const warning = diagnostics.find(d => d.code === 'SCOPE_BINDING_COLLISION');
+    expect(warning).toBeUndefined();
+  });
+});
+
+describe('ScopeChecker — conditional edge transforms', () => {
+  it('warns on transforms applied to conditional edge', () => {
+    // Build AST manually since the parser may not support transforms on conditional edges
+    const loc = { line: 1, column: 1, offset: 0 };
+    const program: Program = {
+      imports: [],
+      memories: [],
+      contexts: [{ name: 'Spec', maxTokens: 500, fields: [{ name: 'name', type: { kind: 'primitive', name: 'String' }, location: loc }], location: loc }],
+      nodes: [
+        { name: 'A', model: 'sonnet', budgetIn: 2000, budgetOut: 1000, reads: [{ context: 'Spec', location: loc }], tools: [], writes: [], produces: { name: 'Out', fields: [{ name: 'findings', type: { kind: 'list', element: { kind: 'primitive', name: 'String' } }, location: loc }], location: loc }, location: loc },
+        { name: 'B', model: 'haiku', budgetIn: 1000, budgetOut: 500, reads: [{ context: 'Out', location: loc }], tools: [], writes: [], produces: { name: 'Final', fields: [{ name: 'result', type: { kind: 'primitive', name: 'String' }, location: loc }], location: loc }, location: loc },
+      ],
+      edges: [{
+        source: 'A',
+        target: { kind: 'conditional', branches: [{ condition: { field: 'score', op: '>=', value: 0.5 }, target: 'B' }, { condition: undefined, target: 'B' }] },
+        transforms: [{ type: 'select', fields: ['findings'] }],
+        location: loc,
+      }],
+      graphs: [{ name: 'G', input: 'Spec', output: 'Final', budget: 10000, flow: [{ kind: 'node', name: 'A' }, { kind: 'node', name: 'B' }], location: loc }],
+    };
+    const checker = new ScopeChecker(program);
+    const diagnostics = checker.check();
+    const warning = diagnostics.find(d => d.severity === 'warning' && d.code === 'TRANSFORM_ON_CONDITIONAL');
+    expect(warning).toBeDefined();
+    expect(warning!.message).toContain("Transforms on conditional edge");
+    expect(warning!.message).toContain("may not be applied at runtime");
+  });
+
+  it('does not warn on direct edge with transforms', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out {
+          findings: List<String>
+          score: Float(0..1)
+        }
+      }
+      node B(model: haiku, budget: 1k/500) {
+        reads: [Out.findings]
+        produces Final { result: String }
+      }
+      edge A -> B
+        | select(findings)
+        | compact
+      graph G(input: Spec, output: Final, budget: 10k) { A -> B -> done }
+    `);
+    const checker = new ScopeChecker(program);
+    const diagnostics = checker.check();
+    const warning = diagnostics.find(d => d.code === 'TRANSFORM_ON_CONDITIONAL');
+    expect(warning).toBeUndefined();
+  });
+});
+
+describe('ScopeChecker — multiple graph warning', () => {
+  it('warns when multiple graphs are declared', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 1k/500) {
+        reads: [Spec]
+        produces Out { data: String }
+      }
+      graph First(input: Spec, output: Out, budget: 5k) { A -> done }
+      graph Second(input: Spec, output: Out, budget: 5k) { A -> done }
+    `);
+    const checker = new ScopeChecker(program);
+    const diagnostics = checker.check();
+    const warning = diagnostics.find(d => d.severity === 'warning' && d.code === 'GRAPH_MULTIPLE');
+    expect(warning).toBeDefined();
+    expect(warning!.message).toContain("Multiple graphs declared");
+    expect(warning!.message).toContain("First");
+  });
+
+  it('does not warn with single graph', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 1k/500) {
+        reads: [Spec]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) { A -> done }
+    `);
+    const checker = new ScopeChecker(program);
+    const diagnostics = checker.check();
+    const warning = diagnostics.find(d => d.code === 'GRAPH_MULTIPLE');
+    expect(warning).toBeUndefined();
+  });
+});
+
 describe('Compiler — warning routing integration', () => {
   it('warnings do not block compilation (success: true)', () => {
     const source = `
@@ -914,5 +1130,22 @@ describe('Compiler — warning routing integration', () => {
     expect(result.success).toBe(false);
     expect(result.errors.length).toBeGreaterThan(0);
     expect(result.errors.some(e => e.message.includes('invalid max_tokens'))).toBe(true);
+  });
+});
+
+describe('Compiler — sourceFile tracking', () => {
+  it('sets sourceFile on entry file declarations', () => {
+    const source = `
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 1k/500) {
+        reads: [Spec]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) { A -> done }
+    `;
+    const result = compile(source, 'test.gft');
+    expect(result.success).toBe(true);
+    expect(result.program!.contexts[0].sourceFile).toBe(path.resolve('test.gft'));
+    expect(result.program!.nodes[0].sourceFile).toBe(path.resolve('test.gft'));
   });
 });

@@ -2,12 +2,19 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { MemoryDecl } from '../parser/ast.js';
 
-export function loadMemory(memoryDir: string, name: string): Record<string, unknown> | null {
+export function loadMemory(
+  memoryDir: string,
+  name: string,
+  options?: { verbose?: boolean },
+): Record<string, unknown> | null {
   const filePath = path.join(memoryDir, `${name.toLowerCase()}.json`);
   if (!fs.existsSync(filePath)) return null;
   try {
     return JSON.parse(fs.readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
   } catch {
+    if (options?.verbose) {
+      console.warn(`[MEMORY] Warning: ${filePath} exists but contains invalid JSON — treating as empty`);
+    }
     return null;
   }
 }

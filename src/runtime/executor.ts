@@ -187,7 +187,7 @@ export class Executor {
     // ALWAYS reload from disk (no this.outputs.has guard — fixes foreach staleness)
     for (const ref of nodeDecl.reads) {
       if (this.memoryNames.has(ref.context)) {
-        const memData = loadMemory(this.memoryDir, ref.context);
+        const memData = loadMemory(this.memoryDir, ref.context, { verbose: this.options.verbose });
         if (memData !== null) {
           this.outputs.set(ref.context, memData);
         } else {

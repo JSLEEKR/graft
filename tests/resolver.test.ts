@@ -280,6 +280,34 @@ describe('Import Resolver', () => {
     expect(result.errors).toHaveLength(2);
   });
 
+  it('sets sourceFile on imported context to target file path', () => {
+    const libSource = `
+      context SharedCtx(max_tokens: 1k) { data: String }
+    `;
+    const mainSource = `import { SharedCtx } from "./lib.gft"`;
+    const result = testResolve(mainSource, { 'lib.gft': libSource });
+    expect(result.errors).toEqual([]);
+    expect(result.program.contexts[0].sourceFile).toBe(
+      path.resolve('/project/lib.gft'),
+    );
+  });
+
+  it('sets sourceFile on imported node to target file path', () => {
+    const libSource = `
+      context Input(max_tokens: 500) { q: String }
+      node Helper(model: haiku, budget: 1k/500) {
+        reads: [Input]
+        produces HOut { answer: String }
+      }
+    `;
+    const mainSource = `import { Helper } from "./lib.gft"`;
+    const result = testResolve(mainSource, { 'lib.gft': libSource });
+    expect(result.errors).toEqual([]);
+    expect(result.program.nodes[0].sourceFile).toBe(
+      path.resolve('/project/lib.gft'),
+    );
+  });
+
   it('tracks resolvedFiles for all visited files', () => {
     const libSource = `context Lib(max_tokens: 500) { x: String }`;
     const mainSource = `import { Lib } from "./lib.gft"`;
