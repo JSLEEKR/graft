@@ -1,0 +1,67 @@
+{
+  "scopeName": "source.graft",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#k-integers" },
+    { "include": "#floats" },
+    { "include": "#integers" },
+    { "include": "#keywords" },
+    { "include": "#type-keywords" },
+    { "include": "#domain-types" },
+    { "include": "#constants" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.graft",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.graft",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.graft",
+      "begin": "\"",
+      "end": "\""
+    },
+    "k-integers": {
+      "name": "constant.numeric.k-integer.graft",
+      "match": "\\b\\d+[kK]\\b"
+    },
+    "floats": {
+      "name": "constant.numeric.float.graft",
+      "match": "\\b\\d+\\.\\d+\\b"
+    },
+    "integers": {
+      "name": "constant.numeric.integer.graft",
+      "match": "\\b\\d+\\b"
+    },
+    "keywords": {
+      "name": "keyword.control.graft",
+      "match": "\\b(node|edge|graph|context|reads|produces|tools|budget|model|select|filter|drop|compact|truncate|when|else|done|on_failure|retry|fallback|skip|abort|input|output|max_tokens|enum|parallel|foreach|as|max_iterations|import|from|memory|writes|storage)\\b"
+    },
+    "type-keywords": {
+      "name": "support.type.graft",
+      "match": "\\b(String|Int|Float|Bool|List|Map|Optional|TokenBounded)\\b"
+    },
+    "domain-types": {
+      "name": "support.type.domain.graft",
+      "match": "\\b(FilePath|FileDiff|TestFile|IssueRef)\\b"
+    },
+    "constants": {
+      "name": "constant.language.graft",
+      "match": "\\b(true|false)\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.graft",
+      "match": "->|\\||>=|<=|==|!=|\\.\\.|>|<"
+    }
+  }
+}

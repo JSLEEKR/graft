@@ -11,7 +11,7 @@ describe('project scaffolding', () => {
 
   it('package.json is valid and has correct type', () => {
     const pkg = JSON.parse(readFileSync('package.json', 'utf-8'));
-    expect(pkg.name).toBe('graft');
+    expect(pkg.name).toBe('@graft-lang/graft');
     expect(pkg.type).toBe('module');
     expect(pkg.bin.graft).toBe('./dist/index.js');
   });

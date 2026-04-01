@@ -1,0 +1,11 @@
+src/
+tests/
+harness/
+docs/
+examples/
+benchmarks/
+editors/
+tsconfig.json
+vitest.config.ts
+.claude/
+.graft/

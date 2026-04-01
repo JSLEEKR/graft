@@ -1,3 +1,7 @@
+[![npm version](https://img.shields.io/npm/v/@graft-lang/graft.svg)](https://www.npmjs.com/package/@graft-lang/graft)
+[![Node.js](https://img.shields.io/node/v/@graft-lang/graft.svg)](https://nodejs.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 # Graft
 
 **A graph-native language for AI agent harness engineering.**
