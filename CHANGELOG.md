@@ -1,5 +1,30 @@
 # Changelog
 
+## v3.3.0 (2026-04-02)
+
+### Added
+- **LSP code actions (auto-import)**: `SCOPE_UNDEFINED_REF` diagnostics offer quick-fix to auto-import the undefined name from workspace `.gft` files
+  - Workspace export cache with lazy scanning and incremental updates
+  - Import insertion after existing imports, correct relative path computation
+  - Windows path normalization, non-file URI guards, self-import exclusion
+- **Conditional edge runtime routing**: conditional edges (`when`/`else` branches) now evaluate at runtime
+  - `evaluateCondition()` supports all 6 comparison operators with numeric coercion
+  - Branch selection: first matching `when` wins, `else` as default fallback
+  - Wired through `FlowContext.getConditionalEdge` in executor
+- **LSP document symbols**: outline view for `.gft` files showing contexts, nodes, memories, graphs, edges
+  - Symbol kinds: Class, Function, Variable, Module, Event
+- **Condition type validation**: `TYPE_CONDITION_MISMATCH` error for ordered operators (`>=`, `>`, `<=`, `<`) on non-numeric fields
+- New error code: `TYPE_CONDITION_MISMATCH` in `TypeErrorCode`
+
+### Changed
+- `FlowContext` interface extended with optional `getConditionalEdge` method
+- `onInitialize` now captures `InitializeParams` to extract workspace root
+- Removed TODO comment for condition type validation (TD-06, deferred since v1.0)
+
+### Stats
+- 636 tests (54 new), 180 ratchets
+- 4 rounds (1 MEDIUM, 2 DIRECT, 1 TEST-ONLY), ~10 agent calls
+
 ## v3.2.0 (2026-04-02)
 
 ### Added
