@@ -57,7 +57,30 @@ export function getWordAtPosition(text: string, line: number, character: number)
 
 // --- Hover ---
 
+const KEYWORD_DOCS: Record<string, string> = {
+  context: 'Declares a context schema with typed fields and a max_tokens budget.\n\n```graft\ncontext Name(max_tokens: 1k) {\n  field: Type\n}\n```',
+  node: 'Declares a processing node with model, budget, reads, writes, and produces.\n\n```graft\nnode Name(model: sonnet, budget: 5k/2k) {\n  reads: [ContextName]\n  produces Output { field: Type }\n}\n```',
+  memory: 'Declares persistent memory with typed fields and storage backend.\n\n```graft\nmemory Name(max_tokens: 2k, storage: file) {\n  field: Type\n}\n```',
+  graph: 'Declares an execution graph connecting nodes in a flow.\n\n```graft\ngraph Name(input: In, output: Out, budget: 10k) {\n  Start -> Middle -> done\n}\n```',
+  edge: 'Declares a data transform between nodes.\n\n```graft\nedge Source -> Target | select(field) | compact\n```',
+  import: 'Imports contexts and nodes from another .gft file.\n\n```graft\nimport { Name } from "./lib.gft"\n```',
+  reads: 'Specifies which contexts, produces, or memories a node reads from.\n\n```graft\nreads: [ContextName, Produces.field]\n```',
+  writes: 'Specifies which memories a node writes to.\n\n```graft\nwrites: [MemoryName.field]\n```',
+  produces: 'Declares the output schema of a node.\n\n```graft\nproduces OutputName {\n  field: Type\n}\n```',
+  model: 'Specifies the LLM model alias for a node.\n\nAliases: sonnet, opus, haiku',
+  max_tokens: 'Sets the maximum token budget for a context or memory.',
+  on_failure: 'Specifies failure handling strategy for a node.\n\nStrategies: retry(N), fallback(Node), skip, abort',
+  storage: 'Specifies the storage backend for a memory declaration.\n\nCurrently supported: file',
+  foreach: 'Iterates over a list field from a node\'s output.\n\n```graft\nforeach(Node.output.field as item, max_iterations: 5) {\n  Step1 -> Step2\n}\n```',
+  parallel: 'Executes multiple nodes concurrently.\n\n```graft\nparallel { Node1 Node2 Node3 }\n```',
+};
+
 export function getHoverInfo(word: string, index: ProgramIndex): Hover | null {
+  const keywordDoc = KEYWORD_DOCS[word];
+  if (keywordDoc) {
+    return mkHover(keywordDoc);
+  }
+
   const ctx = index.contextMap.get(word);
   if (ctx) {
     const fields = ctx.fields.map(f => `  ${f.name}: ${formatType(f.type)}`).join('\n');
@@ -177,6 +200,11 @@ export function getCompletions(
   // Suppress completions inside string literals
   if (isInString(lineText, character)) return [];
 
+  // After `storage:` → storage types
+  if (/storage\s*:\s*\w*$/.test(before)) {
+    return [{ label: 'file', kind: CompletionItemKind.EnumMember, detail: 'File-based storage' }];
+  }
+
   // After `model:` → model aliases
   if (/model\s*:\s*\w*$/.test(before)) {
     return Object.entries(MODEL_MAP).map(([alias, full]) => ({
@@ -215,7 +243,8 @@ export function getCompletions(
   // Inside `import { }` → names from resolver
   if (isInsideImportBraces(lines, line, character)) {
     if (!resolveImportNames) return [];
-    const names = resolveImportNames('');
+    const importPath = extractImportPath(lines, line) ?? '';
+    const names = resolveImportNames(importPath);
     return names.map(name => ({
       label: name,
       kind: CompletionItemKind.Class,
@@ -388,6 +417,14 @@ function isInsideImportBraces(lines: string[], currentLine: number, character: n
     }
   }
   return false;
+}
+
+function extractImportPath(lines: string[], startLine: number): string | null {
+  for (let i = startLine; i < Math.min(startLine + 3, lines.length); i++) {
+    const match = lines[i].match(/from\s+"([^"]+)"/);
+    if (match) return match[1];
+  }
+  return null;
 }
 
 function isInsideBlock(lines: string[], currentLine: number, keyword: string): boolean {

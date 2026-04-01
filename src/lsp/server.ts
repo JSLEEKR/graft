@@ -7,7 +7,11 @@ import {
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { compileToProgram } from '../compiler.js';
+import { Lexer } from '../lexer/lexer.js';
+import { Parser } from '../parser/parser.js';
 import type { Program } from '../parser/ast.js';
 import type { ProgramIndex } from '../program-index.js';
 import { toDiagnostics, getHoverInfo, getDefinitionLocation, getWordAtPosition, getCompletions } from './features.js';
@@ -15,7 +19,30 @@ import { toDiagnostics, getHoverInfo, getDefinitionLocation, getWordAtPosition, 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
 
-const cache = new Map<string, { program: Program; index: ProgramIndex }>();
+const MAX_CACHE_SIZE = 50;
+const cache = new Map<string, { program: Program; index: ProgramIndex; lastAccess: number }>();
+
+function evictIfNeeded(): void {
+  if (cache.size <= MAX_CACHE_SIZE) return;
+  let oldestKey = '';
+  let oldestTime = Infinity;
+  for (const [key, val] of cache) {
+    if (val.lastAccess < oldestTime) {
+      oldestTime = val.lastAccess;
+      oldestKey = key;
+    }
+  }
+  if (oldestKey) cache.delete(oldestKey);
+}
+
+function touchCache(uri: string): { program: Program; index: ProgramIndex } | undefined {
+  const entry = cache.get(uri);
+  if (entry) {
+    entry.lastAccess = Date.now();
+    return entry;
+  }
+  return undefined;
+}
 const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 // Track import dependencies: importedFile → Set of URIs that import it
 const importDeps = new Map<string, Set<string>>();
@@ -42,7 +69,8 @@ function validateDocument(doc: TextDocument): void {
     connection.sendDiagnostics({ uri, diagnostics });
 
     if (result.program && result.index) {
-      cache.set(uri, { program: result.program, index: result.index });
+      cache.set(uri, { program: result.program, index: result.index, lastAccess: Date.now() });
+      evictIfNeeded();
       // Track import dependencies
       for (const imp of result.program.imports) {
         if (imp.resolvedPath) {
@@ -89,7 +117,7 @@ documents.onDidClose((e) => {
 
 connection.onHover((params) => {
   const doc = documents.get(params.textDocument.uri);
-  const state = cache.get(params.textDocument.uri);
+  const state = touchCache(params.textDocument.uri);
   if (!doc || !state) return null;
 
   const word = getWordAtPosition(doc.getText(), params.position.line, params.position.character);
@@ -100,7 +128,7 @@ connection.onHover((params) => {
 
 connection.onDefinition((params) => {
   const doc = documents.get(params.textDocument.uri);
-  const state = cache.get(params.textDocument.uri);
+  const state = touchCache(params.textDocument.uri);
   if (!doc || !state) return null;
 
   const word = getWordAtPosition(doc.getText(), params.position.line, params.position.character);
@@ -112,12 +140,31 @@ connection.onDefinition((params) => {
 connection.onCompletion((params) => {
   const doc = documents.get(params.textDocument.uri);
   if (!doc) return [];
-  const state = cache.get(params.textDocument.uri);
+  const state = touchCache(params.textDocument.uri);
+
+  const resolveImportNames = (importPath: string): string[] => {
+    try {
+      const currentFilePath = fileURLToPath(params.textDocument.uri);
+      let resolved = path.resolve(path.dirname(currentFilePath), importPath);
+      if (!resolved.endsWith('.gft')) resolved += '.gft';
+      const source = fs.readFileSync(resolved, 'utf-8');
+      const tokens = new Lexer(source).tokenize();
+      const result = new Parser(tokens).parse();
+      return [
+        ...result.program.contexts.map(c => c.name),
+        ...result.program.nodes.map(n => n.name),
+      ];
+    } catch {
+      return [];
+    }
+  };
+
   return getCompletions(
     doc.getText(),
     params.position.line,
     params.position.character,
     state ?? null,
+    resolveImportNames,
   );
 });
 
