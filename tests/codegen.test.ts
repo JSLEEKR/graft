@@ -361,7 +361,7 @@ describe('generateOrchestration', () => {
   });
 
   it('returns empty string when no graphs', () => {
-    const program: Program = { contexts: [], nodes: [], edges: [], graphs: [] };
+    const program: Program = { imports: [], memories: [], contexts: [], nodes: [], edges: [], graphs: [] };
     const report: TokenReport = {
       graphName: '',
       budget: 0,

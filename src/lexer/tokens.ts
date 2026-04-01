@@ -34,6 +34,11 @@ export enum TokenType {
   Foreach = 'Foreach',
   As = 'As',
   MaxIterations = 'MaxIterations',
+  Import = 'Import',
+  From = 'From',
+  Memory = 'Memory',
+  Writes = 'Writes',
+  Storage = 'Storage',
 
   // Type keywords
   String = 'String',
@@ -122,6 +127,11 @@ export const KEYWORDS: Record<string, TokenType> = {
   foreach: TokenType.Foreach,
   as: TokenType.As,
   max_iterations: TokenType.MaxIterations,
+  import: TokenType.Import,
+  from: TokenType.From,
+  memory: TokenType.Memory,
+  writes: TokenType.Writes,
+  storage: TokenType.Storage,
   String: TokenType.String,
   Int: TokenType.Int,
   Float: TokenType.Float,

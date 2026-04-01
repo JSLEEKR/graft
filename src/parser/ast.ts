@@ -1,7 +1,24 @@
 import { SourceLocation } from '../errors/diagnostics.js';
 
+export interface ImportDecl {
+  names: string[];
+  path: string;
+  resolvedPath?: string;
+  location: SourceLocation;
+}
+
+export interface MemoryDecl {
+  name: string;
+  maxTokens: number;
+  storage: 'file';
+  fields: Field[];
+  location: SourceLocation;
+}
+
 // Top-level program
 export interface Program {
+  imports: ImportDecl[];
+  memories: MemoryDecl[];
   contexts: ContextDecl[];
   nodes: NodeDecl[];
   edges: EdgeDecl[];
@@ -24,6 +41,7 @@ export interface NodeDecl {
   budgetOut: number;
   reads: ContextRef[];
   tools: string[];
+  writes: string[];
   onFailure?: FailureStrategy;
   produces: ProducesDecl;
   location: SourceLocation;

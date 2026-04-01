@@ -3,6 +3,7 @@ import { Token, TokenType, KEYWORDS } from '../lexer/tokens.js';
 import { GraftError } from '../errors/diagnostics.js';
 import {
   Program, ContextDecl, NodeDecl, EdgeDecl, GraphDecl,
+  ImportDecl, MemoryDecl,
   Field, TypeExpr, ContextRef, ProducesDecl,
   Transform, Condition, FailureStrategy,
   EdgeTarget, ConditionalBranch,
@@ -20,33 +21,101 @@ export class Parser {
 
   parse(): Program {
     const program: Program = {
+      imports: [],
+      memories: [],
       contexts: [],
       nodes: [],
       edges: [],
       graphs: [],
     };
-
+    let seenNonImport = false;
     while (!this.isAtEnd()) {
       const token = this.current();
       switch (token.type) {
+        case TokenType.Import:
+          if (seenNonImport) {
+            throw this.error('Import declarations must appear before all other declarations');
+          }
+          program.imports.push(this.parseImportDecl());
+          break;
+        case TokenType.Memory:
+          seenNonImport = true;
+          program.memories.push(this.parseMemoryDecl());
+          break;
         case TokenType.Context:
+          seenNonImport = true;
           program.contexts.push(this.parseContext());
           break;
         case TokenType.Node:
+          seenNonImport = true;
           program.nodes.push(this.parseNode());
           break;
         case TokenType.Edge:
+          seenNonImport = true;
           program.edges.push(this.parseEdge());
           break;
         case TokenType.Graph:
+          seenNonImport = true;
           program.graphs.push(this.parseGraph());
           break;
         default:
-          throw this.error(`Unexpected token '${token.value}', expected 'context', 'node', 'edge', or 'graph'`);
+          throw this.error(`Unexpected token '${token.value}', expected 'import', 'memory', 'context', 'node', 'edge', or 'graph'`);
       }
     }
 
     return program;
+  }
+
+  // --- Import ------------------------------------------------
+
+  private parseImportDecl(): ImportDecl {
+    const loc = this.current().location;
+    this.expect(TokenType.Import);
+    this.expect(TokenType.LBrace);
+    const names: string[] = [];
+    while (!this.check(TokenType.RBrace)) {
+      if (names.length > 0) this.expect(TokenType.Comma);
+      names.push(this.expectIdentifier());
+    }
+    if (names.length === 0) {
+      throw this.error('Import must specify at least one name');
+    }
+    this.expect(TokenType.RBrace);
+    this.expect(TokenType.From);
+    const pathToken = this.expect(TokenType.StringLiteral);
+    const path = pathToken.value;
+    if (path === '') {
+      throw this.error('Import path cannot be empty');
+    }
+    return { names, path, location: loc };
+  }
+
+  // --- Memory ------------------------------------------------
+
+  private parseMemoryDecl(): MemoryDecl {
+    const loc = this.current().location;
+    this.expect(TokenType.Memory);
+    const name = this.expectIdentifier();
+    this.expect(TokenType.LParen);
+    this.expect(TokenType.MaxTokens);
+    this.expect(TokenType.Colon);
+    const maxTokens = this.parseTokenValue();
+    let storage: 'file' = 'file';
+    if (this.check(TokenType.Comma)) {
+      this.advance();
+      this.expect(TokenType.Storage);
+      this.expect(TokenType.Colon);
+      const storageValue = this.expectIdentifierOrKeyword();
+      if (storageValue !== 'file') {
+        throw this.error(`Unknown storage type '${storageValue}', expected 'file'`);
+      }
+      storage = 'file';
+    }
+    this.expect(TokenType.RParen);
+    this.expect(TokenType.LBrace);
+    const fields = this.parseFields();
+    this.expect(TokenType.RBrace);
+    return { name, maxTokens, storage, fields, location: loc };
   }
 
   // --- Context ------------------------------------------------
@@ -96,8 +165,10 @@ export class Parser {
 
     let reads: ContextRef[] = [];
     let tools: string[] = [];
+    let writes: string[] = [];
     let onFailure: FailureStrategy | undefined;
     let produces: ProducesDecl | undefined;
+    let hasWrites = false;
 
     while (!this.check(TokenType.RBrace)) {
       if (this.check(TokenType.Reads)) {
@@ -108,12 +179,19 @@ export class Parser {
         this.advance();
         this.expect(TokenType.Colon);
         tools = this.parseIdentifierList();
+      } else if (this.check(TokenType.Writes)) {
+        if (hasWrites) {
+          throw this.error('Duplicate writes clause in node');
+        }
+        hasWrites = true;
+        this.advance();
+        this.expect(TokenType.Colon);
+        writes = this.parseIdentifierList();
       } else if (this.check(TokenType.OnFailure)) {
         this.advance();
         this.expect(TokenType.Colon);
         onFailure = this.parseFailureStrategy();
       } else if (this.check(TokenType.Produces)) {
-        // Do NOT advance here -- parseProduces() consumes the keyword itself
         produces = this.parseProduces();
       } else {
         throw this.error(`Unexpected token '${this.current().value}' in node body`);
@@ -125,7 +203,7 @@ export class Parser {
       throw new GraftError('Node must have a produces declaration', loc);
     }
 
-    return { name, model, budgetIn, budgetOut, reads, tools, onFailure, produces, location: loc };
+    return { name, model, budgetIn, budgetOut, reads, tools, writes, onFailure, produces, location: loc };
   }
 
   private parseProduces(): ProducesDecl {
