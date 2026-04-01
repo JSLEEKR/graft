@@ -3,13 +3,14 @@ import { Command } from 'commander';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { compile, compileAndWrite } from './compiler.js';
+import { VERSION } from './version.js';
 
 const program = new Command();
 
 program
   .name('graft')
   .description('Graft compiler — graph-native language for AI agent harness engineering')
-  .version('1.2.0');
+  .version(VERSION);
 
 program
   .command('compile')

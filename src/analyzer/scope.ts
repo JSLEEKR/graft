@@ -1,5 +1,6 @@
 import { Program, FlowNode } from '../parser/ast.js';
 import { GraftError, SourceLocation } from '../errors/diagnostics.js';
+import { ProgramIndex } from '../program-index.js';
 
 export class ScopeChecker {
   private program: Program;
@@ -9,9 +10,11 @@ export class ScopeChecker {
   private memoryNames: Set<string>;
   private memoryFieldsMap: Map<string, Set<string>>;
   private nodeWritesMap: Map<string, string[]>; // node name -> writes targets
+  private index: ProgramIndex;
 
   constructor(program: Program) {
     this.program = program;
+    this.index = new ProgramIndex(program);
     this.contextNames = new Set(program.contexts.map(c => c.name));
     this.nodeNames = new Set(program.nodes.map(n => n.name));
     this.producesMap = new Map();
@@ -95,7 +98,7 @@ export class ScopeChecker {
         // Check partial reference field
         if (ref.field) {
           if (isContext) {
-            const ctx = this.program.contexts.find(c => c.name === ref.context)!;
+            const ctx = this.index.contextMap.get(ref.context)!;
             const fieldNames = new Set(ctx.fields.map(f => f.name));
             if (!fieldNames.has(ref.field)) {
               errors.push(new GraftError(
@@ -221,7 +224,7 @@ export class ScopeChecker {
             ));
           }
           // Validate source node produces the referenced field
-          const sourceNode = this.program.nodes.find(n => n.name === step.source);
+          const sourceNode = this.index.nodeMap.get(step.source);
           if (sourceNode) {
             const fieldNames = new Set(sourceNode.produces.fields.map(f => f.name));
             if (!fieldNames.has(step.field)) {

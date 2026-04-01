@@ -1,6 +1,7 @@
 import { Program, NodeDecl, EdgeDecl, Transform, FlowNode } from '../parser/ast.js';
 import { GraftError } from '../errors/diagnostics.js';
 import { PARTIAL_FIELD_FACTOR } from '../constants.js';
+import { ProgramIndex } from '../program-index.js';
 
 export interface NodeTokenReport {
   name: string;
@@ -19,17 +20,16 @@ export interface TokenReport {
 
 export class TokenEstimator {
   private program: Program;
+  private index: ProgramIndex;
   private nodeMap: Map<string, NodeDecl>;
   private edgeMap: Map<string, EdgeDecl>; // "source->target" key
 
   constructor(program: Program) {
     this.program = program;
-    this.nodeMap = new Map();
+    this.index = new ProgramIndex(program);
+    this.nodeMap = this.index.nodeMap;
     this.edgeMap = new Map();
 
-    for (const node of program.nodes) {
-      this.nodeMap.set(node.name, node);
-    }
     for (const edge of program.edges) {
       if (edge.target.kind === 'direct') {
         this.edgeMap.set(`${edge.source}->${edge.target.node}`, edge);
@@ -161,19 +161,19 @@ export class TokenEstimator {
     let estimatedIn = 0;
     for (const ref of node.reads) {
       // If reading a context
-      const ctx = this.program.contexts.find(c => c.name === ref.context);
+      const ctx = this.index.contextMap.get(ref.context);
       if (ctx) {
         estimatedIn += ref.field ? Math.floor(ctx.maxTokens * PARTIAL_FIELD_FACTOR) : ctx.maxTokens;
         continue;
       }
       // If reading a memory
-      const mem = this.program.memories.find(m => m.name === ref.context);
+      const mem = this.index.memoryMap.get(ref.context);
       if (mem) {
         estimatedIn += ref.field ? Math.floor(mem.maxTokens * PARTIAL_FIELD_FACTOR) : mem.maxTokens;
         continue;
       }
       // If reading a produces output from upstream node
-      const sourceNode = this.program.nodes.find(n => n.produces.name === ref.context);
+      const sourceNode = this.index.producesNodeMap.get(ref.context);
       if (sourceNode) {
         let upstreamTokens = sourceNode.budgetOut;
         // Check for edge transform reductions

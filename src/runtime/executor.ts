@@ -7,6 +7,7 @@ import { TokenTracker } from './token-tracker.js';
 import { MODEL_MAP } from '../constants.js';
 import { fieldsToJsonExample } from '../utils.js';
 import { loadMemory, saveMemory } from './memory.js';
+import { ProgramIndex } from '../program-index.js';
 
 export type SpawnerFn = (options: SpawnOptions) => Promise<SpawnResult>;
 
@@ -47,6 +48,7 @@ export interface RunResult {
 export class Executor {
   private program: Program;
   private options: RunOptions;
+  private index: ProgramIndex;
   private nodeMap: Map<string, NodeDecl>;
   private edgeMap: Map<string, EdgeDecl[]>;
   private outputs: Map<string, unknown>;
@@ -60,24 +62,15 @@ export class Executor {
   constructor(program: Program, options: RunOptions) {
     this.program = program;
     this.options = options;
+    this.index = new ProgramIndex(program);
     this.spawner = options.spawner ?? spawnClaude;
     this.outputs = new Map();
     this.memoryDir = path.join(options.workDir, '.graft', 'memory');
     this.memoryNames = new Set(program.memories.map(m => m.name));
 
-    // Build node lookup from Program.nodes
-    this.nodeMap = new Map();
-    for (const node of program.nodes) {
-      this.nodeMap.set(node.name, node);
-    }
-
-    // Build edge lookup by source
-    this.edgeMap = new Map();
-    for (const edge of program.edges) {
-      const existing = this.edgeMap.get(edge.source) ?? [];
-      existing.push(edge);
-      this.edgeMap.set(edge.source, existing);
-    }
+    // Reuse index maps
+    this.nodeMap = this.index.nodeMap;
+    this.edgeMap = this.index.edgesBySource;
 
     this.sessionDir = path.join(options.workDir, '.graft', 'session');
     this.nodeOutputDir = path.join(this.sessionDir, 'node_outputs');
@@ -404,7 +397,7 @@ export class Executor {
     for (const writeName of nodeDecl.writes) {
       if (this.memoryNames.has(writeName)) {
         if (!this.options.dryRun) {
-          const mem = this.program.memories.find(m => m.name === writeName);
+          const mem = this.index.memoryMap.get(writeName);
           if (mem) {
             saveMemory(this.memoryDir, mem, output);
           }

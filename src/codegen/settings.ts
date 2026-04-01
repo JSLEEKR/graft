@@ -1,5 +1,7 @@
 import { Program, EdgeDecl, FlowNode } from '../parser/ast.js';
 import { MODEL_MAP, BUDGET_WARNING_THRESHOLD, BUDGET_CRITICAL_THRESHOLD } from '../constants.js';
+import { VERSION } from '../version.js';
+import { ProgramIndex } from '../program-index.js';
 
 export interface GraftSettings {
   model: string;
@@ -47,10 +49,11 @@ function findFirstNodeName(flow: FlowNode[]): string | undefined {
 }
 
 export function generateSettings(program: Program, sourceFile: string): GraftSettings {
+  const index = new ProgramIndex(program);
   const graph = program.graphs[0];
   const firstNodeName = graph ? findFirstNodeName(graph.flow) : undefined;
   const firstNodeModel = firstNodeName
-    ? program.nodes.find(n => n.name === firstNodeName)?.model
+    ? index.nodeMap.get(firstNodeName)?.model
     : undefined;
   const defaultModel = firstNodeModel
     ? (MODEL_MAP[firstNodeModel] || firstNodeModel)
@@ -82,7 +85,7 @@ export function generateSettings(program: Program, sourceFile: string): GraftSet
       allow: ['Read', 'Write', 'Edit', 'Bash', 'Skill'],
     },
     graft: {
-      version: '0.1.0',
+      version: VERSION,
       source: sourceFile,
       compiled_at: new Date().toISOString(),
       budget: {

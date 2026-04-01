@@ -47,7 +47,7 @@ export function compile(source: string, sourceFile: string): CompileResult {
 
   // Resolve imports
   if (program.imports.length > 0) {
-    const resolveResult = resolve(source, sourceFile);
+    const resolveResult = resolve(program, sourceFile);
     if (resolveResult.errors.length > 0) {
       errors.push(...resolveResult.errors);
       return { success: false, program, errors, warnings };

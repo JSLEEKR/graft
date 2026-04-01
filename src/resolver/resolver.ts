@@ -49,24 +49,12 @@ function emptyProgram(): Program {
 }
 
 export function resolve(
-  source: string,
+  entryProgram: Program,
   sourceFile: string,
   readFile: FileReader = (p) => fs.readFileSync(p, 'utf-8'),
 ): ResolveResult {
   const absSourceFile = path.resolve(sourceFile);
   const errors: GraftError[] = [];
-
-  // Parse entry file with try-catch (A3's fix)
-  let entryProgram: Program;
-  try {
-    entryProgram = parseSource(source);
-  } catch (e) {
-    if (e instanceof GraftError) {
-      errors.push(e);
-      return { program: emptyProgram(), resolvedFiles: [absSourceFile], errors };
-    }
-    throw e;
-  }
 
   const ctx: ResolveCtx = {
     entryFile: absSourceFile,

@@ -1,10 +1,12 @@
-import { Program, FlowNode } from '../parser/ast.js';
+import { Program, FlowNode, NodeDecl } from '../parser/ast.js';
 import { TokenReport, NodeTokenReport } from '../analyzer/estimator.js';
+import { ProgramIndex } from '../program-index.js';
 
 export function generateOrchestration(program: Program, report: TokenReport): string {
   const graph = program.graphs[0];
   if (!graph) return '';
 
+  const index = new ProgramIndex(program);
   const memoryNames = new Set(program.memories.map(m => m.name));
 
   const edgeMap = new Map<string, boolean>();
@@ -14,7 +16,7 @@ export function generateOrchestration(program: Program, report: TokenReport): st
     }
   }
 
-  const { text: steps } = generateSteps(graph.flow, report, edgeMap, 1, null, program, memoryNames);
+  const { text: steps } = generateSteps(graph.flow, report, edgeMap, 1, null, index.nodeMap, memoryNames);
 
   // Memory preamble
   const memorySection = program.memories.length > 0
@@ -55,7 +57,7 @@ function generateSteps(
   edgeMap: Map<string, boolean>,
   startStep: number,
   prevNode: string | null,
-  program: Program,
+  nodeMap: Map<string, NodeDecl>,
   memoryNames: Set<string>,
 ): { text: string; nextStep: number; lastNode: string | null } {
   let text = '';
@@ -79,7 +81,7 @@ function generateSteps(
         }
 
         let memoryLines = '';
-        const nodeDecl = program.nodes.find(n => n.name === step.name);
+        const nodeDecl = nodeMap.get(step.name);
         if (nodeDecl) {
           const memReads = nodeDecl.reads.filter(r => memoryNames.has(r.context));
           for (const mr of memReads) {
@@ -114,7 +116,7 @@ function generateSteps(
           const lowerName = branchName.toLowerCase();
           const nodeReport = report.nodes.find(n => n.name === branchName);
           let branchMemAnnotations = '';
-          const branchDecl = program.nodes.find(n => n.name === branchName);
+          const branchDecl = nodeMap.get(branchName);
           if (branchDecl) {
             const memReads = branchDecl.reads.filter(r => memoryNames.has(r.context));
             for (const mr of memReads) {

@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import { resolve, FileReader } from '../src/resolver/resolver.js';
+import { Lexer } from '../src/lexer/lexer.js';
+import { Parser } from '../src/parser/parser.js';
 
 /**
  * Helper: builds a map-based FileReader mock.
@@ -28,7 +30,10 @@ function testResolve(source: string, files: Record<string, string> = {}) {
   for (const [key, value] of Object.entries(files)) {
     absFiles[path.resolve('/project', key)] = value;
   }
-  return resolve(source, sourceFile, mockReader(absFiles));
+  const lexer = new Lexer(source);
+  const tokens = lexer.tokenize();
+  const program = new Parser(tokens).parse();
+  return resolve(program, sourceFile, mockReader(absFiles));
 }
 
 describe('Import Resolver', () => {
@@ -189,7 +194,10 @@ describe('Import Resolver', () => {
       import { A } from "./a.gft"
       import { B } from "./b.gft"
     `;
-    resolve(mainSource, path.resolve('/project/main.gft'), countingReader);
+    const lexer = new Lexer(mainSource);
+    const tokens = lexer.tokenize();
+    const program = new Parser(tokens).parse();
+    resolve(program, path.resolve('/project/main.gft'), countingReader);
     expect(readCount).toBe(1);
   });
 
@@ -261,13 +269,6 @@ describe('Import Resolver', () => {
     const result = testResolve(mainSource, { 'bad.gft': badSource });
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].message).toContain('Error parsing imported file');
-  });
-
-  it('handles entry file parse error gracefully', () => {
-    const badMain = `context Broken(max_tokens: ???) {`;
-    const result = testResolve(badMain, {});
-    expect(result.errors).toHaveLength(1);
-    expect(result.program.contexts).toEqual([]);
   });
 
   it('accumulates multiple errors', () => {
