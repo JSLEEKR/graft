@@ -1,7 +1,7 @@
 # Common Memory — Graft Compiler
-## Last updated: v2.2-R2 completed
+## Last updated: v2.2-R6 completed
 
-## Ratchet-Locked Decisions (117 total, 2 unlocked)
+## Ratchet-Locked Decisions (132 total, 2 unlocked)
 
 ### T1-T6 (abbreviated — all LOCKED)
 T1: tsc-only, ESM, NodeNext, explicit vitest, shebang, strict, no barrels, .js extensions
@@ -116,6 +116,27 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - [v2.2-R09] Error codes on all 34 GraftError call sites (20 scope + 4 type + 3 estimator + 6 resolver + 1 compiler) — LOCKED
 - [v2.2-R10] Parser/lexer remain throw-based; error codes only on analyzer/resolver/compiler — LOCKED
 
+### v2.2-R3 Ratchets (Correctness Fixes)
+- [v2.2-R11] Foreach binding collision: else-if chain against nodeNames/producesMap/contextNames/memoryNames — LOCKED
+- [v2.2-R12] C-02 in ScopeChecker.checkEdges(), not TypeChecker — LOCKED
+- [v2.2-R13] Multiple graph warning in ScopeChecker, uses graphs[1].location — LOCKED
+- [v2.2-R14] loadMemory options param: `options?: { verbose?: boolean }` — LOCKED
+- [v2.2-R15] sourceFile set in compiler.ts (all decls) + resolver.ts (imported decls only) — LOCKED
+
+### v2.2-R4 Ratchets (LSP Server)
+- [v2.2-R16] LSP: 2-file structure (server.ts + features.ts), pure functions for all handlers — LOCKED
+- [v2.2-R17] LSP: Node stdlib URI conversion (fileURLToPath/pathToFileURL), no vscode-uri — LOCKED
+- [v2.2-R18] LSP: GRAPH_MISSING filtered from LSP diagnostics; compile() returns program on no-graph — LOCKED
+- [v2.2-R19] LSP: Full document sync (TextDocumentSyncKind.Full), compile-on-change — LOCKED
+- [v2.2-R20] LSP: Per-URI cache of { program, index }, stale data for hover/definition on error — LOCKED
+- [v2.2-R21] LSP: formatType exhaustive switch over TypeExpr, distinct from typeToExample — LOCKED
+
+### v2.2-R5 Ratchets (npm Distribution + VS Code Extension)
+- [v2.2-R22] npm: @graft-lang/graft scoped name, exports with ./ast sub-path — LOCKED
+- [v2.2-R23] npm: files array (dist/, README.md, LICENSE) + .npmignore defense-in-depth — LOCKED
+- [v2.2-R24] VS Code: command-based ServerOptions (graft-lsp on PATH), CJS output — LOCKED
+- [v2.2-R25] TextMate: // and /* */ comments only, no escape sequences, k-integer before integer — LOCKED
+
 ## Review Feedback
 - T1-T7: ALL PASS. Test progression: 5 → 31 → 31 → 64 → 78 → 101 → 110
 - v1.2: PASS. 171 tests (135 existing + 36 new). All 12 ratchet items compliant.
@@ -130,6 +151,10 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v2.1-R4: PASS. 288 tests (282 existing + 6 new). 0 new ratchet items. Integration tests only. Debate skipped (no design decisions).
 - v2.2-R1: PASS. 296 tests (288 existing - 1 removed + 3 version + 6 program-index). 5 new ratchet items. Zero deviations. MEDIUM tier (2 agents).
 - v2.2-R2: PASS. 323 tests (296 existing + 27 new). 5 new ratchet items. Zero deviations. MEDIUM tier (2 agents, cross-critique skipped).
+- v2.2-R3: PASS. 337 tests (323 existing + 14 new). 5 new ratchet items. Zero deviations. MEDIUM tier (2 agents, cross-critique skipped).
+- v2.2-R4: PASS. 359 tests (337 existing + 22 new). 6 new ratchet items. Zero negative deviations. HIGH tier (4 agents, cross-critique skipped).
+- v2.2-R5: PASS. 363 tests (359 existing + 4 new). 4 new ratchet items. Zero deviations. MEDIUM tier (2 agents, cross-critique skipped).
+- v2.2-R6: PASS. 376 tests (363 existing + 13 new). 0 new ratchet items. TEST-ONLY tier. All 4 adversarial test proposals from v2.1 implemented.
 
 ## Recurring Patterns
 - A3-Skeptic: critical bugs every task (T2-T7 consecutively)
@@ -151,6 +176,8 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v2.1-R3: A3 found CLI format uncertainty (usage field may not exist). A2 found mock spawner backward-compat issue with result key collision. Both resolved in convergence. Cross-critique skipped due to high consensus (6-8 range).
 - v2.2-R1: Cross-critique skipped (score range 8-7 = 1, below R-PROC-01 threshold of 2). A3 found spec missing producesNodeMap and codegen .find() calls. Both adopted in convergence.
 - v2.2-R2: Both agents scored 8/10. A4's comprehensive error code taxonomy (24 codes) trimmed to 18 by convergence (YAGNI). A2's separate flow-runner helpers rejected in favor of single switch.
+- v2.2-R3: Score range 8-7=1, cross-critique skipped. Only disagreement: A3 placed C-02 in TypeChecker, A4 in ScopeChecker. ScopeChecker adopted (structural warning, not type checking).
+- v2.2-R4: All 4 agents scored 7-8. A3 found GRAPH_MISSING bug (compile() drops program for library files). Resolved by returning program + filtering in LSP. URI conversion: A2/A3 Node stdlib adopted over A1 hand-rolled.
 
 ## Debate ROI
 - v2.1-R1 (MEDIUM): 6 agent calls, 0 bugs found, 0 design changes. Appropriate for mechanical refactoring.
@@ -159,6 +186,10 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v2.1-R4 (MEDIUM, reduced): 2 agent calls (debate skipped — pure integration testing). No design decisions needed for test-only rounds.
 - v2.2-R1 (MEDIUM): 5 agent calls (2 analysis + 1 convergence + 1 impl + 1 review). 0 bugs, 2 spec corrections (producesNodeMap, codegen migration). Score-gated cross-critique working as designed.
 - v2.2-R2 (MEDIUM): 5 agent calls. 0 bugs, executor decomposed from ~475 to ~300 lines, 18 error codes added to 34 call sites.
+- v2.2-R3 (MEDIUM): 5 agent calls. 0 bugs, 5 correctness warnings added, sourceFile tracking for LSP.
+- v2.2-R4 (HIGH): 11 agent calls (2 research + 4 analysis + 1 convergence + 1 impl + 1 review + 2 skipped cross-critique). 1 bug found (GRAPH_MISSING drops program). New LSP subsystem.
+- v2.2-R5 (MEDIUM): 5 agent calls (2 analysis + 1 convergence + 1 impl + 1 review). 0 bugs, 3 correctness corrections from A3 (comment syntax, escape sequences, k-integer priority). Configuration-only round.
+- v2.2-R6 (TEST-ONLY): 2 agent calls (1 impl + 1 review). 0 bugs. Integration tests + adversarial backlog cleared.
 
 ## Notes for Future
 - Conditional edge routing: deferred to v1.3
@@ -166,7 +197,7 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - Token budget enforcement (Graft tokens vs Claude CLI dollars): approximation only
 - Memory importability: deferred (v2.0-R13 locked as excluded)
 - entryFile guard in resolver: scopes name merging to entry file only (justified deviation from convergence spec)
-- All 323 tests currently passing
+- All 359 tests currently passing
 - v2.0 complete: import system + memory across all pipeline stages (lexer → parser → resolver → analyzer → codegen → runtime → integration)
 - v2.1-R1 complete: constants/utils/memory extracted to shared modules, MODEL_MAP deduplication resolved
 - v2.1-R2 complete: writes schema validation, max_tokens > 0, parallel write detection, compiler.ts warning routing
@@ -177,3 +208,10 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v2.1 process improvement: MEDIUM tier, skipped Step 0, reduced cross-critique for high-consensus rounds — 21 agent calls total (vs 36 budgeted, 42% reduction)
 - v2.2-R1 complete: double-parse eliminated, VERSION from package.json, ProgramIndex utility (5 maps), .find() calls eliminated from scope/estimator/executor/codegen
 - v2.2-R2 complete: executor decomposed (prompt-builder.ts + flow-runner.ts), 18 GraftErrorCode union type, error codes on all 34 diagnostic sites
+- v2.2-R3 complete: foreach binding collision, conditional edge transform warning, multiple graph warning, loadMemory verbose, sourceFile tracking
+- GraftErrorCode now has 21 members (18 from R2 + 3 from R3)
+- v2.2-R4 complete: LSP server with diagnostics, hover, go-to-definition. 2-file structure (server.ts + features.ts). compile() fixed to return program on GRAPH_MISSING.
+- v2.2-R5 complete: npm distribution metadata (@graft-lang/graft), VS Code extension (syntax highlighting, LSP client). Zero production code changes.
+- v2.2-R6 complete: integration tests (end-to-end compile, LSP round-trip, npm pack, adversarial backlog). All 4 v2.1 adversarial proposals resolved.
+- All 376 tests currently passing
+- v2.2 complete: 6 rounds (R1-R6), all PASS. Tech debt + correctness + LSP + npm + VS Code + integration.
