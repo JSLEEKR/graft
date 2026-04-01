@@ -362,6 +362,61 @@ export class ScopeChecker {
         }
       }
     }
+    this.checkFallbackCycles(errors);
+  }
+
+  private checkFallbackCycles(errors: GraftError[]): void {
+    // Build directed graph: node name -> fallback target
+    const fallbackEdges = new Map<string, string>();
+    const nodeLocationMap = new Map<string, SourceLocation>();
+
+    for (const node of this.program.nodes) {
+      nodeLocationMap.set(node.name, node.location);
+      if (!node.onFailure) continue;
+      const strategy = node.onFailure;
+      if (strategy.type === 'fallback' || strategy.type === 'retry_then_fallback') {
+        fallbackEdges.set(node.name, strategy.node);
+      }
+    }
+
+    // DFS cycle detection with visited + in-stack
+    const visited = new Set<string>();
+    const inStack = new Set<string>();
+
+    for (const start of fallbackEdges.keys()) {
+      if (visited.has(start)) continue;
+      const stack: string[] = [start];
+
+      while (stack.length > 0) {
+        const current = stack[stack.length - 1];
+
+        if (!inStack.has(current)) {
+          // First visit: mark in-stack
+          inStack.add(current);
+          visited.add(current);
+
+          const target = fallbackEdges.get(current);
+          if (target) {
+            if (inStack.has(target)) {
+              // Cycle detected
+              errors.push(new GraftError(
+                `Fallback cycle detected: '${current}' falls back to '${target}' which creates a cycle`,
+                nodeLocationMap.get(current)!,
+                'error',
+                'SCOPE_FALLBACK_CYCLE',
+              ));
+            } else if (!visited.has(target)) {
+              stack.push(target);
+              continue;
+            }
+          }
+        }
+
+        // Backtrack
+        stack.pop();
+        inStack.delete(current);
+      }
+    }
   }
 
   private checkParallelWrites(branches: string[], location: SourceLocation, errors: GraftError[]): void {

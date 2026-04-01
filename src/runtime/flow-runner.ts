@@ -78,29 +78,23 @@ export async function executeFlowNodes(
       }
 
       case 'parallel': {
-        const promises = flowNode.branches
-          .filter(name => name !== 'done')
-          .map(name => ctx.executeNode(name));
-        const results = await Promise.allSettled(promises);
-        for (const [i, settled] of results.entries()) {
-          if (settled.status === 'fulfilled') {
-            nodeResults.push(settled.value);
-            if (!settled.value.success) {
-              errors.push(settled.value.error ?? `Node ${flowNode.branches[i]} failed`);
-            }
-          } else {
-            const name = flowNode.branches[i];
-            const nr: NodeResult = {
-              node: name,
-              output: null,
-              durationMs: 0,
-              success: false,
-              error: settled.reason instanceof Error ? settled.reason.message : String(settled.reason),
-            };
-            nodeResults.push(nr);
-            errors.push(nr.error!);
-          }
-        }
+        const branches = flowNode.branches.filter(name => name !== 'done');
+        const promises = branches.map(name =>
+          executeWithFailureStrategy(name, nodeResults, errors, ctx)
+            .then(result => { if (result) nodeResults.push(result); })
+            .catch((reason: unknown) => {
+              const nr: NodeResult = {
+                node: name,
+                output: null,
+                durationMs: 0,
+                success: false,
+                error: reason instanceof Error ? reason.message : String(reason),
+              };
+              nodeResults.push(nr);
+              errors.push(nr.error!);
+            }),
+        );
+        await Promise.allSettled(promises);
         break;
       }
 
