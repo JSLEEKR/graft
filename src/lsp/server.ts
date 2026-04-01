@@ -16,7 +16,7 @@ import { Lexer } from '../lexer/lexer.js';
 import { Parser } from '../parser/parser.js';
 import type { Program } from '../parser/ast.js';
 import type { ProgramIndex } from '../program-index.js';
-import { toDiagnostics, getHoverInfo, getDefinitionLocation, getWordAtPosition, getCompletions, extractUndefinedName, buildAutoImportEdit, computeRelativeImportPath, getDocumentSymbols } from './features.js';
+import { toDiagnostics, getHoverInfo, getDefinitionLocation, getWordAtPosition, getCompletions, extractUndefinedName, buildAutoImportEdit, computeRelativeImportPath, getDocumentSymbols, isRenameable, collectRenameLocations } from './features.js';
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
@@ -72,6 +72,9 @@ connection.onInitialize((params) => {
       documentSymbolProvider: true,
       codeActionProvider: {
         codeActionKinds: [CodeActionKind.QuickFix],
+      },
+      renameProvider: {
+        prepareProvider: true,
       },
     },
   };
@@ -288,6 +291,105 @@ connection.onCodeAction((params) => {
   }
 
   return actions;
+});
+
+// --- Rename ---
+
+connection.onPrepareRename((params) => {
+  const doc = documents.get(params.textDocument.uri);
+  const state = touchCache(params.textDocument.uri);
+  if (!doc || !state) return null;
+
+  const word = getWordAtPosition(doc.getText(), params.position.line, params.position.character);
+  if (!word || !isRenameable(word, state.index)) return null;
+
+  // Return the range of the word under cursor
+  const lines = doc.getText().split('\n');
+  const lineText = lines[params.position.line] ?? '';
+  const pattern = /[A-Za-z_][A-Za-z0-9_]*/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(lineText)) !== null) {
+    const start = match.index;
+    const end = start + match[0].length;
+    if (params.position.character >= start && params.position.character < end) {
+      return {
+        start: { line: params.position.line, character: start },
+        end: { line: params.position.line, character: end },
+      };
+    }
+  }
+  return null;
+});
+
+connection.onRenameRequest((params) => {
+  const doc = documents.get(params.textDocument.uri);
+  const state = touchCache(params.textDocument.uri);
+  if (!doc || !state) return null;
+
+  const word = getWordAtPosition(doc.getText(), params.position.line, params.position.character);
+  if (!word || !isRenameable(word, state.index)) return null;
+
+  const newName = params.newName;
+
+  // Check for conflicts in current file
+  if (word !== newName && (
+    state.index.contextMap.has(newName) ||
+    state.index.nodeMap.has(newName) ||
+    state.index.memoryMap.has(newName) ||
+    state.index.graphMap.has(newName)
+  )) {
+    return null; // conflict with existing declaration
+  }
+
+  const changes: Record<string, import('vscode-languageserver/node').TextEdit[]> = {};
+
+  // Collect locations in current file
+  const currentLocs = collectRenameLocations(doc.getText(), word);
+  if (currentLocs.length > 0) {
+    changes[params.textDocument.uri] = currentLocs.map(range => ({
+      range,
+      newText: newName,
+    }));
+  }
+
+  // Cross-file rename via workspace exports cache
+  if (workspaceRoot) {
+    // Lazy workspace scan
+    if (!workspaceScanDone) {
+      const currentFilePath = fileURLToPath(params.textDocument.uri);
+      scanWorkspaceExports(workspaceRoot, currentFilePath);
+      workspaceScanDone = true;
+    }
+
+    // Find all files that might reference this name
+    for (const [filePath, exports] of workspaceExports) {
+      const fileUri = pathToFileURL(filePath).toString();
+      if (fileUri === params.textDocument.uri) continue;
+
+      // Check if this file imports the renamed name
+      const openDoc = documents.get(fileUri);
+      let fileText: string;
+      try {
+        fileText = openDoc ? openDoc.getText() : fs.readFileSync(filePath, 'utf-8');
+      } catch {
+        continue;
+      }
+
+      // Check if the file contains import of this name
+      const importPattern = new RegExp(`import\\s*\\{[^}]*\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b[^}]*\\}`);
+      if (!importPattern.test(fileText)) continue;
+
+      const locs = collectRenameLocations(fileText, word);
+      if (locs.length > 0) {
+        changes[fileUri] = locs.map(range => ({
+          range,
+          newText: newName,
+        }));
+      }
+    }
+  }
+
+  return { changes };
 });
 
 documents.listen(connection);
