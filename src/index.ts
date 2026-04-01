@@ -98,6 +98,43 @@ program
     console.log('');
   });
 
+program
+  .command('run')
+  .description('Compile and execute a .gft pipeline')
+  .argument('<file>', '.gft source file')
+  .option('--input <file>', 'input JSON file')
+  .option('--dry-run', 'simulate execution without spawning subprocesses')
+  .option('--verbose', 'print execution details')
+  .option('--timeout <seconds>', 'subprocess timeout in seconds', '300')
+  .option('--work-dir <dir>', 'working directory for execution')
+  .action(async (file: string, opts: { input?: string; dryRun?: boolean; verbose?: boolean; timeout: string; workDir?: string }) => {
+    const { run } = await import('./runner.js');
+    const result = await run({
+      sourceFile: file,
+      inputFile: opts.input,
+      workDir: opts.workDir,
+      dryRun: opts.dryRun,
+      verbose: opts.verbose,
+      timeoutMs: parseInt(opts.timeout, 10) * 1000,
+    });
+    if (!result.success) {
+      console.error('\nExecution failed:');
+      for (const err of result.errors) console.error(`  ${err}`);
+      process.exit(1);
+    }
+    console.log(`\nGraph '${result.graph}' completed in ${result.totalDurationMs}ms`);
+    console.log(`Nodes executed: ${result.nodeResults.length}`);
+    for (const nr of result.nodeResults) {
+      const status = nr.success ? 'OK' : 'FAILED';
+      console.log(`  ${nr.node.padEnd(20)} ${status.padEnd(8)} ${nr.durationMs}ms`);
+    }
+    if (result.finalOutput !== null) {
+      console.log('\nFinal output:');
+      console.log(JSON.stringify(result.finalOutput, null, 2));
+    }
+    console.log('');
+  });
+
 function readSource(file: string): string {
   const resolved = path.resolve(file);
   if (!fs.existsSync(resolved)) {
