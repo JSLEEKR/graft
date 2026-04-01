@@ -9,7 +9,7 @@ const program = new Command();
 program
   .name('graft')
   .description('Graft compiler — graph-native language for AI agent harness engineering')
-  .version('0.1.0');
+  .version('1.2.0');
 
 program
   .command('compile')

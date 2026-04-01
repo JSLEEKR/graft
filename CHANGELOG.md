@@ -1,5 +1,30 @@
 # Changelog
 
+## v1.2.0 (2026-04-01)
+
+### Added
+- `graft run <file> --input <json>` — compile and execute a .gft pipeline
+- Tree-walking interpreter over FlowNode[] from compiled AST
+- Edge transforms at runtime as pure TypeScript functions (select, filter, drop, compact, truncate)
+- Parallel execution via `Promise.allSettled` (collects all results, no silent data loss)
+- Foreach iteration over list outputs with max_iterations cap
+- `--dry-run` mode — simulate execution without spawning Claude subprocesses
+- `--verbose` mode — print detailed execution progress
+- `--timeout <seconds>` — configurable subprocess timeout (default 5 minutes)
+- `--work-dir <dir>` — specify working directory for session data
+- Session cleanup before each run (prevents stale data from previous runs)
+- Input JSON validation against graph input context schema
+- Mock spawner injection via `SpawnerFn` for testing
+- File-based data passing via `.graft/session/node_outputs/`
+- 36 new tests (171 total)
+
+### Development Process
+- Adversarial debate: 4-agent analysis + cross-critique + convergence
+- A4-Specialist forced dissenter — self-retracted generateAgent() reuse, full failure strategies, ExecutionContext
+- A3-Skeptic caught: stdin.end() showstopper, Promise.allSettled requirement, generateAgent() reuse problem
+- 12 new ratchet-locked decisions (58 total)
+- ~14 agent calls for v1.2
+
 ## v1.1.0 (2026-04-01)
 
 ### Added
