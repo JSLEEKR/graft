@@ -121,6 +121,16 @@ export class Executor {
         const nodeDecl = this.index.nodeMap.get(name);
         return nodeDecl?.onFailure;
       },
+      getConditionalEdge: (sourceName: string) => {
+        const edges = this.index.edgesBySource.get(sourceName);
+        if (!edges) return null;
+        for (const edge of edges) {
+          if (edge.target.kind === 'conditional') {
+            return edge.target.branches;
+          }
+        }
+        return null;
+      },
       outputs: this.outputs,
       input: this.options.input,
     };

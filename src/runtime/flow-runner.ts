@@ -1,10 +1,27 @@
-import { FlowNode, FailureStrategy } from '../parser/ast.js';
+import { FlowNode, FailureStrategy, Condition, ConditionalBranch } from '../parser/ast.js';
 import { NodeResult } from './executor.js';
 import { resolveField, RuntimeState } from './prompt-builder.js';
 
 export interface FlowContext extends RuntimeState {
   executeNode: (name: string) => Promise<NodeResult>;
   getFailureStrategy?: (name: string) => FailureStrategy | undefined;
+  getConditionalEdge?: (sourceName: string) => ConditionalBranch[] | null;
+}
+
+export function evaluateCondition(condition: Condition, output: Record<string, unknown>): boolean {
+  const fieldValue = output[condition.field];
+  if (fieldValue === undefined) {
+    return condition.op === '!=';
+  }
+
+  switch (condition.op) {
+    case '==': return fieldValue == condition.value;
+    case '!=': return fieldValue != condition.value;
+    case '>=': return Number(fieldValue) >= Number(condition.value);
+    case '>':  return Number(fieldValue) > Number(condition.value);
+    case '<=': return Number(fieldValue) <= Number(condition.value);
+    case '<':  return Number(fieldValue) < Number(condition.value);
+  }
 }
 
 async function executeWithFailureStrategy(
@@ -73,7 +90,32 @@ export async function executeFlowNodes(
       case 'node': {
         if (flowNode.name === 'done') continue;
         const result = await executeWithFailureStrategy(flowNode.name, nodeResults, errors, ctx);
-        if (result) nodeResults.push(result);
+        if (result) {
+          nodeResults.push(result);
+
+          // Check for conditional edge routing
+          const branches = ctx.getConditionalEdge?.(flowNode.name);
+          if (branches && result.output && typeof result.output === 'object') {
+            const output = result.output as Record<string, unknown>;
+            let routedTo: string | null = null;
+            let elseBranch: string | null = null;
+
+            for (const branch of branches) {
+              if (!branch.condition) {
+                elseBranch = branch.target;
+              } else if (evaluateCondition(branch.condition, output)) {
+                routedTo = branch.target;
+                break;
+              }
+            }
+
+            const target = routedTo ?? elseBranch;
+            if (target) {
+              const conditionalResult = await executeWithFailureStrategy(target, nodeResults, errors, ctx);
+              if (conditionalResult) nodeResults.push(conditionalResult);
+            }
+          }
+        }
         break;
       }
 
