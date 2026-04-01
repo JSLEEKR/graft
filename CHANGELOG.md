@@ -1,5 +1,38 @@
 # Changelog
 
+## v2.1.0 (2026-04-01)
+
+### Added
+- **Token tracking**: runtime token usage monitoring across pipeline execution
+  - `parseCLIOutput` with heuristic envelope detection (`--output-format json`)
+  - `TokenTracker` class for cumulative budget tracking per node
+  - Token log file (`.graft/token_log.txt`) with ISO timestamps, estimates, actuals, and cumulative budget percentage
+  - `RunResult.tokenUsage` with budget/consumed/fraction/perNode breakdown
+  - Advisory budget warnings at 80% (warning) and 90% (critical) thresholds
+- **Correctness fixes**:
+  - Writes schema overlap detection: warns when node produces no matching fields for written memory (TypeChecker)
+  - `max_tokens > 0` validation for both contexts and memories (ScopeChecker)
+  - Parallel memory write detection: warns when 2+ parallel branches write to the same memory
+  - `compiler.ts` warning routing: diagnostics filtered by severity, warnings no longer block compilation
+- **Shared modules**: extracted constants, utilities, and memory functions to dedicated modules
+  - `src/constants.ts`: MODEL_MAP, PARTIAL_FIELD_FACTOR, BUDGET_WARNING_THRESHOLD, BUDGET_CRITICAL_THRESHOLD
+  - `src/utils.ts`: fieldsToJsonExample, typeToExample
+  - `src/runtime/memory.ts`: loadMemory, saveMemory as standalone functions
+  - `src/runtime/token-tracker.ts`: TokenTracker class
+- 39 new tests (288 total)
+
+### Changed
+- MODEL_MAP deduplicated: single source of truth in `src/constants.ts` (previously duplicated in estimator.ts and executor.ts)
+- Executor uses `--output-format json` instead of `--print` for Claude CLI subprocess invocation
+
+### Development Process
+- 4 adversarial debate rounds (R1-R4), 21 agent calls (42% under budget)
+- R1 (MEDIUM): Mechanical refactoring, 2-agent analysis, no bugs found
+- R2 (MEDIUM): Both agents independently found compiler.ts warning routing bug
+- R3 (HIGH): A3 found CLI format uncertainty, A2 found mock spawner compat issue; cross-critique skipped (high consensus)
+- R4: Debate skipped — pure integration testing with no design decisions
+- 17 new ratchet-locked decisions (107 total, 2 unlocked for MODEL_MAP extraction)
+
 ## v2.0.0 (2026-04-01)
 
 ### Added

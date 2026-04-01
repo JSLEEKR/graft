@@ -232,6 +232,8 @@ Graft compiles to Claude Code harness structure:
 src/
 ├── index.ts              # CLI entry (commander)
 ├── compiler.ts           # Pipeline orchestrator
+├── constants.ts          # Shared constants (MODEL_MAP, thresholds)
+├── utils.ts              # Shared utilities (JSON example generation)
 ├── runner.ts             # graft run command
 ├── errors/diagnostics.ts # GraftError + SourceLocation
 ├── lexer/
@@ -254,14 +256,16 @@ src/
 │   └── settings.ts       # → settings.json
 └── runtime/
     ├── executor.ts       # Pipeline execution engine
-    ├── subprocess.ts     # Claude CLI spawning
+    ├── memory.ts         # Memory load/save functions
+    ├── subprocess.ts     # Claude CLI spawning + token usage parsing
+    ├── token-tracker.ts  # Token budget tracking per node
     └── transforms.ts     # Edge transform functions
 ```
 
 ## Development
 
 ```bash
-npm test              # Run all 249 tests
+npm test              # Run all 288 tests
 npm run build         # Compile TypeScript
 npm run bench         # Run 16 benchmarks
 npx tsc --noEmit      # Type check only
@@ -271,6 +275,7 @@ npx tsc --noEmit      # Type check only
 
 | Version | Features |
 |---------|----------|
+| **v2.1** | Token tracking, correctness fixes, shared module extraction, 288 tests |
 | **v2.0** | Import system, persistent memory, writes clause, 249 tests |
 | **v1.2** | `graft run` execution engine, dry run, parallel/foreach runtime |
 | **v1.1** | `parallel {}`, `foreach() {}` flow control, multi-field select |
