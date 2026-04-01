@@ -1,5 +1,56 @@
 import * as path from 'node:path';
+import { CodeActionKind } from 'vscode-languageserver/node';
+import type { CodeAction, Diagnostic } from 'vscode-languageserver/node';
 import { getWordAtPosition } from './utils.js';
+import { extractUndefinedName } from './diagnostics.js';
+
+export function buildAutoImportActions(
+  docText: string,
+  docUri: string,
+  currentFilePath: string,
+  diagnostics: Diagnostic[],
+  workspaceExports: Map<string, string[]>,
+): CodeAction[] {
+  const actions: CodeAction[] = [];
+
+  // Collect already-imported names
+  const importedNames = new Set<string>();
+  for (const line of docText.split('\n')) {
+    const m = line.match(/^\s*import\s+\{([^}]+)\}/);
+    if (m) {
+      for (const n of m[1].split(',')) importedNames.add(n.trim());
+    }
+  }
+
+  for (const diag of diagnostics) {
+    if (diag.code !== 'SCOPE_UNDEFINED_REF') continue;
+
+    const name = extractUndefinedName(diag.message, docText, diag.range.start.line, diag.range.start.character);
+    if (!name || importedNames.has(name)) continue;
+
+    for (const [filePath, exports] of workspaceExports) {
+      if (filePath === currentFilePath || !exports.includes(name)) continue;
+
+      const relPath = computeRelativeImportPath(currentFilePath, filePath);
+      const edit = buildAutoImportEdit(name, relPath, docText);
+
+      actions.push({
+        title: `Import '${name}' from "${relPath}"`,
+        kind: CodeActionKind.QuickFix,
+        edit: {
+          changes: {
+            [docUri]: [{
+              range: { start: { line: edit.insertLine, character: 0 }, end: { line: edit.insertLine, character: 0 } },
+              newText: edit.newText,
+            }],
+          },
+        },
+      });
+    }
+  }
+
+  return actions;
+}
 
 export function buildAutoImportEdit(
   name: string, fromPath: string, docText: string,

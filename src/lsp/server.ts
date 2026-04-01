@@ -16,7 +16,7 @@ import { Lexer } from '../lexer/lexer.js';
 import { Parser } from '../parser/parser.js';
 import type { Program } from '../parser/ast.js';
 import type { ProgramIndex } from '../program-index.js';
-import { toDiagnostics, getHoverInfo, getDefinitionLocation, getWordAtPosition, getCompletions, extractUndefinedName, buildAutoImportEdit, computeRelativeImportPath, getDocumentSymbols, isRenameable, collectRenameLocations } from './features/index.js';
+import { toDiagnostics, getHoverInfo, getDefinitionLocation, getWordAtPosition, getCompletions, extractUndefinedName, buildAutoImportActions, buildAutoImportEdit, computeRelativeImportPath, getDocumentSymbols, isRenameable, collectRenameLocations } from './features/index.js';
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
@@ -251,46 +251,13 @@ connection.onCodeAction((params) => {
 
   if (!workspaceRoot) return [];
 
-  const actions: CodeAction[] = [];
-  const docText = doc.getText();
-
-  // Collect already-imported names
-  const importedNames = new Set<string>();
-  for (const line of docText.split('\n')) {
-    const m = line.match(/^\s*import\s+\{([^}]+)\}/);
-    if (m) {
-      for (const n of m[1].split(',')) importedNames.add(n.trim());
-    }
-  }
-
-  for (const diag of params.context.diagnostics) {
-    if (diag.code !== 'SCOPE_UNDEFINED_REF') continue;
-
-    const name = extractUndefinedName(diag.message, docText, diag.range.start.line, diag.range.start.character);
-    if (!name || importedNames.has(name)) continue;
-
-    for (const [filePath, exports] of workspaceExports) {
-      if (filePath === currentFilePath || !exports.includes(name)) continue;
-
-      const relPath = computeRelativeImportPath(currentFilePath, filePath);
-      const edit = buildAutoImportEdit(name, relPath, docText);
-
-      actions.push({
-        title: `Import '${name}' from "${relPath}"`,
-        kind: CodeActionKind.QuickFix,
-        edit: {
-          changes: {
-            [params.textDocument.uri]: [{
-              range: { start: { line: edit.insertLine, character: 0 }, end: { line: edit.insertLine, character: 0 } },
-              newText: edit.newText,
-            }],
-          },
-        },
-      });
-    }
-  }
-
-  return actions;
+  return buildAutoImportActions(
+    doc.getText(),
+    params.textDocument.uri,
+    currentFilePath,
+    params.context.diagnostics,
+    workspaceExports,
+  );
 });
 
 // --- Rename ---
