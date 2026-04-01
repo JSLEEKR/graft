@@ -5,6 +5,8 @@ export function generateOrchestration(program: Program, report: TokenReport): st
   const graph = program.graphs[0];
   if (!graph) return '';
 
+  const memoryNames = new Set(program.memories.map(m => m.name));
+
   const edgeMap = new Map<string, boolean>();
   for (const edge of program.edges) {
     if (edge.target.kind === 'direct' && edge.transforms.length > 0) {
@@ -12,7 +14,17 @@ export function generateOrchestration(program: Program, report: TokenReport): st
     }
   }
 
-  const { text: steps } = generateSteps(graph.flow, report, edgeMap, 1, null);
+  const { text: steps } = generateSteps(graph.flow, report, edgeMap, 1, null, program, memoryNames);
+
+  // Memory preamble
+  const memorySection = program.memories.length > 0
+    ? `
+## Persistent Memory
+${program.memories.map(m => `- \`${m.name}\`: \`.graft/memory/${m.name.toLowerCase()}.json\` (${m.maxTokens.toLocaleString('en-US')} tokens max)`).join('\n')}
+- Memories persist across runs. Nodes with \`writes\` clauses update memory after execution.
+
+`
+    : '';
 
   return `# Graft Orchestration: ${graph.name}
 
@@ -22,7 +34,7 @@ export function generateOrchestration(program: Program, report: TokenReport): st
 Total: ${graph.budget.toLocaleString('en-US')} tokens
 Best case: ${report.bestCase.toLocaleString('en-US')} tokens
 Worst case: ${report.worstCase.toLocaleString('en-US')} tokens
-
+${memorySection}
 ## Execution Plan
 ${steps}
 ## Token Budget Tracking
@@ -43,6 +55,8 @@ function generateSteps(
   edgeMap: Map<string, boolean>,
   startStep: number,
   prevNode: string | null,
+  program: Program,
+  memoryNames: Set<string>,
 ): { text: string; nextStep: number; lastNode: string | null } {
   let text = '';
   let stepNum = startStep;
@@ -64,9 +78,23 @@ function generateSteps(
           }
         }
 
+        let memoryLines = '';
+        const nodeDecl = program.nodes.find(n => n.name === step.name);
+        if (nodeDecl) {
+          const memReads = nodeDecl.reads.filter(r => memoryNames.has(r.context));
+          for (const mr of memReads) {
+            memoryLines += `\n- Memory load: \`.graft/memory/${mr.context.toLowerCase()}.json\``;
+          }
+          for (const w of nodeDecl.writes) {
+            if (memoryNames.has(w)) {
+              memoryLines += `\n- Memory save: \`.graft/memory/${w.toLowerCase()}.json\``;
+            }
+          }
+        }
+
         text += `
 ### Step ${stepNum}: ${step.name} [sequential]
-- Agent: ${lowerName}${inputSource}
+- Agent: ${lowerName}${inputSource}${memoryLines}
 - Expected tokens: input ~${nodeReport?.estimatedIn.toLocaleString('en-US') || '?'} / output ~${nodeReport?.estimatedOut.toLocaleString('en-US') || '?'}
 - Completion: \`===NODE_COMPLETE:${lowerName}===\`
 - Output: \`.graft/session/node_outputs/${lowerName}.json\`
@@ -85,7 +113,20 @@ function generateSteps(
         for (const branchName of step.branches) {
           const lowerName = branchName.toLowerCase();
           const nodeReport = report.nodes.find(n => n.name === branchName);
-          text += `- Agent: ${lowerName} -- tokens: input ~${nodeReport?.estimatedIn.toLocaleString('en-US') || '?'} / output ~${nodeReport?.estimatedOut.toLocaleString('en-US') || '?'}
+          let branchMemAnnotations = '';
+          const branchDecl = program.nodes.find(n => n.name === branchName);
+          if (branchDecl) {
+            const memReads = branchDecl.reads.filter(r => memoryNames.has(r.context));
+            for (const mr of memReads) {
+              branchMemAnnotations += ` [mem-read: ${mr.context.toLowerCase()}]`;
+            }
+            for (const w of branchDecl.writes) {
+              if (memoryNames.has(w)) {
+                branchMemAnnotations += ` [mem-write: ${w.toLowerCase()}]`;
+              }
+            }
+          }
+          text += `- Agent: ${lowerName} -- tokens: input ~${nodeReport?.estimatedIn.toLocaleString('en-US') || '?'} / output ~${nodeReport?.estimatedOut.toLocaleString('en-US') || '?'}${branchMemAnnotations}
 `;
         }
         text += `- Completion: all ${step.branches.length} \`===NODE_COMPLETE===\` signals received

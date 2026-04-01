@@ -6,37 +6,64 @@ export class ScopeChecker {
   private contextNames: Set<string>;
   private nodeNames: Set<string>;
   private producesMap: Map<string, Set<string>>; // produces name -> field names
+  private memoryNames: Set<string>;
+  private memoryFieldsMap: Map<string, Set<string>>;
 
   constructor(program: Program) {
     this.program = program;
     this.contextNames = new Set(program.contexts.map(c => c.name));
     this.nodeNames = new Set(program.nodes.map(n => n.name));
     this.producesMap = new Map();
+    this.memoryNames = new Set(program.memories.map(m => m.name));
+    this.memoryFieldsMap = new Map();
 
     for (const node of program.nodes) {
       const fieldNames = new Set(node.produces.fields.map(f => f.name));
       this.producesMap.set(node.produces.name, fieldNames);
     }
+    for (const mem of program.memories) {
+      this.memoryFieldsMap.set(mem.name, new Set(mem.fields.map(f => f.name)));
+    }
   }
 
   check(): GraftError[] {
     const errors: GraftError[] = [];
+    this.checkDuplicateNames(errors);
     this.checkNodeReads(errors);
+    this.checkNodeWrites(errors);
     this.checkEdges(errors);
     this.checkGraphFlow(errors);
     return errors;
   }
 
+  private checkDuplicateNames(errors: GraftError[]): void {
+    for (const mem of this.program.memories) {
+      if (this.contextNames.has(mem.name)) {
+        errors.push(new GraftError(
+          `Name '${mem.name}' is declared as both a context and a memory`,
+          mem.location,
+        ));
+      }
+      if (this.producesMap.has(mem.name)) {
+        errors.push(new GraftError(
+          `Name '${mem.name}' conflicts with a produces declaration`,
+          mem.location,
+        ));
+      }
+    }
+  }
+
   private checkNodeReads(errors: GraftError[]): void {
     for (const node of this.program.nodes) {
       for (const ref of node.reads) {
-        // ref.context could be a context name or a produces name
+        // ref.context could be a context name, produces name, or memory name
         const isContext = this.contextNames.has(ref.context);
         const isProduces = this.producesMap.has(ref.context);
+        const isMemory = this.memoryNames.has(ref.context);
 
-        if (!isContext && !isProduces) {
+        if (!isContext && !isProduces && !isMemory) {
           errors.push(new GraftError(
-            `'${ref.context}' is not declared as a context or produces output`,
+            `'${ref.context}' is not declared as a context, produces output, or memory`,
             ref.location,
           ));
           continue;
@@ -61,7 +88,28 @@ export class ScopeChecker {
                 ref.location,
               ));
             }
+          } else if (isMemory) {
+            const fields = this.memoryFieldsMap.get(ref.context)!;
+            if (!fields.has(ref.field)) {
+              errors.push(new GraftError(
+                `Field '${ref.field}' does not exist in memory '${ref.context}'`,
+                ref.location,
+              ));
+            }
           }
+        }
+      }
+    }
+  }
+
+  private checkNodeWrites(errors: GraftError[]): void {
+    for (const node of this.program.nodes) {
+      for (const writeName of node.writes) {
+        if (!this.memoryNames.has(writeName)) {
+          errors.push(new GraftError(
+            `writes target '${writeName}' is not a declared memory`,
+            node.location,
+          ));
         }
       }
     }

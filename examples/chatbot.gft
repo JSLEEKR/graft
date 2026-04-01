@@ -1,0 +1,27 @@
+import { UserMessage, SystemConfig } from "./shared.gft"
+
+memory ConversationLog(max_tokens: 2k, storage: file) {
+  turns: List<Turn {
+    role: String
+    content: String
+  }>
+  summary: Optional<String>
+}
+
+node Responder(model: sonnet, budget: 4k/2k) {
+  reads: [UserMessage, SystemConfig, ConversationLog]
+  writes: [ConversationLog]
+
+  produces Response {
+    reply: String
+    updated_turns: List<Turn {
+      role: String
+      content: String
+    }>
+    summary: Optional<String>
+  }
+}
+
+graph Chat(input: UserMessage, output: Response, budget: 8k) {
+  Responder -> done
+}

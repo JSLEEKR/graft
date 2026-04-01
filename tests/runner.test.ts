@@ -623,3 +623,272 @@ graph TestGraph(input: UserRequest, output: Result, budget: 6k) {
     expect(result.errors[0]).toContain('parse');
   });
 });
+
+// --- Executor memory tests ---
+describe('Executor — memory support', () => {
+  let Executor: typeof import('../src/runtime/executor.js').Executor;
+  let tmpDir: string;
+
+  const MEMORY_GFT = `
+memory UserProfile(max_tokens: 2k, storage: file) {
+  preferences: String
+  name: String
+}
+
+context Spec(max_tokens: 500) {
+  question: String
+}
+
+node Worker(model: sonnet, budget: 2k/1k) {
+  reads: [Spec, UserProfile]
+  writes: [UserProfile]
+  produces Result {
+    answer: String
+    name: String
+  }
+}
+
+graph MemRun(input: Spec, output: Result, budget: 6k) {
+  Worker -> done
+}
+`;
+
+  beforeEach(async () => {
+    const mod = await import('../src/runtime/executor.js');
+    Executor = mod.Executor;
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'graft-mem-test-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('memory load — file exists, returns parsed JSON in context', async () => {
+    const { compile } = await import('../src/compiler.js');
+    const compiled = compile(MEMORY_GFT, 'test.gft');
+    expect(compiled.success).toBe(true);
+
+    // Pre-populate memory file
+    const memDir = path.join(tmpDir, '.graft', 'memory');
+    fs.mkdirSync(memDir, { recursive: true });
+    fs.writeFileSync(path.join(memDir, 'userprofile.json'), JSON.stringify({ preferences: { theme: 'dark' }, name: 'Alice' }));
+
+    let promptSeen = '';
+    const mockSpawner = async (opts: { args: string[]; cwd: string; timeoutMs: number }) => {
+      const pIdx = opts.args.indexOf('-p');
+      if (pIdx >= 0) promptSeen = opts.args[pIdx + 1];
+      return {
+        stdout: JSON.stringify({ answer: 'done', name: 'Alice' }),
+        stderr: '',
+        exitCode: 0,
+      };
+    };
+
+    const executor = new Executor(compiled.program!, {
+      sourceFile: 'test.gft',
+      input: { question: 'test' },
+      workDir: tmpDir,
+      spawner: mockSpawner,
+    });
+
+    const result = await executor.execute();
+    expect(result.success).toBe(true);
+    // The prompt should contain the memory data
+    expect(promptSeen).toContain('dark');
+  });
+
+  it('memory load — file missing (first run), context shows no data', async () => {
+    const { compile } = await import('../src/compiler.js');
+    const compiled = compile(MEMORY_GFT, 'test.gft');
+
+    let promptSeen = '';
+    const mockSpawner = async (opts: { args: string[]; cwd: string; timeoutMs: number }) => {
+      const pIdx = opts.args.indexOf('-p');
+      if (pIdx >= 0) promptSeen = opts.args[pIdx + 1];
+      return {
+        stdout: JSON.stringify({ answer: 'done', name: 'Bob' }),
+        stderr: '',
+        exitCode: 0,
+      };
+    };
+
+    const executor = new Executor(compiled.program!, {
+      sourceFile: 'test.gft',
+      input: { question: 'test' },
+      workDir: tmpDir,
+      spawner: mockSpawner,
+    });
+
+    const result = await executor.execute();
+    expect(result.success).toBe(true);
+    expect(promptSeen).toContain('No data available');
+  });
+
+  it('memory load — corrupted JSON, returns null gracefully', async () => {
+    const { compile } = await import('../src/compiler.js');
+    const compiled = compile(MEMORY_GFT, 'test.gft');
+
+    // Write corrupted JSON
+    const memDir = path.join(tmpDir, '.graft', 'memory');
+    fs.mkdirSync(memDir, { recursive: true });
+    fs.writeFileSync(path.join(memDir, 'userprofile.json'), '{broken json!!!');
+
+    let promptSeen = '';
+    const mockSpawner = async (opts: { args: string[]; cwd: string; timeoutMs: number }) => {
+      const pIdx = opts.args.indexOf('-p');
+      if (pIdx >= 0) promptSeen = opts.args[pIdx + 1];
+      return {
+        stdout: JSON.stringify({ answer: 'done', name: 'Bob' }),
+        stderr: '',
+        exitCode: 0,
+      };
+    };
+
+    const executor = new Executor(compiled.program!, {
+      sourceFile: 'test.gft',
+      input: { question: 'test' },
+      workDir: tmpDir,
+      spawner: mockSpawner,
+    });
+
+    const result = await executor.execute();
+    expect(result.success).toBe(true);
+    // Corrupted memory = null = deleted from outputs = "No data available"
+    expect(promptSeen).toContain('No data available');
+  });
+
+  it('memory save — writes to .graft/memory/<name>.json after node execution', async () => {
+    const { compile } = await import('../src/compiler.js');
+    const compiled = compile(MEMORY_GFT, 'test.gft');
+
+    const mockSpawner = async () => ({
+      stdout: JSON.stringify({ answer: 'done', name: 'Alice' }),
+      stderr: '',
+      exitCode: 0,
+    });
+
+    const executor = new Executor(compiled.program!, {
+      sourceFile: 'test.gft',
+      input: { question: 'test' },
+      workDir: tmpDir,
+      spawner: mockSpawner,
+    });
+
+    await executor.execute();
+    const memFile = path.join(tmpDir, '.graft', 'memory', 'userprofile.json');
+    expect(fs.existsSync(memFile)).toBe(true);
+    const saved = JSON.parse(fs.readFileSync(memFile, 'utf-8'));
+    expect(saved.name).toBe('Alice');
+  });
+
+  it('memory save — field-matching merge preserves unrelated fields', async () => {
+    const { compile } = await import('../src/compiler.js');
+    const compiled = compile(MEMORY_GFT, 'test.gft');
+
+    // Pre-populate memory with existing data
+    const memDir = path.join(tmpDir, '.graft', 'memory');
+    fs.mkdirSync(memDir, { recursive: true });
+    fs.writeFileSync(path.join(memDir, 'userprofile.json'), JSON.stringify({ preferences: { theme: 'dark' }, name: 'OldName' }));
+
+    const mockSpawner = async () => ({
+      // Node output only has 'name', not 'preferences'
+      stdout: JSON.stringify({ answer: 'done', name: 'NewName' }),
+      stderr: '',
+      exitCode: 0,
+    });
+
+    const executor = new Executor(compiled.program!, {
+      sourceFile: 'test.gft',
+      input: { question: 'test' },
+      workDir: tmpDir,
+      spawner: mockSpawner,
+    });
+
+    await executor.execute();
+    const memFile = path.join(tmpDir, '.graft', 'memory', 'userprofile.json');
+    const saved = JSON.parse(fs.readFileSync(memFile, 'utf-8'));
+    // name updated, preferences preserved
+    expect(saved.name).toBe('NewName');
+    expect(saved.preferences).toEqual({ theme: 'dark' });
+  });
+
+  it('dry run — does NOT write memory files', async () => {
+    const { compile } = await import('../src/compiler.js');
+    const compiled = compile(MEMORY_GFT, 'test.gft');
+
+    const executor = new Executor(compiled.program!, {
+      sourceFile: 'test.gft',
+      input: { question: 'test' },
+      workDir: tmpDir,
+      dryRun: true,
+    });
+
+    await executor.execute();
+    const memFile = path.join(tmpDir, '.graft', 'memory', 'userprofile.json');
+    expect(fs.existsSync(memFile)).toBe(false);
+  });
+
+  it('memory not cleaned by session cleanup', async () => {
+    const { compile } = await import('../src/compiler.js');
+    const compiled = compile(MEMORY_GFT, 'test.gft');
+
+    // Pre-populate memory
+    const memDir = path.join(tmpDir, '.graft', 'memory');
+    fs.mkdirSync(memDir, { recursive: true });
+    fs.writeFileSync(path.join(memDir, 'userprofile.json'), JSON.stringify({ name: 'Persist' }));
+
+    const executor = new Executor(compiled.program!, {
+      sourceFile: 'test.gft',
+      input: { question: 'test' },
+      workDir: tmpDir,
+      dryRun: true,
+    });
+
+    await executor.execute();
+    // Memory file should still exist after session cleanup
+    expect(fs.existsSync(path.join(memDir, 'userprofile.json'))).toBe(true);
+    const saved = JSON.parse(fs.readFileSync(path.join(memDir, 'userprofile.json'), 'utf-8'));
+    expect(saved.name).toBe('Persist');
+  });
+
+  it('memory persists across executor instances', async () => {
+    const { compile } = await import('../src/compiler.js');
+    const compiled = compile(MEMORY_GFT, 'test.gft');
+
+    // Run 1: write memory
+    const mockSpawner1 = async () => ({
+      stdout: JSON.stringify({ answer: 'run1', name: 'FirstRun' }),
+      stderr: '',
+      exitCode: 0,
+    });
+    const exec1 = new Executor(compiled.program!, {
+      sourceFile: 'test.gft',
+      input: { question: 'test' },
+      workDir: tmpDir,
+      spawner: mockSpawner1,
+    });
+    await exec1.execute();
+
+    // Run 2: read memory from previous run
+    let promptSeen = '';
+    const mockSpawner2 = async (opts: { args: string[]; cwd: string; timeoutMs: number }) => {
+      const pIdx = opts.args.indexOf('-p');
+      if (pIdx >= 0) promptSeen = opts.args[pIdx + 1];
+      return {
+        stdout: JSON.stringify({ answer: 'run2', name: 'SecondRun' }),
+        stderr: '',
+        exitCode: 0,
+      };
+    };
+    const exec2 = new Executor(compiled.program!, {
+      sourceFile: 'test.gft',
+      input: { question: 'test2' },
+      workDir: tmpDir,
+      spawner: mockSpawner2,
+    });
+    await exec2.execute();
+
+    // Second run should see first run's memory data
+    expect(promptSeen).toContain('FirstRun');
+  });
+});

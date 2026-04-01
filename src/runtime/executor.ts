@@ -50,12 +50,16 @@ export class Executor {
   private spawner: SpawnerFn;
   private sessionDir: string;
   private nodeOutputDir: string;
+  private memoryDir: string;
+  private memoryNames: Set<string>;
 
   constructor(program: Program, options: RunOptions) {
     this.program = program;
     this.options = options;
     this.spawner = options.spawner ?? spawnClaude;
     this.outputs = new Map();
+    this.memoryDir = path.join(options.workDir, '.graft', 'memory');
+    this.memoryNames = new Set(program.memories.map(m => m.name));
 
     // Build node lookup from Program.nodes
     this.nodeMap = new Map();
@@ -99,6 +103,11 @@ export class Executor {
 
     // Ensure session directory exists
     fs.mkdirSync(this.nodeOutputDir, { recursive: true });
+
+    // Ensure memory directory exists (if memories declared)
+    if (this.program.memories.length > 0) {
+      fs.mkdirSync(this.memoryDir, { recursive: true });
+    }
 
     // Write input to session
     fs.writeFileSync(
@@ -146,6 +155,48 @@ export class Executor {
       if (file === '.gitkeep') continue;
       fs.rmSync(path.join(this.nodeOutputDir, file), { force: true });
     }
+  }
+
+  private loadMemory(name: string): Record<string, unknown> | null {
+    const filePath = path.join(this.memoryDir, `${name.toLowerCase()}.json`);
+    if (!fs.existsSync(filePath)) return null;
+    try {
+      return JSON.parse(fs.readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  }
+
+  private saveMemory(name: string, nodeOutput: unknown): void {
+    if (this.options.dryRun) return;
+
+    const mem = this.program.memories.find(m => m.name === name);
+    if (!mem) return;
+
+    fs.mkdirSync(this.memoryDir, { recursive: true });
+    const filePath = path.join(this.memoryDir, `${name.toLowerCase()}.json`);
+
+    // Load existing memory
+    let current: Record<string, unknown> = {};
+    if (fs.existsSync(filePath)) {
+      try {
+        current = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
+      } catch {
+        current = {};
+      }
+    }
+
+    // Field-matching merge: only write fields declared in memory schema
+    if (typeof nodeOutput === 'object' && nodeOutput !== null) {
+      const output = nodeOutput as Record<string, unknown>;
+      for (const field of mem.fields) {
+        if (field.name in output) {
+          current[field.name] = output[field.name];
+        }
+      }
+    }
+
+    fs.writeFileSync(filePath, JSON.stringify(current, null, 2));
   }
 
   private async executeFlowNodes(
@@ -232,6 +283,19 @@ export class Executor {
         success: false,
         error: `Node '${name}' not found in program`,
       };
+    }
+
+    // Load memory for reads that reference memory declarations
+    // ALWAYS reload from disk (no this.outputs.has guard — fixes foreach staleness)
+    for (const ref of nodeDecl.reads) {
+      if (this.memoryNames.has(ref.context)) {
+        const memData = this.loadMemory(ref.context);
+        if (memData !== null) {
+          this.outputs.set(ref.context, memData);
+        } else {
+          this.outputs.delete(ref.context);
+        }
+      }
     }
 
     // Dry run: produce mock output
@@ -343,6 +407,13 @@ export class Executor {
           path.join(this.nodeOutputDir, transformedFileName),
           JSON.stringify(transformed, null, 2),
         );
+      }
+    }
+
+    // Save to memory for writes targets
+    for (const writeName of nodeDecl.writes) {
+      if (this.memoryNames.has(writeName)) {
+        this.saveMemory(writeName, output);
       }
     }
   }

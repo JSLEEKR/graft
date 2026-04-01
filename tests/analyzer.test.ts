@@ -210,6 +210,134 @@ describe('ScopeChecker', () => {
     const fieldError = errors.find(e => e.message.includes('nonexistent'));
     expect(fieldError).toBeDefined();
   });
+
+  it('accepts memory name as valid read reference', () => {
+    const program = parse(`
+      memory Cache(max_tokens: 2k) { history: List<String> }
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 3k/1k) {
+        reads: [Spec, Cache]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 10k) { A -> done }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    expect(errors).toEqual([]);
+  });
+
+  it('accepts memory partial field read (valid field)', () => {
+    const program = parse(`
+      memory Cache(max_tokens: 2k) { history: List<String>  score: Float }
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 3k/1k) {
+        reads: [Spec, Cache.history]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 10k) { A -> done }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    expect(errors).toEqual([]);
+  });
+
+  it('reports error for invalid memory partial field read', () => {
+    const program = parse(`
+      memory Cache(max_tokens: 2k) { history: List<String> }
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 3k/1k) {
+        reads: [Spec, Cache.nonexistent]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 10k) { A -> done }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    expect(errors.length).toBe(1);
+    expect(errors[0].message).toContain('nonexistent');
+    expect(errors[0].message).toContain('Cache');
+  });
+
+  it('reports error for undeclared memory in writes', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 3k/1k) {
+        reads: [Spec]
+        writes: [FakeMemory]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 10k) { A -> done }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    expect(errors.length).toBe(1);
+    expect(errors[0].message).toContain('FakeMemory');
+    expect(errors[0].message).toContain('not a declared memory');
+  });
+
+  it('allows read and write of same memory', () => {
+    const program = parse(`
+      memory Cache(max_tokens: 2k) { history: List<String> }
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 3k/1k) {
+        reads: [Spec, Cache]
+        writes: [Cache]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 10k) { A -> done }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    expect(errors).toEqual([]);
+  });
+
+  it('reports error for memory/context name collision', () => {
+    const program = parse(`
+      memory Spec(max_tokens: 2k) { history: List<String> }
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 3k/1k) {
+        reads: [Spec]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 10k) { A -> done }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    const collisionError = errors.find(e => e.message.includes('both a context and a memory'));
+    expect(collisionError).toBeDefined();
+  });
+
+  it('reports error for memory/produces name collision', () => {
+    const program = parse(`
+      memory Out(max_tokens: 2k) { history: List<String> }
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 3k/1k) {
+        reads: [Spec]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 10k) { A -> done }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    const collisionError = errors.find(e => e.message.includes('conflicts with a produces'));
+    expect(collisionError).toBeDefined();
+  });
+
+  it('includes "memory" in error message for undeclared reads', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 3k/1k) {
+        reads: [Unknown]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 10k) { A -> done }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    const readError = errors.find(e => e.message.includes('Unknown'));
+    expect(readError).toBeDefined();
+    expect(readError!.message).toContain('memory');
+  });
 });
 
 describe('TypeChecker', () => {
@@ -436,6 +564,42 @@ describe('TokenEstimator', () => {
     // Worst = 1000 (Planner) + 1000 * 3 (foreach worst) = 4000
     expect(report.bestCase).toBe(2000);
     expect(report.worstCase).toBe(4000);
+  });
+
+  it('includes memory maxTokens in estimation', () => {
+    const program = parse(`
+      memory Cache(max_tokens: 2k) { history: List<String> }
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 5k/1k) {
+        reads: [Spec, Cache]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 10k) { A -> done }
+    `);
+    const estimator = new TokenEstimator(program);
+    const report = estimator.estimate();
+    const nodeA = report.nodes.find(n => n.name === 'A');
+    expect(nodeA).toBeDefined();
+    // Spec = 500, Cache = 2000, total = 2500
+    expect(nodeA!.estimatedIn).toBe(2500);
+  });
+
+  it('applies 0.3 factor for memory partial field read', () => {
+    const program = parse(`
+      memory Cache(max_tokens: 2k) { history: List<String>  score: Float }
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 5k/1k) {
+        reads: [Spec, Cache.history]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 10k) { A -> done }
+    `);
+    const estimator = new TokenEstimator(program);
+    const report = estimator.estimate();
+    const nodeA = report.nodes.find(n => n.name === 'A');
+    expect(nodeA).toBeDefined();
+    // Spec = 500, Cache.history = floor(2000 * 0.3) = 600, total = 1100
+    expect(nodeA!.estimatedIn).toBe(1100);
   });
 
   it('scales multi-field select reduction by field count', () => {

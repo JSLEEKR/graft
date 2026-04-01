@@ -1,0 +1,11 @@
+// Shared contexts for import
+
+context UserMessage(max_tokens: 500) {
+  content: String
+  user_id: String
+}
+
+context SystemConfig(max_tokens: 200) {
+  persona: String
+  temperature: Float(0..1)
+}

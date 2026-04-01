@@ -165,6 +165,12 @@ export class TokenEstimator {
         estimatedIn += ref.field ? Math.floor(ctx.maxTokens * 0.3) : ctx.maxTokens;
         continue;
       }
+      // If reading a memory
+      const mem = this.program.memories.find(m => m.name === ref.context);
+      if (mem) {
+        estimatedIn += ref.field ? Math.floor(mem.maxTokens * 0.3) : mem.maxTokens;
+        continue;
+      }
       // If reading a produces output from upstream node
       const sourceNode = this.program.nodes.find(n => n.produces.name === ref.context);
       if (sourceNode) {

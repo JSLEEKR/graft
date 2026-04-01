@@ -15,11 +15,14 @@ export interface GeneratedFile {
 export function generate(program: Program, report: TokenReport, sourceFile: string): GeneratedFile[] {
   const files: GeneratedFile[] = [];
 
-  // Agents
+  // Build memory name set for agent generation
+  const memoryNames = new Set(program.memories.map(m => m.name));
+
+  // Agents — pass memoryNames
   for (const node of program.nodes) {
     files.push({
       path: `.claude/agents/${node.name.toLowerCase()}.md`,
-      content: generateAgent(node),
+      content: generateAgent(node, memoryNames),
     });
   }
 
@@ -52,6 +55,11 @@ export function generate(program: Program, report: TokenReport, sourceFile: stri
   // Runtime scaffold
   files.push({ path: '.graft/session/node_outputs/.gitkeep', content: '' });
   files.push({ path: '.graft/token_log.txt', content: '' });
+
+  // Memory scaffold — conditional
+  if (program.memories.length > 0) {
+    files.push({ path: '.graft/memory/.gitkeep', content: '' });
+  }
 
   return files;
 }

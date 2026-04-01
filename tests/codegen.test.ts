@@ -594,4 +594,207 @@ describe('generate', () => {
     expect(files).toHaveLength(6);
     expect(files.map(f => f.path)).not.toContain(expect.stringContaining('hooks/'));
   });
+
+  it('includes memory scaffold when memories declared', () => {
+    const program = parse(`
+      memory UserProfile(max_tokens: 2k, storage: file) {
+        preferences: String
+      }
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec, UserProfile]
+        writes: [UserProfile]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) { A -> done }
+    `);
+    const report: TokenReport = {
+      graphName: 'G',
+      budget: 5000,
+      bestCase: 3000,
+      worstCase: 3000,
+      nodes: [
+        { name: 'A', estimatedIn: 2000, estimatedOut: 1000 },
+      ],
+      warnings: [],
+    };
+    const files = generate(program, report, 'test.gft');
+
+    // 1 agent + 0 hooks + 1 CLAUDE.md + 1 settings.json + 2 scaffold + 1 memory scaffold = 6
+    expect(files.map(f => f.path)).toContain('.graft/memory/.gitkeep');
+  });
+
+  it('does not include memory scaffold when no memories declared', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) { A -> done }
+    `);
+    const report: TokenReport = {
+      graphName: 'G',
+      budget: 5000,
+      bestCase: 3000,
+      worstCase: 3000,
+      nodes: [
+        { name: 'A', estimatedIn: 2000, estimatedOut: 1000 },
+      ],
+      warnings: [],
+    };
+    const files = generate(program, report, 'test.gft');
+
+    expect(files.map(f => f.path)).not.toContain('.graft/memory/.gitkeep');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// generateAgent — memory support
+// ---------------------------------------------------------------------------
+describe('generateAgent — memory support', () => {
+  it('agent with memory read shows .graft/memory/ path', () => {
+    const program = parse(`
+      memory UserProfile(max_tokens: 2k, storage: file) {
+        preferences: String
+      }
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec, UserProfile]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) { A -> done }
+    `);
+    const memoryNames = new Set(program.memories.map(m => m.name));
+    const md = generateAgent(program.nodes[0], memoryNames);
+    expect(md).toContain('.graft/memory/userprofile.json');
+    expect(md).toContain('.graft/session/');
+  });
+
+  it('agent with memory write shows Memory Saving section', () => {
+    const program = parse(`
+      memory UserProfile(max_tokens: 2k, storage: file) {
+        preferences: String
+      }
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec, UserProfile]
+        writes: [UserProfile]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) { A -> done }
+    `);
+    const memoryNames = new Set(program.memories.map(m => m.name));
+    const md = generateAgent(program.nodes[0], memoryNames);
+    expect(md).toContain('Memory Saving');
+    expect(md).toContain('.graft/memory/userprofile.json');
+  });
+
+  it('agent without memory reads shows no memory paths', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) { A -> done }
+    `);
+    const md = generateAgent(program.nodes[0], new Set());
+    expect(md).not.toContain('.graft/memory/');
+  });
+
+  it('agent without writes shows no Memory Saving section', () => {
+    const program = parse(`
+      memory UserProfile(max_tokens: 2k, storage: file) {
+        preferences: String
+      }
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec, UserProfile]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) { A -> done }
+    `);
+    const memoryNames = new Set(program.memories.map(m => m.name));
+    const md = generateAgent(program.nodes[0], memoryNames);
+    expect(md).not.toContain('Memory Saving');
+  });
+
+  it('existing generateAgent calls still work (backward compat)', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) { A -> done }
+    `);
+    // No second arg — should use default empty Set
+    const md = generateAgent(program.nodes[0]);
+    expect(md).toContain('# A Agent');
+    expect(md).not.toContain('.graft/memory/');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// generateOrchestration — memory support
+// ---------------------------------------------------------------------------
+describe('generateOrchestration — memory support', () => {
+  it('shows Persistent Memory section when memories declared', () => {
+    const program = parse(`
+      memory UserProfile(max_tokens: 2k, storage: file) {
+        preferences: String
+      }
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec, UserProfile]
+        writes: [UserProfile]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) { A -> done }
+    `);
+    const report: TokenReport = {
+      graphName: 'G',
+      budget: 5000,
+      bestCase: 3000,
+      worstCase: 3000,
+      nodes: [
+        { name: 'A', estimatedIn: 2000, estimatedOut: 1000 },
+      ],
+      warnings: [],
+    };
+    const md = generateOrchestration(program, report);
+    expect(md).toContain('Persistent Memory');
+    expect(md).toContain('UserProfile');
+    expect(md).toContain('.graft/memory/userprofile.json');
+    expect(md).toContain('2,000 tokens max');
+  });
+
+  it('shows memory load/save annotations per step', () => {
+    const program = parse(`
+      memory UserProfile(max_tokens: 2k, storage: file) {
+        preferences: String
+      }
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec, UserProfile]
+        writes: [UserProfile]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) { A -> done }
+    `);
+    const report: TokenReport = {
+      graphName: 'G',
+      budget: 5000,
+      bestCase: 3000,
+      worstCase: 3000,
+      nodes: [
+        { name: 'A', estimatedIn: 2000, estimatedOut: 1000 },
+      ],
+      warnings: [],
+    };
+    const md = generateOrchestration(program, report);
+    expect(md).toContain('Memory load: `.graft/memory/userprofile.json`');
+    expect(md).toContain('Memory save: `.graft/memory/userprofile.json`');
+  });
 });

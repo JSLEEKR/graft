@@ -17,12 +17,13 @@ const TOOL_MAP: Record<string, string[]> = {
   browser: ['Bash'],
 };
 
-export function generateAgent(node: NodeDecl): string {
+export function generateAgent(node: NodeDecl, memoryNames: Set<string> = new Set()): string {
   const name = node.name.toLowerCase();
   const resolvedModel = MODEL_MAP[node.model] || node.model;
   const tools = resolveTools(node.tools);
   const jsonSchema = fieldsToJsonExample(node.produces.fields);
   const failureSection = formatFailure(node);
+  const writesSection = formatWrites(node, memoryNames);
 
   return `---
 name: ${name}
@@ -33,9 +34,8 @@ tools: [${tools.join(', ')}]
 # ${node.name} Agent
 
 ## Context Loading
-${formatReads(node)}
-
-## Output Contract
+${formatReads(node, memoryNames)}
+${writesSection}## Output Contract
 Produce JSON output matching this schema:
 \`\`\`json
 ${JSON.stringify(jsonSchema, null, 2)}
@@ -66,14 +66,32 @@ function resolveTools(tools: string[]): string[] {
   return [...resolved];
 }
 
-function formatReads(node: NodeDecl): string {
+function formatReads(node: NodeDecl, memoryNames: Set<string>): string {
   if (node.reads.length === 0) return 'No external context required.';
   return node.reads.map(ref => {
+    const isMemory = memoryNames.has(ref.context);
+    if (isMemory) {
+      if (ref.field) {
+        return `- Load \`${ref.context}.${ref.field}\` from \`.graft/memory/${ref.context.toLowerCase()}.json\``;
+      }
+      return `- Load \`${ref.context}\` from \`.graft/memory/${ref.context.toLowerCase()}.json\``;
+    }
     if (ref.field) {
       return `- Load \`${ref.context}.${ref.field}\` from \`.graft/session/\``;
     }
     return `- Load \`${ref.context}\` from \`.graft/session/\``;
   }).join('\n');
+}
+
+function formatWrites(node: NodeDecl, memoryNames: Set<string>): string {
+  const memoryWrites = node.writes.filter(w => memoryNames.has(w));
+  if (memoryWrites.length === 0) return '';
+  return `
+## Memory Saving
+After producing output, save to persistent memory:
+${memoryWrites.map(w => `- Save to \`.graft/memory/${w.toLowerCase()}.json\``).join('\n')}
+
+`;
 }
 
 function formatFailure(node: NodeDecl): string {
