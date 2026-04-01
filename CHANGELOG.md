@@ -1,5 +1,27 @@
 # Changelog
 
+## v3.5.0 (2026-04-02)
+
+### Added
+- **Rename correctness hardening** (A3 backlog from v3.4):
+  - Comment/string/import-path filtering in `collectRenameLocations` — regex matches inside comments, strings, and `from "..."` paths are now skipped
+  - CRLF normalization: `\r\n` → `\n` before text-based scanning
+  - `newName` validation: identifier regex (`/^[A-Za-z_][A-Za-z0-9_]*$/`) + keyword blacklist (26 Graft keywords)
+  - `isInComment()` and `isInString()` extracted from completions.ts to shared `utils.ts`
+- **Cross-file conflict detection**: `buildRenameEdits` checks that the new name doesn't collide with declarations in importing files before applying edits
+- **`buildRenameEdits` pure function**: rename handler logic extracted from server.ts to `features/rename.ts` (follows `buildAutoImportActions` pattern)
+- **FlowNode source location**: parser now captures `SourceLocation` on all three FlowNode kinds (`node`, `parallel`, `foreach`)
+- **Parallel/foreach document symbol children**: outline view now shows `parallel(A, B)` and `foreach(Source.field)` as children of graph symbols, with foreach body nodes as nested children
+
+### Changed
+- `GRAFT_KEYWORDS` Set exported from `features/rename.ts` for shared use
+- Server.ts rename handler reduced to thin wrapper calling `buildRenameEdits`
+- `features/index.ts` updated with new exports (`isInComment`, `isInString`, `buildRenameEdits`, `GRAFT_KEYWORDS`)
+
+### Stats
+- 739 tests (49 new), ~210 ratchets
+- 4 rounds (all DIRECT/TEST-ONLY), ~8 agent calls
+
 ## v3.4.0 (2026-04-02)
 
 ### Added
