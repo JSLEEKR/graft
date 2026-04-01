@@ -1,11 +1,6 @@
-import { NodeDecl, Field, TypeExpr } from '../parser/ast.js';
-
-// Keep in sync with settings.ts MODEL_MAP
-const MODEL_MAP: Record<string, string> = {
-  sonnet: 'claude-sonnet-4-20250514',
-  opus: 'claude-opus-4-20250514',
-  haiku: 'claude-haiku-4-5-20251001',
-};
+import { NodeDecl } from '../parser/ast.js';
+import { MODEL_MAP } from '../constants.js';
+import { fieldsToJsonExample } from '../utils.js';
 
 const TOOL_MAP: Record<string, string[]> = {
   file_read: ['Read'],
@@ -113,39 +108,3 @@ function formatFailure(node: NodeDecl): string {
   }
 }
 
-function fieldsToJsonExample(fields: Field[]): Record<string, unknown> {
-  const obj: Record<string, unknown> = {};
-  for (const field of fields) {
-    obj[field.name] = typeToExample(field.type);
-  }
-  return obj;
-}
-
-function typeToExample(type: TypeExpr): unknown {
-  switch (type.kind) {
-    case 'primitive':
-      switch (type.name) {
-        case 'String': return '<string>';
-        case 'Int': return 0;
-        case 'Float': return 0.0;
-        case 'Bool': return false;
-        default: return '<unknown>';
-      }
-    case 'primitive_range':
-      return type.min;
-    case 'list':
-      return [typeToExample(type.element)];
-    case 'map':
-      return {};
-    case 'optional':
-      return typeToExample(type.inner);
-    case 'token_bounded':
-      return typeToExample(type.inner);
-    case 'enum':
-      return type.values.join('|');
-    case 'struct':
-      return fieldsToJsonExample(type.fields);
-    case 'domain':
-      return `<${type.name}>`;
-  }
-}

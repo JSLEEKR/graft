@@ -1,11 +1,5 @@
 import { Program, EdgeDecl, FlowNode } from '../parser/ast.js';
-
-// Keep in sync with agents.ts MODEL_MAP
-const MODEL_MAP: Record<string, string> = {
-  sonnet: 'claude-sonnet-4-20250514',
-  opus: 'claude-opus-4-20250514',
-  haiku: 'claude-haiku-4-5-20251001',
-};
+import { MODEL_MAP, BUDGET_WARNING_THRESHOLD, BUDGET_CRITICAL_THRESHOLD } from '../constants.js';
 
 export interface GraftSettings {
   model: string;
@@ -93,8 +87,8 @@ export function generateSettings(program: Program, sourceFile: string): GraftSet
       compiled_at: new Date().toISOString(),
       budget: {
         total: graph?.budget || 0,
-        warning_threshold: 0.8,
-        critical_threshold: 0.9,
+        warning_threshold: BUDGET_WARNING_THRESHOLD,
+        critical_threshold: BUDGET_CRITICAL_THRESHOLD,
       },
       model_routing: {
         default: defaultModel,

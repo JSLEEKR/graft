@@ -1,16 +1,12 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { Program, NodeDecl, EdgeDecl, FlowNode, Field, TypeExpr } from '../parser/ast.js';
+import { Program, NodeDecl, EdgeDecl, FlowNode } from '../parser/ast.js';
 import { SpawnOptions, SpawnResult, spawnClaude } from './subprocess.js';
 import { extractJson } from './subprocess.js';
 import { applyTransforms } from './transforms.js';
-
-// Duplicated from agents.ts per ratchet decision (T6)
-const MODEL_MAP: Record<string, string> = {
-  sonnet: 'claude-sonnet-4-20250514',
-  opus: 'claude-opus-4-20250514',
-  haiku: 'claude-haiku-4-5-20251001',
-};
+import { MODEL_MAP } from '../constants.js';
+import { fieldsToJsonExample } from '../utils.js';
+import { loadMemory, saveMemory } from './memory.js';
 
 export type SpawnerFn = (options: SpawnOptions) => Promise<SpawnResult>;
 
@@ -157,48 +153,6 @@ export class Executor {
     }
   }
 
-  private loadMemory(name: string): Record<string, unknown> | null {
-    const filePath = path.join(this.memoryDir, `${name.toLowerCase()}.json`);
-    if (!fs.existsSync(filePath)) return null;
-    try {
-      return JSON.parse(fs.readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
-    } catch {
-      return null;
-    }
-  }
-
-  private saveMemory(name: string, nodeOutput: unknown): void {
-    if (this.options.dryRun) return;
-
-    const mem = this.program.memories.find(m => m.name === name);
-    if (!mem) return;
-
-    fs.mkdirSync(this.memoryDir, { recursive: true });
-    const filePath = path.join(this.memoryDir, `${name.toLowerCase()}.json`);
-
-    // Load existing memory
-    let current: Record<string, unknown> = {};
-    if (fs.existsSync(filePath)) {
-      try {
-        current = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
-      } catch {
-        current = {};
-      }
-    }
-
-    // Field-matching merge: only write fields declared in memory schema
-    if (typeof nodeOutput === 'object' && nodeOutput !== null) {
-      const output = nodeOutput as Record<string, unknown>;
-      for (const field of mem.fields) {
-        if (field.name in output) {
-          current[field.name] = output[field.name];
-        }
-      }
-    }
-
-    fs.writeFileSync(filePath, JSON.stringify(current, null, 2));
-  }
-
   private async executeFlowNodes(
     flow: FlowNode[],
     nodeResults: NodeResult[],
@@ -289,7 +243,7 @@ export class Executor {
     // ALWAYS reload from disk (no this.outputs.has guard — fixes foreach staleness)
     for (const ref of nodeDecl.reads) {
       if (this.memoryNames.has(ref.context)) {
-        const memData = this.loadMemory(ref.context);
+        const memData = loadMemory(this.memoryDir, ref.context);
         if (memData !== null) {
           this.outputs.set(ref.context, memData);
         } else {
@@ -413,7 +367,12 @@ export class Executor {
     // Save to memory for writes targets
     for (const writeName of nodeDecl.writes) {
       if (this.memoryNames.has(writeName)) {
-        this.saveMemory(writeName, output);
+        if (!this.options.dryRun) {
+          const mem = this.program.memories.find(m => m.name === writeName);
+          if (mem) {
+            saveMemory(this.memoryDir, mem, output);
+          }
+        }
       }
     }
   }
@@ -478,40 +437,3 @@ ${JSON.stringify(jsonSchema, null, 2)}
   }
 }
 
-// Duplicated from agents.ts (not exported there) per convergence spec
-function fieldsToJsonExample(fields: Field[]): Record<string, unknown> {
-  const obj: Record<string, unknown> = {};
-  for (const field of fields) {
-    obj[field.name] = typeToExample(field.type);
-  }
-  return obj;
-}
-
-function typeToExample(type: TypeExpr): unknown {
-  switch (type.kind) {
-    case 'primitive':
-      switch (type.name) {
-        case 'String': return '<string>';
-        case 'Int': return 0;
-        case 'Float': return 0.0;
-        case 'Bool': return false;
-        default: return '<unknown>';
-      }
-    case 'primitive_range':
-      return type.min;
-    case 'list':
-      return [typeToExample(type.element)];
-    case 'map':
-      return {};
-    case 'optional':
-      return typeToExample(type.inner);
-    case 'token_bounded':
-      return typeToExample(type.inner);
-    case 'enum':
-      return type.values.join('|');
-    case 'struct':
-      return fieldsToJsonExample(type.fields);
-    case 'domain':
-      return `<${type.name}>`;
-  }
-}

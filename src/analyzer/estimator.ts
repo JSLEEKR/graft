@@ -1,5 +1,6 @@
 import { Program, NodeDecl, EdgeDecl, Transform, FlowNode } from '../parser/ast.js';
 import { GraftError } from '../errors/diagnostics.js';
+import { PARTIAL_FIELD_FACTOR } from '../constants.js';
 
 export interface NodeTokenReport {
   name: string;
@@ -162,13 +163,13 @@ export class TokenEstimator {
       // If reading a context
       const ctx = this.program.contexts.find(c => c.name === ref.context);
       if (ctx) {
-        estimatedIn += ref.field ? Math.floor(ctx.maxTokens * 0.3) : ctx.maxTokens;
+        estimatedIn += ref.field ? Math.floor(ctx.maxTokens * PARTIAL_FIELD_FACTOR) : ctx.maxTokens;
         continue;
       }
       // If reading a memory
       const mem = this.program.memories.find(m => m.name === ref.context);
       if (mem) {
-        estimatedIn += ref.field ? Math.floor(mem.maxTokens * 0.3) : mem.maxTokens;
+        estimatedIn += ref.field ? Math.floor(mem.maxTokens * PARTIAL_FIELD_FACTOR) : mem.maxTokens;
         continue;
       }
       // If reading a produces output from upstream node
@@ -181,7 +182,7 @@ export class TokenEstimator {
         if (edge) {
           upstreamTokens = this.applyTransformReductions(upstreamTokens, edge.transforms);
         }
-        estimatedIn += ref.field ? Math.floor(upstreamTokens * 0.3) : upstreamTokens;
+        estimatedIn += ref.field ? Math.floor(upstreamTokens * PARTIAL_FIELD_FACTOR) : upstreamTokens;
       }
     }
     return estimatedIn;
@@ -192,7 +193,7 @@ export class TokenEstimator {
     for (const t of transforms) {
       switch (t.type) {
         case 'select':
-          result = Math.floor(result * Math.min(0.3 * t.fields.length, 1.0));
+          result = Math.floor(result * Math.min(PARTIAL_FIELD_FACTOR * t.fields.length, 1.0));
           break;
         case 'filter':
           result = Math.floor(result * 0.5); // filter reduces ~50%
