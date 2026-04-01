@@ -43,10 +43,16 @@ function makeFlowNodeChildren(flow: FlowNode[], parentLoc: SourceLocation): Docu
   const children: DocumentSymbol[] = [];
   for (const node of flow) {
     if (node.kind === 'node') {
-      // FlowNode has no location, use zero-width range at parent location
-      children.push(makeSymbol(node.name, SymbolKind.Function, parentLoc));
+      children.push(makeSymbol(node.name, SymbolKind.Function, node.location ?? parentLoc));
+    } else if (node.kind === 'parallel') {
+      const label = `parallel(${node.branches.join(', ')})`;
+      children.push(makeSymbol(label, SymbolKind.Function, node.location ?? parentLoc));
+    } else if (node.kind === 'foreach') {
+      const label = `foreach(${node.source}.${node.field})`;
+      const sym = makeSymbol(label, SymbolKind.Function, node.location ?? parentLoc);
+      sym.children = makeFlowNodeChildren(node.body, node.location ?? parentLoc);
+      children.push(sym);
     }
-    // parallel and foreach are structural, not individual symbols
   }
   return children;
 }

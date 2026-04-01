@@ -106,7 +106,7 @@ describe('Hierarchical Document Symbols', () => {
     expect(symbols[0].children![1].name).toBe('summary');
   });
 
-  it('graph has flow node children (only node kind)', () => {
+  it('graph has flow node children (all flow node kinds)', () => {
     const flow: FlowNode[] = [
       { kind: 'node', name: 'Researcher' },
       { kind: 'parallel', branches: ['A', 'B'] },
@@ -127,12 +127,14 @@ describe('Hierarchical Document Symbols', () => {
 
     expect(symbols).toHaveLength(1);
     expect(symbols[0].name).toBe('SimpleQA');
-    // Only 'node' kind FlowNodes, not 'parallel'
-    expect(symbols[0].children).toHaveLength(2);
+    // All flow node kinds appear as children
+    expect(symbols[0].children).toHaveLength(3);
     expect(symbols[0].children![0].name).toBe('Researcher');
     expect(symbols[0].children![0].kind).toBe(SymbolKind.Function);
-    expect(symbols[0].children![1].name).toBe('Writer');
+    expect(symbols[0].children![1].name).toBe('parallel(A, B)');
     expect(symbols[0].children![1].kind).toBe(SymbolKind.Function);
+    expect(symbols[0].children![2].name).toBe('Writer');
+    expect(symbols[0].children![2].kind).toBe(SymbolKind.Function);
   });
 
   it('edge has no children', () => {

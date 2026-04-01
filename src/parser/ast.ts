@@ -76,10 +76,10 @@ export interface ConditionalBranch {
 
 // Flow control nodes (v1.1)
 export type FlowNode =
-  | { kind: 'node'; name: string }
-  | { kind: 'parallel'; branches: string[] }
+  | { kind: 'node'; name: string; location?: SourceLocation }
+  | { kind: 'parallel'; branches: string[]; location?: SourceLocation }
   | { kind: 'foreach'; source: string; field: string; binding: string;
-      maxIterations: number; body: FlowNode[] };
+      maxIterations: number; body: FlowNode[]; location?: SourceLocation };
 
 // graph SimpleQA(...) { Researcher -> Writer -> done }
 export interface GraphDecl {

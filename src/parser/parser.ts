@@ -602,8 +602,9 @@ export class Parser {
       return this.parseForeachStep();
     }
     // Regular node reference
+    const loc = this.current().location;
     const name = this.expectIdentifier();
-    return { kind: 'node', name };
+    return { kind: 'node', name, location: loc };
   }
 
   /**
@@ -613,6 +614,7 @@ export class Parser {
    * Optional commas are accepted for user convenience.
    */
   private parseParallelStep(): FlowNode {
+    const loc = this.current().location;
     this.expect(TokenType.Parallel);
     this.expect(TokenType.LBrace);
 
@@ -629,7 +631,7 @@ export class Parser {
       throw this.error('parallel block must contain at least 2 branches');
     }
 
-    return { kind: 'parallel', branches };
+    return { kind: 'parallel', branches, location: loc };
   }
 
   /**
@@ -638,6 +640,7 @@ export class Parser {
    * }
    */
   private parseForeachStep(): FlowNode {
+    const loc = this.current().location;
     this.expect(TokenType.Foreach);
     this.expect(TokenType.LParen);
 
@@ -680,7 +683,7 @@ export class Parser {
       }
     }
 
-    return { kind: 'foreach', source, field, binding, maxIterations, body };
+    return { kind: 'foreach', source, field, binding, maxIterations, body, location: loc };
   }
 
   // --- Types --------------------------------------------------

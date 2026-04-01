@@ -316,7 +316,7 @@ describe('Parser', () => {
       expect(graph.input).toBe('UserRequest');
       expect(graph.output).toBe('Answer');
       expect(graph.budget).toBe(6000);
-      expect(graph.flow).toEqual([
+      expect(graph.flow).toMatchObject([
         { kind: 'node', name: 'Researcher' },
         { kind: 'node', name: 'Writer' },
       ]);
@@ -329,7 +329,7 @@ describe('Parser', () => {
         }
       `);
       const graph = program.graphs[0];
-      expect(graph.flow).toEqual([
+      expect(graph.flow).toMatchObject([
         { kind: 'parallel', branches: ['A', 'B', 'C'] },
         { kind: 'node', name: 'D' },
       ]);
@@ -342,7 +342,7 @@ describe('Parser', () => {
         }
       `);
       const graph = program.graphs[0];
-      expect(graph.flow[0]).toEqual({ kind: 'parallel', branches: ['A', 'B', 'C'] });
+      expect(graph.flow[0]).toMatchObject({ kind: 'parallel', branches: ['A', 'B', 'C'] });
     });
 
     it('parses graph with foreach block', () => {
@@ -355,7 +355,7 @@ describe('Parser', () => {
       `);
       const graph = program.graphs[0];
       expect(graph.flow).toHaveLength(2);
-      expect(graph.flow[0]).toEqual({ kind: 'node', name: 'Planner' });
+      expect(graph.flow[0]).toMatchObject({ kind: 'node', name: 'Planner' });
       const fe = graph.flow[1];
       expect(fe.kind).toBe('foreach');
       if (fe.kind === 'foreach') {
@@ -363,7 +363,7 @@ describe('Parser', () => {
         expect(fe.field).toBe('steps');
         expect(fe.binding).toBe('step');
         expect(fe.maxIterations).toBe(5);
-        expect(fe.body).toEqual([
+        expect(fe.body).toMatchObject([
           { kind: 'node', name: 'Worker' },
           { kind: 'node', name: 'Checker' },
         ]);
