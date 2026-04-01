@@ -1,5 +1,6 @@
 import { Lexer } from './lexer/lexer.js';
 import { Parser } from './parser/parser.js';
+import { resolve } from './resolver/resolver.js';
 import { ScopeChecker } from './analyzer/scope.js';
 import { TypeChecker } from './analyzer/types.js';
 import { TokenEstimator, TokenReport } from './analyzer/estimator.js';
@@ -42,6 +43,16 @@ export function compile(source: string, sourceFile: string): CompileResult {
       return { success: false, errors: [e], warnings };
     }
     throw e;
+  }
+
+  // Resolve imports
+  if (program.imports.length > 0) {
+    const resolveResult = resolve(source, sourceFile);
+    if (resolveResult.errors.length > 0) {
+      errors.push(...resolveResult.errors);
+      return { success: false, program, errors, warnings };
+    }
+    program = resolveResult.program;
   }
 
   // Guard: no graph declaration
