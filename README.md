@@ -109,6 +109,30 @@ graft run examples/hello.gft --input '{"question":"test"}' --dry-run
 graft check examples/shared.gft
 ```
 
+## Programmatic API
+
+Use sub-path imports for programmatic access to the compiler, runtime, and types:
+
+```typescript
+import { compileToProgram, compile } from '@graft-lang/graft/compiler';
+import { Executor } from '@graft-lang/graft/runtime';
+import type { Program, ProgramIndex, GraftErrorCode } from '@graft-lang/graft/types';
+
+const result = compileToProgram(source, 'pipeline.gft');
+if (result.success) {
+  console.log(`Parsed ${result.program.nodes.length} nodes`);
+}
+```
+
+Available sub-path exports:
+
+| Import path | Contents |
+|-------------|----------|
+| `@graft-lang/graft/compiler` | `compileToProgram`, `compile`, `compileAndGenerate`, `compileAndWrite` |
+| `@graft-lang/graft/runtime` | `Executor`, `RunResult`, `RunOptions`, `NodeResult` |
+| `@graft-lang/graft/types` | `Program`, `ProgramIndex`, `GraftError`, `GraftErrorCode`, `TokenReport`, `CodegenBackend`, etc. |
+| `@graft-lang/graft/ast` | Raw AST type definitions (existing) |
+
 ## Language Overview
 
 ### Core Abstractions

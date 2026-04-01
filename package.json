@@ -20,6 +20,18 @@
     "./ast": {
       "import": "./dist/parser/ast.js",
       "types": "./dist/parser/ast.d.ts"
+    },
+    "./compiler": {
+      "import": "./dist/compiler.js",
+      "types": "./dist/compiler.d.ts"
+    },
+    "./runtime": {
+      "import": "./dist/runtime/executor.js",
+      "types": "./dist/runtime/executor.d.ts"
+    },
+    "./types": {
+      "import": "./dist/types.js",
+      "types": "./dist/types.d.ts"
     }
   },
   "files": [
