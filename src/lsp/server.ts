@@ -16,7 +16,7 @@ import { Lexer } from '../lexer/lexer.js';
 import { Parser } from '../parser/parser.js';
 import type { Program } from '../parser/ast.js';
 import type { ProgramIndex } from '../program-index.js';
-import { toDiagnostics, getHoverInfo, getDefinitionLocation, getWordAtPosition, getCompletions, extractUndefinedName, buildAutoImportEdit, computeRelativeImportPath, getDocumentSymbols, isRenameable, collectRenameLocations } from './features.js';
+import { toDiagnostics, getHoverInfo, getDefinitionLocation, getWordAtPosition, getCompletions, extractUndefinedName, buildAutoImportEdit, computeRelativeImportPath, getDocumentSymbols, isRenameable, collectRenameLocations } from './features/index.js';
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);

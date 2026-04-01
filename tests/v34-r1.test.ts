@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isRenameable, collectRenameLocations } from '../src/lsp/features.js';
+import { isRenameable, collectRenameLocations } from '../src/lsp/features/index.js';
 import type { ContextDecl, NodeDecl, MemoryDecl, GraphDecl } from '../src/parser/ast.js';
 import { ProgramIndex } from '../src/program-index.js';
 

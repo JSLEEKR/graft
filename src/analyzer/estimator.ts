@@ -23,18 +23,24 @@ export class TokenEstimator {
   private index: ProgramIndex;
   private nodeMap: Map<string, NodeDecl>;
   private edgeMap: Map<string, EdgeDecl>; // "source->target" key
+  private conditionalEdges: Map<string, string[]>; // source -> target node names
 
   constructor(program: Program, index?: ProgramIndex) {
     this.program = program;
     this.index = index ?? new ProgramIndex(program);
     this.nodeMap = this.index.nodeMap;
     this.edgeMap = new Map();
+    this.conditionalEdges = new Map();
 
     for (const edge of program.edges) {
       if (edge.target.kind === 'direct') {
         this.edgeMap.set(`${edge.source}->${edge.target.node}`, edge);
+      } else {
+        this.conditionalEdges.set(
+          edge.source,
+          edge.target.branches.map(b => b.target),
+        );
       }
-      // TODO: store conditional edge branches for token estimation (v2)
     }
   }
 
@@ -128,6 +134,13 @@ export class TokenEstimator {
           const retryMul = this.getRetryMultiplier(node);
           best += cost;
           worst += cost * retryMul;
+          // Add conditional edge branch costs
+          const condTargets = this.conditionalEdges.get(step.name);
+          if (condTargets) {
+            const branchCosts = this.getConditionalBranchCosts(condTargets);
+            best += branchCosts.best;
+            worst += branchCosts.worst;
+          }
           break;
         }
         case 'parallel': {
@@ -154,6 +167,26 @@ export class TokenEstimator {
     }
 
     return { best, worst };
+  }
+
+  private getConditionalBranchCosts(targets: string[]): { best: number; worst: number } {
+    const bestCosts: number[] = [];
+    const worstCosts: number[] = [];
+    for (const target of targets) {
+      if (target === 'done') {
+        bestCosts.push(0);
+        worstCosts.push(0);
+        continue;
+      }
+      const node = this.nodeMap.get(target);
+      if (!node) continue;
+      const cost = this.getNodeCost(target, node);
+      const retryMul = this.getRetryMultiplier(node);
+      bestCosts.push(cost);
+      worstCosts.push(cost * retryMul);
+    }
+    if (bestCosts.length === 0) return { best: 0, worst: 0 };
+    return { best: Math.min(...bestCosts), worst: Math.max(...worstCosts) };
   }
 
   private getNodeCost(nodeName: string, node: NodeDecl): number {

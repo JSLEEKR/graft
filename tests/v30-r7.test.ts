@@ -7,7 +7,7 @@ import { MemoryDecl } from '../src/parser/ast.js';
 import { Lexer } from '../src/lexer/lexer.js';
 import { Parser } from '../src/parser/parser.js';
 import { ProgramIndex } from '../src/program-index.js';
-import { getHoverInfo } from '../src/lsp/features.js';
+import { getHoverInfo } from '../src/lsp/features/index.js';
 
 function parse(source: string) {
   const lexer = new Lexer(source);
@@ -138,7 +138,7 @@ describe('v3.0-R7: LSP multi-field hover', () => {
 
 describe('v3.0-R7: LSP diagnostic ranges', () => {
   it('diagnostic end character uses location length', async () => {
-    const { toDiagnostics } = await import('../src/lsp/features.js');
+    const { toDiagnostics } = await import('../src/lsp/features/index.js');
     const { GraftError } = await import('../src/errors/diagnostics.js');
     const err = new GraftError('test error', { line: 1, column: 1, offset: 0, length: 5 }, 'error', 'SCOPE_UNDEFINED_REF');
     const diagnostics = toDiagnostics([err], []);
@@ -148,7 +148,7 @@ describe('v3.0-R7: LSP diagnostic ranges', () => {
   });
 
   it('diagnostic defaults to length 1 when not set', async () => {
-    const { toDiagnostics } = await import('../src/lsp/features.js');
+    const { toDiagnostics } = await import('../src/lsp/features/index.js');
     const { GraftError } = await import('../src/errors/diagnostics.js');
     const err = new GraftError('test', { line: 1, column: 3, offset: 2 }, 'warning');
     const diagnostics = toDiagnostics([], [err]);

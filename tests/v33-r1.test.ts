@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractUndefinedName, buildAutoImportEdit, computeRelativeImportPath } from '../src/lsp/features.js';
+import { extractUndefinedName, buildAutoImportEdit, computeRelativeImportPath } from '../src/lsp/features/index.js';
 import { compile } from '../src/compiler.js';
 
 // ========================================

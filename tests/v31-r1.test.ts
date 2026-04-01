@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getCompletions } from '../src/lsp/features.js';
+import { getCompletions } from '../src/lsp/features/index.js';
 import { ProgramIndex } from '../src/program-index.js';
 import { CompletionItemKind, InsertTextFormat } from 'vscode-languageserver/node';
 import type { ContextDecl, NodeDecl, MemoryDecl } from '../src/parser/ast.js';

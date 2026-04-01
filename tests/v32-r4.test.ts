@@ -5,7 +5,7 @@ import { Lexer } from '../src/lexer/lexer.js';
 import { Parser } from '../src/parser/parser.js';
 import { compileToProgram } from '../src/compiler.js';
 import { ProgramIndex } from '../src/program-index.js';
-import { getCompletions, getHoverInfo } from '../src/lsp/features.js';
+import { getCompletions, getHoverInfo } from '../src/lsp/features/index.js';
 
 // ========================================
 // 1. Parser error recovery integration

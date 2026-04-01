@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { SymbolKind } from 'vscode-languageserver/node';
-import { getDocumentSymbols } from '../src/lsp/features.js';
+import { getDocumentSymbols } from '../src/lsp/features/index.js';
 import { TypeChecker } from '../src/analyzer/types.js';
 import { ProgramIndex } from '../src/program-index.js';
 import { Lexer } from '../src/lexer/lexer.js';

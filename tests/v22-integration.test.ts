@@ -6,7 +6,7 @@ import { PARTIAL_FIELD_FACTOR } from '../src/constants.js';
 import { Lexer } from '../src/lexer/lexer.js';
 import { Parser } from '../src/parser/parser.js';
 import { TokenEstimator } from '../src/analyzer/estimator.js';
-import { toDiagnostics, getHoverInfo } from '../src/lsp/features.js';
+import { toDiagnostics, getHoverInfo } from '../src/lsp/features/index.js';
 import { DiagnosticSeverity, MarkupKind } from 'vscode-languageserver/node';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';

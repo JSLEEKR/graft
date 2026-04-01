@@ -7,7 +7,7 @@ import { Parser } from '../src/parser/parser.js';
 import { ProgramIndex } from '../src/program-index.js';
 import { ScopeChecker } from '../src/analyzer/scope.js';
 import { compileToProgram } from '../src/compiler.js';
-import { getCompletions } from '../src/lsp/features.js';
+import { getCompletions } from '../src/lsp/features/index.js';
 import { Executor } from '../src/runtime/executor.js';
 import { formatTokenReport } from '../src/format.js';
 import { TokenEstimator } from '../src/analyzer/estimator.js';

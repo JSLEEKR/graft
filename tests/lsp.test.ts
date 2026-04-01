@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { DiagnosticSeverity, MarkupKind } from 'vscode-languageserver/node';
-import { toDiagnostics, getWordAtPosition, getHoverInfo, getDefinitionLocation, formatType } from '../src/lsp/features.js';
+import { toDiagnostics, getWordAtPosition, getHoverInfo, getDefinitionLocation, formatType } from '../src/lsp/features/index.js';
 import { GraftError } from '../src/errors/diagnostics.js';
 import type { TypeExpr, ContextDecl, NodeDecl, MemoryDecl } from '../src/parser/ast.js';
 import { ProgramIndex } from '../src/program-index.js';

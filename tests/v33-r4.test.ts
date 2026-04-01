@@ -6,7 +6,7 @@ import {
   buildAutoImportEdit,
   computeRelativeImportPath,
   getDocumentSymbols,
-} from '../src/lsp/features.js';
+} from '../src/lsp/features/index.js';
 import { evaluateCondition } from '../src/runtime/flow-runner.js';
 import { ProgramIndex } from '../src/program-index.js';
 import type { Condition } from '../src/parser/ast.js';

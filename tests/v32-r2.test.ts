@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { MarkupKind } from 'vscode-languageserver/node';
-import { getCompletions, getHoverInfo } from '../src/lsp/features.js';
+import { getCompletions, getHoverInfo } from '../src/lsp/features/index.js';
 import { ProgramIndex } from '../src/program-index.js';
 import type { ContextDecl, NodeDecl } from '../src/parser/ast.js';
 
