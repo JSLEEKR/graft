@@ -4,5 +4,5 @@ export { getCompletions } from './completions.js';
 export { getDefinitionLocation } from './definition.js';
 export { getDocumentSymbols, makeSymbol } from './symbols.js';
 export { buildAutoImportActions, buildAutoImportEdit, computeRelativeImportPath } from './code-actions.js';
-export { isRenameable, collectRenameLocations } from './rename.js';
+export { isRenameable, collectRenameLocations, buildRenameEdits, GRAFT_KEYWORDS } from './rename.js';
 export { getWordAtPosition, isInComment, isInString } from './utils.js';

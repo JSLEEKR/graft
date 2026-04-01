@@ -1,6 +1,88 @@
-import type { Range } from 'vscode-languageserver/node';
-import type { ProgramIndex } from '../../program-index.js';
+import type { Range, TextEdit } from 'vscode-languageserver/node';
+import { Lexer } from '../../lexer/lexer.js';
+import { Parser } from '../../parser/parser.js';
+import { ProgramIndex } from '../../program-index.js';
 import { isInComment, isInString } from './utils.js';
+
+export const GRAFT_KEYWORDS = new Set([
+  'context', 'node', 'memory', 'graph', 'edge', 'import', 'from',
+  'reads', 'writes', 'produces', 'budget', 'model', 'max_tokens',
+  'on_failure', 'retry', 'fallback', 'skip', 'abort', 'done',
+  'foreach', 'as', 'max_iterations', 'parallel', 'when', 'else',
+  'storage', 'tools', 'in',
+]);
+
+/**
+ * Pure function that builds rename edits for a Graft identifier.
+ * Returns { changes } on success, { error } on validation/conflict failure, or null if not renameable.
+ */
+export function buildRenameEdits(
+  oldName: string,
+  newName: string,
+  docText: string,
+  docUri: string,
+  currentFilePath: string,
+  workspaceFiles: Map<string, { text: string; uri: string }>,
+): { changes: Record<string, TextEdit[]> } | { error: string } | null {
+  // Parse current file to check renameability
+  let index: ProgramIndex;
+  try {
+    const tokens = new Lexer(docText).tokenize();
+    const { program } = new Parser(tokens).parse();
+    index = new ProgramIndex(program);
+  } catch {
+    return null;
+  }
+
+  // Check if the name is renameable (is a declared context/node/memory/graph)
+  if (!isRenameable(oldName, index)) return null;
+
+  // Validate newName is a legal Graft identifier
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(newName)) {
+    return { error: `'${newName}' is not a valid identifier` };
+  }
+
+  // Reject Graft keywords
+  if (GRAFT_KEYWORDS.has(newName)) {
+    return { error: `'${newName}' is a reserved keyword` };
+  }
+
+  // Check for conflicts in current file
+  if (oldName !== newName && (
+    index.contextMap.has(newName) ||
+    index.nodeMap.has(newName) ||
+    index.memoryMap.has(newName) ||
+    index.graphMap.has(newName)
+  )) {
+    return { error: `'${newName}' already exists in the current file` };
+  }
+
+  // Check for conflicts in importing files
+  const declPattern = new RegExp(`\\b(context|node|memory|graph)\\s+${newName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+  for (const [, fileInfo] of workspaceFiles) {
+    if (declPattern.test(fileInfo.text)) {
+      return { error: `'${newName}' conflicts with a declaration in an importing file` };
+    }
+  }
+
+  const changes: Record<string, TextEdit[]> = {};
+
+  // Collect locations in current file
+  const currentLocs = collectRenameLocations(docText, oldName);
+  if (currentLocs.length > 0) {
+    changes[docUri] = currentLocs.map(range => ({ range, newText: newName }));
+  }
+
+  // Collect locations in importing files
+  for (const [, fileInfo] of workspaceFiles) {
+    const locs = collectRenameLocations(fileInfo.text, oldName);
+    if (locs.length > 0) {
+      changes[fileInfo.uri] = locs.map(range => ({ range, newText: newName }));
+    }
+  }
+
+  return { changes };
+}
 
 export function isRenameable(word: string, index: ProgramIndex): boolean {
   return (

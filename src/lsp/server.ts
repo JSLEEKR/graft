@@ -16,7 +16,7 @@ import { Lexer } from '../lexer/lexer.js';
 import { Parser } from '../parser/parser.js';
 import type { Program } from '../parser/ast.js';
 import type { ProgramIndex } from '../program-index.js';
-import { toDiagnostics, getHoverInfo, getDefinitionLocation, getWordAtPosition, getCompletions, extractUndefinedName, buildAutoImportActions, buildAutoImportEdit, computeRelativeImportPath, getDocumentSymbols, isRenameable, collectRenameLocations } from './features/index.js';
+import { toDiagnostics, getHoverInfo, getDefinitionLocation, getWordAtPosition, getCompletions, extractUndefinedName, buildAutoImportActions, buildAutoImportEdit, computeRelativeImportPath, getDocumentSymbols, isRenameable, collectRenameLocations, buildRenameEdits } from './features/index.js';
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
@@ -296,57 +296,24 @@ connection.onRenameRequest((params) => {
   const word = getWordAtPosition(doc.getText(), params.position.line, params.position.character);
   if (!word || !isRenameable(word, state.index)) return null;
 
-  const newName = params.newName;
+  const currentFilePath = fileURLToPath(params.textDocument.uri);
 
-  // Validate newName is a legal Graft identifier
-  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(newName)) return null;
-
-  // Reject Graft keywords
-  const GRAFT_KEYWORDS = new Set([
-    'context', 'node', 'memory', 'graph', 'edge', 'import', 'from',
-    'reads', 'writes', 'produces', 'budget', 'model', 'max_tokens',
-    'on_failure', 'retry', 'fallback', 'skip', 'abort', 'done',
-    'foreach', 'as', 'max_iterations', 'parallel', 'when', 'else',
-    'storage', 'tools', 'in',
-  ]);
-  if (GRAFT_KEYWORDS.has(newName)) return null;
-
-  // Check for conflicts in current file
-  if (word !== newName && (
-    state.index.contextMap.has(newName) ||
-    state.index.nodeMap.has(newName) ||
-    state.index.memoryMap.has(newName) ||
-    state.index.graphMap.has(newName)
-  )) {
-    return null; // conflict with existing declaration
+  // Lazy workspace scan
+  if (workspaceRoot && !workspaceScanDone) {
+    scanWorkspaceExports(workspaceRoot, currentFilePath);
+    workspaceScanDone = true;
   }
 
-  const changes: Record<string, import('vscode-languageserver/node').TextEdit[]> = {};
-
-  // Collect locations in current file
-  const currentLocs = collectRenameLocations(doc.getText(), word);
-  if (currentLocs.length > 0) {
-    changes[params.textDocument.uri] = currentLocs.map(range => ({
-      range,
-      newText: newName,
-    }));
-  }
-
-  // Cross-file rename via workspace exports cache
+  // Collect workspace files that import the renamed name
+  const importingFiles = new Map<string, { text: string; uri: string }>();
   if (workspaceRoot) {
-    // Lazy workspace scan
-    if (!workspaceScanDone) {
-      const currentFilePath = fileURLToPath(params.textDocument.uri);
-      scanWorkspaceExports(workspaceRoot, currentFilePath);
-      workspaceScanDone = true;
-    }
+    const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const importPattern = new RegExp(`import\\s*\\{[^}]*\\b${escaped}\\b[^}]*\\}`);
 
-    // Find all files that might reference this name
-    for (const [filePath, exports] of workspaceExports) {
+    for (const [filePath] of workspaceExports) {
       const fileUri = pathToFileURL(filePath).toString();
       if (fileUri === params.textDocument.uri) continue;
 
-      // Check if this file imports the renamed name
       const openDoc = documents.get(fileUri);
       let fileText: string;
       try {
@@ -355,21 +322,23 @@ connection.onRenameRequest((params) => {
         continue;
       }
 
-      // Check if the file contains import of this name
-      const importPattern = new RegExp(`import\\s*\\{[^}]*\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b[^}]*\\}`);
-      if (!importPattern.test(fileText)) continue;
-
-      const locs = collectRenameLocations(fileText, word);
-      if (locs.length > 0) {
-        changes[fileUri] = locs.map(range => ({
-          range,
-          newText: newName,
-        }));
+      if (importPattern.test(fileText)) {
+        importingFiles.set(filePath, { text: fileText, uri: fileUri });
       }
     }
   }
 
-  return { changes };
+  const result = buildRenameEdits(
+    word,
+    params.newName,
+    doc.getText(),
+    params.textDocument.uri,
+    currentFilePath,
+    importingFiles,
+  );
+
+  if (!result || 'error' in result) return null;
+  return result;
 });
 
 documents.listen(connection);
