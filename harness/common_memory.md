@@ -1,7 +1,7 @@
 # Common Memory — Graft Compiler
-## Last updated: v3.3-R4 completed (v3.3.0 release)
+## Last updated: v3.4-R4 completed (v3.4.0 release)
 
-## Ratchet-Locked Decisions (190 total, 5 unlocked)
+## Ratchet-Locked Decisions (200 total, 5 unlocked)
 
 ### T1-T6 (abbreviated — all LOCKED)
 T1: tsc-only, ESM, NodeNext, explicit vitest, shebang, strict, no barrels, .js extensions
@@ -237,6 +237,22 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 ### v3.3-R3 Ratchets (Document Symbols + Condition Types)
 - [v3.3-R10] TYPE_CONDITION_MISMATCH error code for ordered operators on non-numeric fields — LOCKED
 
+### v3.4-R1 Ratchets (LSP Rename)
+- [v3.4-R01] isRenameable checks contextMap, nodeMap, memoryMap, graphMap only — LOCKED
+- [v3.4-R02] collectRenameLocations uses word-boundary regex (\b) for name matching — LOCKED
+- [v3.4-R03] prepareRename returns null for non-renameable symbols — LOCKED
+- [v3.4-R04] Cross-file rename scans workspace exports cache for importing files — LOCKED
+- [v3.4-R05] Rename rejects if newName conflicts with existing declaration — LOCKED
+
+### v3.4-R2 Ratchets (Conditional Edge Estimation + Split)
+- [v3.4-R06] Conditional edge estimation: best=min branch cost, worst=max branch cost — LOCKED
+- [v3.4-R07] features.ts split into 8 modules under features/ with index.ts re-export — LOCKED
+- [v3.4-R08] features/utils.ts holds getWordAtPosition (shared across modules) — LOCKED
+
+### v3.4-R3 Ratchets (Hierarchical Symbols + Code Action Extraction)
+- [v3.4-R09] Document symbol children: fields as SymbolKind.Field, flow nodes as SymbolKind.Function — LOCKED
+- [v3.4-R10] buildAutoImportActions pure function in features/code-actions.ts — LOCKED
+
 ## Review Feedback
 - T1-T7: ALL PASS. Test progression: 5 → 31 → 31 → 64 → 78 → 101 → 110
 - v1.2: PASS. 171 tests (135 existing + 36 new). All 12 ratchet items compliant.
@@ -276,6 +292,10 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v3.3-R2: PASS. 611 tests (598 existing + 13 new). 4 new ratchet items. MEDIUM tier. Conditional edge runtime routing.
 - v3.3-R3: PASS. 623 tests (611 existing + 12 new). 1 new ratchet item. DIRECT tier. Document symbols + condition type validation.
 - v3.3-R4: PASS. 636 tests (623 existing + 13 new). 0 new ratchet items. TEST-ONLY integration + regression.
+- v3.4-R1: PASS. 653 tests (636 existing + 17 new). 5 new ratchet items. MEDIUM tier (A2+A3, merged Step 3+4). LSP rename support.
+- v3.4-R2: PASS. 668 tests (653 existing + 15 new). 3 new ratchet items. DIRECT tier. Conditional edge estimation + features.ts split.
+- v3.4-R3: PASS. 678 tests (668 existing + 10 new). 2 new ratchet items. DIRECT tier. Hierarchical document symbols + code action extraction.
+- v3.4-R4: PASS. 690 tests (678 existing + 12 new). 0 new ratchet items. TEST-ONLY integration + regression.
 
 ## Recurring Patterns
 - A3-Skeptic: critical bugs every task (T2-T7 consecutively)
@@ -329,6 +349,10 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v3.3-R2 (MEDIUM): 4 agent calls. 0 bugs. Conditional edge runtime routing (evaluateCondition, FlowContext extension).
 - v3.3-R3 (DIRECT): 2 agent calls. 0 bugs. Document symbols + condition type validation.
 - v3.3-R4 (TEST-ONLY): 2 agent calls. 0 bugs. Integration tests.
+- v3.4-R1 (MEDIUM): 4 agent calls (2 analysis + 1 merged convergence+impl + 1 review). Text-based reference finding with word-boundary regex. Cross-file rename via workspace export cache.
+- v3.4-R2 (DIRECT): 2 agent calls. 0 bugs. Conditional edge estimation + features.ts split into 8 modules.
+- v3.4-R3 (DIRECT): 2 agent calls. 0 bugs. Hierarchical document symbols + code action extraction.
+- v3.4-R4 (TEST-ONLY): 2 agent calls. 0 bugs. Integration tests.
 
 ## Notes for Future
 - Conditional edge routing: IMPLEMENTED in v3.3-R2
@@ -336,7 +360,7 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - Token budget enforcement (Graft tokens vs Claude CLI dollars): approximation only
 - Memory importability: deferred (v2.0-R13 locked as excluded)
 - entryFile guard in resolver: scopes name merging to entry file only (justified deviation from convergence spec)
-- All 636 tests currently passing
+- All 690 tests currently passing
 - v2.0 complete: import system + memory across all pipeline stages (lexer → parser → resolver → analyzer → codegen → runtime → integration)
 - v2.1-R1 complete: constants/utils/memory extracted to shared modules, MODEL_MAP deduplication resolved
 - v2.1-R2 complete: writes schema validation, max_tokens > 0, parallel write detection, compiler.ts warning routing
@@ -352,7 +376,7 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v2.2-R4 complete: LSP server with diagnostics, hover, go-to-definition. 2-file structure (server.ts + features.ts). compile() fixed to return program on GRAPH_MISSING.
 - v2.2-R5 complete: npm distribution metadata (@graft-lang/graft), VS Code extension (syntax highlighting, LSP client). Zero production code changes.
 - v2.2-R6 complete: integration tests (end-to-end compile, LSP round-trip, npm pack, adversarial backlog). All 4 v2.1 adversarial proposals resolved.
-- All 636 tests currently passing
+- All 690 tests currently passing
 - v2.2 complete: 6 rounds (R1-R6), all PASS. Tech debt + correctness + LSP + npm + VS Code + integration.
 - v3.0-R1 complete: Pipeline split (compileToProgram/compileAndGenerate/compile), ProgramIndex threading, RuntimeState interface.
 - v3.0-R2 complete: WriteRef replaces string[] writes, multi-field partial reads (ContextRef.field: string[]), brace syntax in parser, all 10 source files + 5 test files updated.
@@ -379,3 +403,8 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v3.3-R3 complete: Document symbols (getDocumentSymbols, SymbolKind mapping) + condition type validation (TYPE_CONDITION_MISMATCH, checkConditionTypes).
 - v3.3-R4 complete: Integration + regression tests (13 cross-cutting tests covering R1-R3 features).
 - v3.3 COMPLETE: 4 rounds (R1-R4), all PASS. LSP code actions + conditional routing + document symbols + condition types. 636 tests.
+- v3.4-R1 complete: LSP rename support (isRenameable, collectRenameLocations, prepareRename, cross-file rename). MEDIUM tier.
+- v3.4-R2 complete: Conditional edge token estimation (best=min, worst=max branch cost) + features.ts split into 8 modules.
+- v3.4-R3 complete: Hierarchical document symbols (field/flow children) + buildAutoImportActions extraction.
+- v3.4-R4 complete: Integration + regression tests (12 cross-cutting tests covering R1-R3 features).
+- v3.4 COMPLETE: 4 rounds (R1-R4), all PASS. LSP rename + conditional estimation + hierarchical symbols + features split. 690 tests.

@@ -1,5 +1,33 @@
 # Changelog
 
+## v3.4.0 (2026-04-02)
+
+### Added
+- **LSP rename support**: `textDocument/rename` and `textDocument/prepareRename` for contexts, nodes, memories, and graphs
+  - Single-file rename: all references (reads, writes, edges, graph flows) updated via word-boundary regex
+  - Cross-file rename: imported names updated across workspace files using workspace export cache
+  - `prepareRename` validates cursor is on a renameable declaration name
+  - Conflict detection: rejects rename if new name collides with existing declaration
+- **Conditional edge token estimation**: estimator now accounts for conditional edge branches
+  - Best case: cheapest branch target cost; worst case: most expensive branch target cost
+  - `done` targets contribute zero cost
+- **Hierarchical document symbols**: outline view now shows children
+  - Context/Memory children: field names (SymbolKind.Field)
+  - Node children: produces field names (SymbolKind.Field)
+  - Graph children: flow node references (SymbolKind.Function)
+
+### Changed
+- **features.ts split**: 600-line monolith split into 8 focused modules under `src/lsp/features/`
+  - `utils.ts`, `diagnostics.ts`, `hover.ts`, `completions.ts`, `definition.ts`, `symbols.ts`, `code-actions.ts`, `rename.ts`
+  - `index.ts` re-exports all public functions (server.ts import path unchanged)
+- **Code action handler extraction**: `buildAutoImportActions()` pure function in `features/code-actions.ts`
+  - Server handler reduced to thin wrapper, improving testability
+- Removed TODO comment for conditional edge estimation (TD-08, deferred since v2.0)
+
+### Stats
+- 690 tests (54 new), 200 ratchets
+- 4 rounds (1 MEDIUM, 2 DIRECT, 1 TEST-ONLY), ~10 agent calls
+
 ## v3.3.0 (2026-04-02)
 
 ### Added
