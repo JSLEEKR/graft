@@ -280,6 +280,8 @@ src/
 ├── constants.ts          # Shared constants (MODEL_MAP, thresholds)
 ├── utils.ts              # Shared utilities (JSON example generation)
 ├── runner.ts             # graft run command
+├── types.ts              # Public API type re-exports
+├── format.ts             # Shared formatting (formatTokenReport)
 ├── version.ts            # VERSION from package.json
 ├── program-index.ts      # O(1) Map-based declaration lookups
 ├── errors/diagnostics.ts # GraftError + GraftErrorCode + SourceLocation
@@ -304,7 +306,7 @@ src/
 │   └── settings.ts       # → settings.json
 ├── lsp/
 │   ├── server.ts         # LSP server entry (JSON-RPC over stdio)
-│   └── features.ts       # Diagnostics, hover, go-to-definition
+│   └── features.ts       # Diagnostics, hover, go-to-definition, completions
 └── runtime/
     ├── executor.ts       # Pipeline execution engine
     ├── prompt-builder.ts # Prompt construction (pure functions)
@@ -318,7 +320,7 @@ src/
 ## Development
 
 ```bash
-npm test              # Run all 477 tests
+npm test              # Run all 537 tests
 npm run build         # Compile TypeScript
 npx tsc --noEmit      # Type check only
 ```
@@ -327,6 +329,7 @@ npx tsc --noEmit      # Type check only
 
 | Version | Features |
 |---------|----------|
+| **v3.1** | LSP completions, programmatic API surface, parallel failure fix, fallback cycle detection, 537 tests |
 | **v3.0** | Pluggable codegen backends, field-level writes, multi-field reads, failure strategies, 477 tests |
 | **v2.2** | LSP server, VS Code extension, npm distribution, error codes, ProgramIndex, 376 tests |
 | **v2.1** | Token tracking, correctness fixes, shared module extraction, 288 tests |

@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { compileToProgram } from '../compiler.js';
 import type { Program } from '../parser/ast.js';
 import type { ProgramIndex } from '../program-index.js';
-import { toDiagnostics, getHoverInfo, getDefinitionLocation, getWordAtPosition } from './features.js';
+import { toDiagnostics, getHoverInfo, getDefinitionLocation, getWordAtPosition, getCompletions } from './features.js';
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
@@ -25,6 +25,9 @@ connection.onInitialize(() => ({
     textDocumentSync: TextDocumentSyncKind.Full,
     hoverProvider: true,
     definitionProvider: true,
+    completionProvider: {
+      triggerCharacters: ['.', '[', '{'],
+    },
   },
 }));
 
@@ -104,6 +107,18 @@ connection.onDefinition((params) => {
   if (!word) return null;
 
   return getDefinitionLocation(word, state.index, params.textDocument.uri);
+});
+
+connection.onCompletion((params) => {
+  const doc = documents.get(params.textDocument.uri);
+  if (!doc) return [];
+  const state = cache.get(params.textDocument.uri);
+  return getCompletions(
+    doc.getText(),
+    params.position.line,
+    params.position.character,
+    state ?? null,
+  );
 });
 
 documents.listen(connection);

@@ -8,3 +8,4 @@ export type { GeneratedFile } from './codegen/codegen.js';
 export type { TokenReport } from './analyzer/estimator.js';
 export type { ProgramResult, CompileResult } from './compiler.js';
 export type { RunResult, RunOptions, NodeResult } from './runtime/executor.js';
+export type { TokenUsage } from './runtime/subprocess.js';

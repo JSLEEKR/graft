@@ -1,5 +1,37 @@
 # Changelog
 
+## v3.1.0 (2026-04-02)
+
+### Added
+- **LSP completion provider**: autocomplete for keywords, names, fields, model aliases, failure strategies
+  - Trigger characters: `.`, `[`, `{`
+  - Context-aware: top-level keywords, reads/writes names, field access, model aliases, on_failure strategies, fallback node names, graph flow nodes, import names
+  - Snippet completions for context, node, memory, graph, import declarations
+  - Comment and string literal suppression, CRLF-safe
+- **Fallback cycle detection**: `SCOPE_FALLBACK_CYCLE` error for self-referencing and mutual fallback loops
+  - DFS with in-stack detection in ScopeChecker
+- **Programmatic API surface**: sub-path exports for library consumers
+  - `@graft-lang/graft/compiler`: `compileToProgram`, `compile`, `compileAndGenerate`
+  - `@graft-lang/graft/runtime`: `Executor`, `RunResult`, `RunOptions`, `NodeResult`
+  - `@graft-lang/graft/types`: `Program`, `ProgramIndex`, `GraftError`, `GraftErrorCode`, `TokenReport`, `CodegenBackend`, `TokenUsage`, etc.
+  - `src/types.ts` barrel file (sole exception to no-barrels ratchet — public API boundary)
+- 60 new tests (537 total)
+
+### Fixed
+- **Parallel failure strategy bypass**: parallel branches now call `executeWithFailureStrategy` instead of raw `executeNode`, honoring retry/skip/fallback/abort strategies
+
+### Changed
+- Executor: removed duplicate `nodeMap`/`edgeMap` fields, uses `index.*` exclusively
+- ScopeChecker: removed duplicate name Sets, derives from ProgramIndex maps
+- CLI: extracted `formatTokenReport()` shared between compile and check commands
+- Foreach nesting error: removed stale "v1.1" version reference
+
+### Development Process
+- 5 rounds: R1 (MEDIUM, debated), R2-R4 (DIRECT), R5 (TEST-ONLY)
+- ~12 agent calls (budgeted 12)
+- 100% first-try pass rate (5/5)
+- 0 new ratchet unlocks needed
+
 ## v3.0.0 (2026-04-02)
 
 ### Added
