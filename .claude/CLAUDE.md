@@ -5,10 +5,13 @@
 
 ## Project Info
 
-- **Goal**: Graft compiler v1 — compile `.gft` → `.claude/` harness structure
+- **Goal**: Graft compiler — compile `.gft` → `.claude/` harness structure + runtime execution
 - **Language**: TypeScript (hand-written recursive descent parser)
-- **Spec**: `docs/superpowers/specs/2026-03-31-graft-compiler-v1-design.md`
-- **Implementation Plan**: `docs/superpowers/plans/2026-03-31-graft-compiler-v1.md`
+- **Current Version**: v2.0.0 (import system + persistent memory)
+- **Spec**: `docs/superpowers/specs/` (per-version spec files)
+- **Implementation Plan**: `docs/superpowers/plans/` (per-version plan files)
+- **Dev Notes**: `C:\Users\user\OneDrive\Documents\GraftDevNotes\graft-v1-development-notes.md`
+- **Blog**: `JSLEEKR/jslee-homepage` → `content/blog/` (one post per version)
 
 ## Orchestration Process
 
@@ -327,6 +330,212 @@ DEBUG outputs (attempt M):
 RE-DEBATE outputs:
   harness/tasks/T{N}/redebate/step1/agent_{1-4}.md     ← fresh proposals
   harness/tasks/T{N}/redebate/step3/convergence.md
+```
+
+---
+
+## Version Transition Layer
+
+After each version is released, this layer bridges the gap between versions.
+It replaces ad-hoc "what's next?" decisions with a structured debate.
+
+### Full Version Lifecycle
+
+```
+┌─────────────────────────────────────────────────┐
+│  Version N Development (Per-Task Loop above)    │
+│  R1 → R2 → ... → RN (debate rounds)            │
+└──────────────────┬──────────────────────────────┘
+                   ↓
+         Version N Release
+         (commit, tag, CHANGELOG, GitHub release)
+                   ↓
+┌──────────────────────────────────────────────────┐
+│  TRANSITION LAYER                                │
+│                                                  │
+│  Phase 1: Retrospective (2-3 agents parallel)    │
+│    ↓                                             │
+│  Phase 2: Next Version Harness (1 agent)         │
+│    ↓                                             │
+│  Phase 3: Dev Notes + Blog (1 agent)             │
+└──────────────────┬───────────────────────────────┘
+                   ↓
+┌──────────────────────────────────────────────────┐
+│  Version N+1 Development                        │
+│  (using harness produced by Phase 2)             │
+└──────────────────────────────────────────────────┘
+```
+
+### Phase 1: Retrospective (2-3 agents parallel)
+
+```
+Triggered: after version release (tag pushed, GitHub release created)
+
+Subagent Retro-Process:
+  Input: common_memory.md, all step artifacts from this version,
+         CHANGELOG entry, git log for this version
+  Role: evaluate the DEVELOPMENT PROCESS
+  Questions:
+    - Which debate rounds were productive vs overhead?
+    - Did the complexity-adaptive scaling (HIGH/MEDIUM/LOW) work?
+    - Were forced dissenters effective? Which self-rebuttals mattered?
+    - What process bottlenecks or waste existed?
+    - What should change in the harness for next version?
+  Output: harness/transitions/v{N}→v{N+1}/retro_process.md
+
+Subagent Retro-Technical:
+  Input: full source code, test suite, common_memory.md,
+         all convergence reports from this version
+  Role: evaluate the CODEBASE for next-version improvements
+  Questions:
+    - What tech debt was introduced or deferred?
+    - What patterns emerged that should be formalized?
+    - What ratchet decisions should be revisited?
+    - What edge cases or failure modes remain unaddressed?
+    - What performance/quality issues exist?
+  Output: harness/transitions/v{N}→v{N+1}/retro_technical.md
+
+Subagent Retro-Design (optional — spawn when version was architecturally complex):
+  Input: spec doc, convergence reports, source code
+  Role: evaluate DESIGN DECISIONS and their downstream effects
+  Questions:
+    - Did any design choice cause unexpected friction in later rounds?
+    - Are there abstraction boundaries that should shift?
+    - What extension points are needed for the roadmap?
+  Output: harness/transitions/v{N}→v{N+1}/retro_design.md
+```
+
+### Phase 2: Next Version Harness Creation (1 agent)
+
+```
+Subagent Harness-Builder:
+  Input:
+    - All Phase 1 retrospective outputs
+    - Roadmap (from session_state.md or common_memory.md)
+    - Current spec + plan docs
+    - common_memory.md (ratchet decisions, recurring patterns)
+  Role: synthesize retrospective findings + roadmap into a concrete
+        development plan for the next version
+  Output: 2 files
+    1. docs/superpowers/specs/{date}-graft-v{N+1}-design.md
+       - Feature spec for next version
+       - Incorporates retro findings as constraints/requirements
+       - Lists which deferred items from previous versions to address
+       - Defines scope boundaries (what's IN vs OUT)
+
+    2. docs/superpowers/plans/{date}-graft-v{N+1}-plan.md
+       - Task breakdown with round assignments (R1, R2, ...)
+       - Complexity rating per round (HIGH/MEDIUM/LOW)
+       - Agent count per round (4-agent debate vs 2-agent vs 1-agent)
+       - Explicit list of retro-identified issues to address per round
+       - Test targets per round
+       - Estimated agent calls
+
+  Rules:
+    - MUST reference specific retro findings by ID when incorporating them
+    - MUST assign complexity ratings based on how many pipeline stages are touched
+    - MUST carry forward unresolved deferred items from common_memory.md
+    - MUST NOT scope-creep beyond roadmap + retro findings
+```
+
+### Phase 3: Dev Notes + Blog Post (1 agent)
+
+```
+Blog Strategy: ONE NEW POST PER VERSION (minor and major).
+  Do NOT merge into existing posts. Each version gets its own .mdx file.
+
+Subagent DevNotes-Writer:
+  Input:
+    - All harness artifacts from the completed version
+      (step1-step5 for each round, convergence reports, review results)
+    - common_memory.md (ratchet decisions, recurring patterns, stats)
+    - CHANGELOG entry for this version
+    - Previous dev notes (GraftDevNotes/graft-v1-development-notes.md)
+    - Existing blog posts for reference style (jslee-homepage/content/blog/)
+  Role: generate dev notes section + a NEW standalone blog post
+  Output: harness/transitions/v{N}→v{N+1}/dev_notes_draft.md
+    Contents:
+      1. New section to APPEND to GraftDevNotes/graft-v1-development-notes.md
+         Format: ## v{X.Y}: {Subtitle} ({Month Year})
+                 ### What Changed
+                 ### Architecture / Key Decisions (or ### The Bugs That Mattered)
+                 ### Forced Dissenter Highlights
+                 ### Process Evolution (if any)
+                 ### Stats table
+
+      2. NEW standalone blog post: graft-v{X}-{Y}-{slug}.mdx
+         Format:
+           ---
+           title: "Graft v{X.Y}: {Descriptive Title}"
+           date: "{YYYY-MM-DD}"
+           description: "{1-2 sentence summary with key stats}"
+           tags: ["graft", "compiler", ...]
+           ---
+           Self-contained post (~80-150 lines). Should be readable
+           WITHOUT having read previous posts. Include:
+           - Brief recap of what Graft is (2-3 sentences)
+           - What this version adds (with code examples)
+           - Most interesting debate outcomes / bugs caught
+           - Forced dissenter highlights with self-rebuttal reasoning
+           - Stats table
+           - "Try it" section with install/run commands
+
+  Naming convention for blog files:
+    v1.0 → graft-v1-0-compiler-release.mdx
+    v1.1 → graft-v1-1-parallel-foreach.mdx
+    v1.2 → graft-v1-2-execution-engine.mdx
+    v2.0 → graft-v2-0-imports-memory.mdx
+    v2.1 → graft-v2-1-token-tracking.mdx
+
+  Rules:
+    - Stats MUST be verified against actual test count (npx vitest run)
+      and actual ratchet count (grep common_memory.md)
+    - Bug descriptions MUST reference which agent caught them
+    - Forced dissenter highlights MUST include the self-rebuttal reasoning
+    - Each post MUST be self-contained (no "see previous post" dependencies)
+    - Blog files are in jslee-homepage repo (clone/pull before writing)
+
+  After agent completes:
+    Orchestrator applies the draft:
+    1. Append section to GraftDevNotes/graft-v1-development-notes.md
+    2. Create NEW .mdx file in jslee-homepage/content/blog/
+    3. Commit + push both repos
+    4. Do NOT modify existing blog posts
+```
+
+### Transition Output Structure
+
+```
+harness/
+├── transitions/
+│   ├── v1.2→v2.0/
+│   │   ├── retro_process.md
+│   │   ├── retro_technical.md
+│   │   ├── retro_design.md          ← optional
+│   │   └── dev_notes_draft.md
+│   ├── v2.0→v2.1/
+│   │   ├── retro_process.md
+│   │   ├── retro_technical.md
+│   │   └── dev_notes_draft.md
+│   └── ...
+```
+
+### Estimated Agent Calls (Transition Layer)
+
+| Phase | Agents | Note |
+|-------|--------|------|
+| Phase 1 | 2-3 | parallel, complexity-dependent |
+| Phase 2 | 1 | harness builder |
+| Phase 3 | 1 | dev notes writer |
+| **Total** | **4-5** | per version transition |
+
+### When to Skip Phases
+
+```
+Skip Phase 1 (Retro): NEVER — always run retrospective
+Skip Retro-Design:    when version was < 3 debate rounds
+Skip Phase 2:         NEVER — always generate next version harness
+Skip Phase 3:         NEVER — always update dev notes
 ```
 
 ---
