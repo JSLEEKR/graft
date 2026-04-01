@@ -1,7 +1,7 @@
 # Common Memory — Graft Compiler
-## Last updated: v2.2-R1 completed
+## Last updated: v2.2-R2 completed
 
-## Ratchet-Locked Decisions (112 total, 2 unlocked)
+## Ratchet-Locked Decisions (117 total, 2 unlocked)
 
 ### T1-T6 (abbreviated — all LOCKED)
 T1: tsc-only, ESM, NodeNext, explicit vitest, shebang, strict, no barrels, .js extensions
@@ -109,6 +109,13 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - [v2.2-R04] ProgramIndex: no getter methods, direct map access — LOCKED
 - [v2.2-R05] TypeChecker NOT migrated to ProgramIndex (zero .find() calls) — LOCKED
 
+### v2.2-R2 Ratchets (Executor Decomposition + Error Codes)
+- [v2.2-R06] prompt-builder.ts: pure functions (buildPrompt, buildContextSection, resolveField, generateMockOutput) with PromptContext interface — LOCKED
+- [v2.2-R07] flow-runner.ts: executeFlowNodes with FlowContext interface; executor delegates flow execution — LOCKED
+- [v2.2-R08] GraftErrorCode: 18-member union type, optional 4th param on GraftError — LOCKED
+- [v2.2-R09] Error codes on all 34 GraftError call sites (20 scope + 4 type + 3 estimator + 6 resolver + 1 compiler) — LOCKED
+- [v2.2-R10] Parser/lexer remain throw-based; error codes only on analyzer/resolver/compiler — LOCKED
+
 ## Review Feedback
 - T1-T7: ALL PASS. Test progression: 5 → 31 → 31 → 64 → 78 → 101 → 110
 - v1.2: PASS. 171 tests (135 existing + 36 new). All 12 ratchet items compliant.
@@ -122,6 +129,7 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v2.1-R3: PASS. 282 tests (263 existing + 19 new). 7 new ratchet items. Zero deviations. HIGH tier (4 agents, cross-critique skipped).
 - v2.1-R4: PASS. 288 tests (282 existing + 6 new). 0 new ratchet items. Integration tests only. Debate skipped (no design decisions).
 - v2.2-R1: PASS. 296 tests (288 existing - 1 removed + 3 version + 6 program-index). 5 new ratchet items. Zero deviations. MEDIUM tier (2 agents).
+- v2.2-R2: PASS. 323 tests (296 existing + 27 new). 5 new ratchet items. Zero deviations. MEDIUM tier (2 agents, cross-critique skipped).
 
 ## Recurring Patterns
 - A3-Skeptic: critical bugs every task (T2-T7 consecutively)
@@ -142,6 +150,7 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v2.1-R2: Both A3 and A4 independently found compiler.ts warning routing bug (critical prerequisite). A3 scored 7/10, A4 scored 8/10 — high consensus.
 - v2.1-R3: A3 found CLI format uncertainty (usage field may not exist). A2 found mock spawner backward-compat issue with result key collision. Both resolved in convergence. Cross-critique skipped due to high consensus (6-8 range).
 - v2.2-R1: Cross-critique skipped (score range 8-7 = 1, below R-PROC-01 threshold of 2). A3 found spec missing producesNodeMap and codegen .find() calls. Both adopted in convergence.
+- v2.2-R2: Both agents scored 8/10. A4's comprehensive error code taxonomy (24 codes) trimmed to 18 by convergence (YAGNI). A2's separate flow-runner helpers rejected in favor of single switch.
 
 ## Debate ROI
 - v2.1-R1 (MEDIUM): 6 agent calls, 0 bugs found, 0 design changes. Appropriate for mechanical refactoring.
@@ -149,6 +158,7 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v2.1-R3 (HIGH, reduced): 7 agent calls (skipped 4 cross-critique), 2 design issues found (CLI format uncertainty, mock compat), 1 design change (heuristic envelope detection). Skipping cross-critique when consensus is high saves 4 calls with no quality loss.
 - v2.1-R4 (MEDIUM, reduced): 2 agent calls (debate skipped — pure integration testing). No design decisions needed for test-only rounds.
 - v2.2-R1 (MEDIUM): 5 agent calls (2 analysis + 1 convergence + 1 impl + 1 review). 0 bugs, 2 spec corrections (producesNodeMap, codegen migration). Score-gated cross-critique working as designed.
+- v2.2-R2 (MEDIUM): 5 agent calls. 0 bugs, executor decomposed from ~475 to ~300 lines, 18 error codes added to 34 call sites.
 
 ## Notes for Future
 - Conditional edge routing: deferred to v1.3
@@ -156,7 +166,7 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - Token budget enforcement (Graft tokens vs Claude CLI dollars): approximation only
 - Memory importability: deferred (v2.0-R13 locked as excluded)
 - entryFile guard in resolver: scopes name merging to entry file only (justified deviation from convergence spec)
-- All 296 tests currently passing
+- All 323 tests currently passing
 - v2.0 complete: import system + memory across all pipeline stages (lexer → parser → resolver → analyzer → codegen → runtime → integration)
 - v2.1-R1 complete: constants/utils/memory extracted to shared modules, MODEL_MAP deduplication resolved
 - v2.1-R2 complete: writes schema validation, max_tokens > 0, parallel write detection, compiler.ts warning routing
@@ -166,3 +176,4 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v2.1 complete: cleanup + correctness + token tracking across all runtime stages
 - v2.1 process improvement: MEDIUM tier, skipped Step 0, reduced cross-critique for high-consensus rounds — 21 agent calls total (vs 36 budgeted, 42% reduction)
 - v2.2-R1 complete: double-parse eliminated, VERSION from package.json, ProgramIndex utility (5 maps), .find() calls eliminated from scope/estimator/executor/codegen
+- v2.2-R2 complete: executor decomposed (prompt-builder.ts + flow-runner.ts), 18 GraftErrorCode union type, error codes on all 34 diagnostic sites
