@@ -40,15 +40,11 @@ export function compileToProgram(source: string, sourceFile: string): ProgramRes
   }
 
   // Parse
-  let program: Program;
-  try {
-    const parser = new Parser(tokens);
-    program = parser.parse();
-  } catch (e) {
-    if (e instanceof GraftError) {
-      return { success: false, errors: [e], warnings };
-    }
-    throw e;
+  const { program: parsedProgram, errors: parseErrors } = new Parser(tokens).parse();
+  let program: Program = parsedProgram;
+  errors.push(...parseErrors);
+  if (parseErrors.length > 0) {
+    return { success: false, program, errors, warnings };
   }
 
   // Set sourceFile on all entry declarations

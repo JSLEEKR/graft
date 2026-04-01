@@ -32,7 +32,7 @@ function testResolve(source: string, files: Record<string, string> = {}) {
   }
   const lexer = new Lexer(source);
   const tokens = lexer.tokenize();
-  const program = new Parser(tokens).parse();
+  const program = new Parser(tokens).parse().program;
   return resolve(program, sourceFile, mockReader(absFiles));
 }
 
@@ -196,7 +196,7 @@ describe('Import Resolver', () => {
     `;
     const lexer = new Lexer(mainSource);
     const tokens = lexer.tokenize();
-    const program = new Parser(tokens).parse();
+    const program = new Parser(tokens).parse().program;
     resolve(program, path.resolve('/project/main.gft'), countingReader);
     expect(readCount).toBe(1);
   });

@@ -12,7 +12,7 @@ import { GraftError, GraftErrorCode } from '../src/errors/diagnostics.js';
 function parse(source: string): Program {
   const lexer = new Lexer(source);
   const tokens = lexer.tokenize();
-  return new Parser(tokens).parse();
+  return new Parser(tokens).parse().program;
 }
 
 function findByCode(errors: GraftError[], code: GraftErrorCode): GraftError | undefined {

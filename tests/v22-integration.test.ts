@@ -320,7 +320,7 @@ graph G(input: Req, output: RA, budget: 10k) {
     const lexer = new Lexer(source);
     const tokens = lexer.tokenize();
     const parser = new Parser(tokens);
-    const program = parser.parse();
+    const program = parser.parse().program;
 
     const parallelStep = program.graphs[0].flow[0];
     expect(parallelStep.kind).toBe('parallel');
@@ -358,7 +358,7 @@ graph G(input: Req, output: RA, budget: 10k) {
     const lexer = new Lexer(source);
     const tokens = lexer.tokenize();
     const parser = new Parser(tokens);
-    const program = parser.parse();
+    const program = parser.parse().program;
 
     const parallelStep = program.graphs[0].flow[0];
     expect(parallelStep.kind).toBe('parallel');

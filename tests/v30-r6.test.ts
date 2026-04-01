@@ -11,7 +11,7 @@ function parse(source: string) {
   const lexer = new Lexer(source);
   const tokens = lexer.tokenize();
   const parser = new Parser(tokens);
-  return parser.parse();
+  return parser.parse().program;
 }
 
 // --- SourceLocation length ---
@@ -55,25 +55,21 @@ describe('v3.0-R6: SourceLocation length', () => {
 
 describe('v3.0-R6: PARSE_ error codes', () => {
   it('parser errors have PARSE_UNEXPECTED_TOKEN code', () => {
-    try {
-      parse('node 123');
-      expect.unreachable();
-    } catch (e: any) {
-      expect(e.code).toBe('PARSE_UNEXPECTED_TOKEN');
-    }
+    const tokens = new Lexer('node 123').tokenize();
+    const result = new Parser(tokens).parse();
+    expect(result.errors.length).toBeGreaterThanOrEqual(1);
+    expect(result.errors[0].code).toBe('PARSE_UNEXPECTED_TOKEN');
   });
 
   it('missing produces has PARSE_MISSING_FIELD code', () => {
-    try {
-      parse(`
-        node A(model: sonnet, budget: 5k/2k) {
-          reads: []
-        }
-      `);
-      expect.unreachable();
-    } catch (e: any) {
-      expect(e.code).toBe('PARSE_MISSING_FIELD');
-    }
+    const tokens = new Lexer(`
+      node A(model: sonnet, budget: 5k/2k) {
+        reads: []
+      }
+    `).tokenize();
+    const result = new Parser(tokens).parse();
+    expect(result.errors.length).toBeGreaterThanOrEqual(1);
+    expect(result.errors[0].code).toBe('PARSE_MISSING_FIELD');
   });
 });
 

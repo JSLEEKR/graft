@@ -7,7 +7,15 @@ function parse(source: string) {
   const lexer = new Lexer(source);
   const tokens = lexer.tokenize();
   const parser = new Parser(tokens);
-  return parser.parse();
+  const result = parser.parse();
+  return result.program;
+}
+
+function parseErrors(source: string) {
+  const lexer = new Lexer(source);
+  const tokens = lexer.tokenize();
+  const parser = new Parser(tokens);
+  return parser.parse().errors;
 }
 
 describe('Parser', () => {
@@ -199,11 +207,13 @@ describe('Parser', () => {
     });
 
     it('reports error when node is missing produces', () => {
-      expect(() => parse(`
+      const errors = parseErrors(`
         node Bad(model: haiku, budget: 1k/500) {
           reads: [Data]
         }
-      `)).toThrow('Node must have a produces declaration');
+      `);
+      expect(errors.length).toBeGreaterThanOrEqual(1);
+      expect(errors[0].message).toContain('Node must have a produces declaration');
     });
   });
 
@@ -361,43 +371,51 @@ describe('Parser', () => {
     });
 
     it('reports error on graph flow without done terminator', () => {
-      expect(() => parse(`
+      const errors = parseErrors(`
         graph Bad(input: A, output: B, budget: 1k) {
           X -> Y
         }
-      `)).toThrow("Expected '-> done' to terminate graph flow");
+      `);
+      expect(errors.length).toBeGreaterThanOrEqual(1);
+      expect(errors[0].message).toContain("Expected '-> done' to terminate graph flow");
     });
 
     it('reports error on parallel block with fewer than 2 branches', () => {
-      expect(() => parse(`
+      const errors = parseErrors(`
         graph G(input: X, output: Y, budget: 1k) {
           parallel { A } -> done
         }
-      `)).toThrow('parallel block must contain at least 2 branches');
+      `);
+      expect(errors.length).toBeGreaterThanOrEqual(1);
+      expect(errors[0].message).toContain('parallel block must contain at least 2 branches');
     });
 
     it('reports error on done inside foreach body', () => {
-      expect(() => parse(`
+      const errors = parseErrors(`
         graph G(input: X, output: Y, budget: 1k) {
           foreach(A.output.b as c, max_iterations: 1) {
             D -> done
           } -> done
         }
-      `)).toThrow("'done' is not allowed inside a foreach or parallel block");
+      `);
+      expect(errors.length).toBeGreaterThanOrEqual(1);
+      expect(errors[0].message).toContain("'done' is not allowed inside a foreach or parallel block");
     });
 
     it('reports error on foreach max_iterations < 1', () => {
-      expect(() => parse(`
+      const errors = parseErrors(`
         graph G(input: X, output: Y, budget: 1k) {
           foreach(A.output.b as c, max_iterations: 0) {
             D
           } -> done
         }
-      `)).toThrow('max_iterations must be at least 1');
+      `);
+      expect(errors.length).toBeGreaterThanOrEqual(1);
+      expect(errors[0].message).toContain('max_iterations must be at least 1');
     });
 
     it('reports error on nested foreach', () => {
-      expect(() => parse(`
+      const errors = parseErrors(`
         graph G(input: X, output: Y, budget: 1k) {
           foreach(A.output.b as c, max_iterations: 1) {
             foreach(D.output.e as f, max_iterations: 1) {
@@ -405,7 +423,9 @@ describe('Parser', () => {
             }
           } -> done
         }
-      `)).toThrow('Nested parallel or foreach inside foreach is not supported');
+      `);
+      expect(errors.length).toBeGreaterThanOrEqual(1);
+      expect(errors[0].message).toContain('Nested parallel or foreach inside foreach is not supported');
     });
   });
 
@@ -577,11 +597,13 @@ describe('Parser', () => {
 
   describe('error handling', () => {
     it('reports error on missing closing brace', () => {
-      expect(() => parse('context Spec(max_tokens: 500) {')).toThrow();
+      const errors = parseErrors('context Spec(max_tokens: 500) {');
+      expect(errors.length).toBeGreaterThanOrEqual(1);
     });
 
     it('reports error on unexpected token', () => {
-      expect(() => parse('node 123')).toThrow();
+      const errors = parseErrors('node 123');
+      expect(errors.length).toBeGreaterThanOrEqual(1);
     });
   });
 });

@@ -6,7 +6,14 @@ function parse(source: string) {
   const lexer = new Lexer(source);
   const tokens = lexer.tokenize();
   const parser = new Parser(tokens);
-  return parser.parse();
+  return parser.parse().program;
+}
+
+function parseErrors(source: string) {
+  const lexer = new Lexer(source);
+  const tokens = lexer.tokenize();
+  const parser = new Parser(tokens);
+  return parser.parse().errors;
 }
 
 describe('Parser v2 — import declarations', () => {
@@ -34,25 +41,33 @@ describe('Parser v2 — import declarations', () => {
   });
 
   it('rejects empty import list', () => {
-    expect(() => parse('import { } from "x.gft"')).toThrow('Import must specify at least one name');
+    const errors = parseErrors('import { } from "x.gft"');
+    expect(errors.length).toBeGreaterThanOrEqual(1);
+    expect(errors[0].message).toContain('Import must specify at least one name');
   });
 
   it('rejects empty import path', () => {
-    expect(() => parse('import { X } from ""')).toThrow('Import path cannot be empty');
+    const errors = parseErrors('import { X } from ""');
+    expect(errors.length).toBeGreaterThanOrEqual(1);
+    expect(errors[0].message).toContain('Import path cannot be empty');
   });
 
   it('rejects import after context', () => {
-    expect(() => parse(`
+    const errors = parseErrors(`
       context A(max_tokens: 1k) { x: String }
       import { B } from "b.gft"
-    `)).toThrow('Import declarations must appear before all other declarations');
+    `);
+    expect(errors.length).toBeGreaterThanOrEqual(1);
+    expect(errors[0].message).toContain('Import declarations must appear before all other declarations');
   });
 
   it('rejects import after memory', () => {
-    expect(() => parse(`
+    const errors = parseErrors(`
       memory M(max_tokens: 1k) { x: String }
       import { B } from "b.gft"
-    `)).toThrow('Import declarations must appear before all other declarations');
+    `);
+    expect(errors.length).toBeGreaterThanOrEqual(1);
+    expect(errors[0].message).toContain('Import declarations must appear before all other declarations');
   });
 });
 
@@ -95,11 +110,13 @@ describe('Parser v2 — memory declarations', () => {
   });
 
   it('rejects unknown storage type', () => {
-    expect(() => parse(`
+    const errors = parseErrors(`
       memory M(max_tokens: 1k, storage: redis) {
         x: String
       }
-    `)).toThrow("Unknown storage type 'redis', expected 'file'");
+    `);
+    expect(errors.length).toBeGreaterThanOrEqual(1);
+    expect(errors[0].message).toContain("Unknown storage type 'redis', expected 'file'");
   });
 
   it('parses multiple memory declarations', () => {
@@ -165,7 +182,7 @@ describe('Parser v2 — writes clause in node', () => {
   });
 
   it('rejects duplicate writes clause', () => {
-    expect(() => parse(`
+    const errors = parseErrors(`
       context Input(max_tokens: 1k) { q: String }
       node Bad(model: sonnet, budget: 5k/2k) {
         reads: [Input]
@@ -175,7 +192,9 @@ describe('Parser v2 — writes clause in node', () => {
           text: String
         }
       }
-    `)).toThrow('Duplicate writes clause in node');
+    `);
+    expect(errors.length).toBeGreaterThanOrEqual(1);
+    expect(errors[0].message).toContain('Duplicate writes clause in node');
   });
 });
 

@@ -22,7 +22,7 @@ graph Pipeline(input: Input, output: AOut, budget: 10k) {
     const lexer = new Lexer(source);
     const tokens = lexer.tokenize();
     const parser = new Parser(tokens);
-    const program = parser.parse();
+    const program = parser.parse().program;
     const index = new ProgramIndex(program);
 
     const executor = new Executor(program, {
@@ -57,7 +57,7 @@ graph Pipeline(input: Input, output: AOut, budget: 10k) {
     const lexer = new Lexer(source);
     const tokens = lexer.tokenize();
     const parser = new Parser(tokens);
-    const program = parser.parse();
+    const program = parser.parse().program;
     const index = new ProgramIndex(program);
 
     const checker = new ScopeChecker(program, index);
@@ -85,7 +85,7 @@ graph Pipeline(input: Input, output: AOut, budget: 10k) {
     const lexer = new Lexer(source);
     const tokens = lexer.tokenize();
     const parser = new Parser(tokens);
-    const program = parser.parse();
+    const program = parser.parse().program;
     const index = new ProgramIndex(program);
 
     const checker = new ScopeChecker(program, index);
@@ -154,13 +154,10 @@ graph Pipeline(input: Input, output: BOut, budget: 10k) {
     const tokens = lexer.tokenize();
     const parser = new Parser(tokens);
 
-    try {
-      parser.parse();
-      expect.unreachable('Should have thrown a parse error');
-    } catch (e: any) {
-      expect(e.message).toContain('not supported');
-      // Should NOT mention any version number like "v1.1"
-      expect(e.message).not.toMatch(/v\d+\.\d+/);
-    }
+    const result = parser.parse();
+    expect(result.errors.length).toBeGreaterThanOrEqual(1);
+    expect(result.errors[0].message).toContain('not supported');
+    // Should NOT mention any version number like "v1.1"
+    expect(result.errors[0].message).not.toMatch(/v\d+\.\d+/);
   });
 });

@@ -13,7 +13,7 @@ function parse(source: string) {
   const lexer = new Lexer(source);
   const tokens = lexer.tokenize();
   const parser = new Parser(tokens);
-  return parser.parse();
+  return parser.parse().program;
 }
 
 // --- Field-level saveMemory ---

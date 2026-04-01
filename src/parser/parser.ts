@@ -14,12 +14,24 @@ import {
 // Used by expectIdentifierOrKeyword() to accept keywords as contextual identifiers.
 const KEYWORD_TYPES: Set<TokenType> = new Set(Object.values(KEYWORDS));
 
+export interface ParseResult {
+  program: Program;
+  errors: GraftError[];
+}
+
 export class Parser {
   private pos: number = 0;
+  private errors: GraftError[] = [];
+  private static readonly MAX_ERRORS = 25;
+
+  private static readonly DECLARATION_KEYWORDS = new Set<TokenType>([
+    TokenType.Context, TokenType.Node, TokenType.Memory,
+    TokenType.Graph, TokenType.Edge, TokenType.Import,
+  ]);
 
   constructor(private readonly tokens: Token[]) {}
 
-  parse(): Program {
+  parse(): ParseResult {
     const program: Program = {
       imports: [],
       memories: [],
@@ -29,41 +41,87 @@ export class Parser {
       graphs: [],
     };
     let seenNonImport = false;
+
     while (!this.isAtEnd()) {
+      if (this.errors.length >= Parser.MAX_ERRORS) break;
+
       const token = this.current();
-      switch (token.type) {
-        case TokenType.Import:
-          if (seenNonImport) {
-            throw this.error('Import declarations must appear before all other declarations');
+      try {
+        switch (token.type) {
+          case TokenType.Import:
+            if (seenNonImport) {
+              this.errors.push(this.error('Import declarations must appear before all other declarations'));
+              this.advance(); // advance past the Import keyword
+              this.synchronize();
+              break;
+            }
+            program.imports.push(this.parseImportDecl());
+            break;
+          case TokenType.Memory:
+            seenNonImport = true;
+            program.memories.push(this.parseMemoryDecl());
+            break;
+          case TokenType.Context:
+            seenNonImport = true;
+            program.contexts.push(this.parseContext());
+            break;
+          case TokenType.Node:
+            seenNonImport = true;
+            program.nodes.push(this.parseNode());
+            break;
+          case TokenType.Edge:
+            seenNonImport = true;
+            program.edges.push(this.parseEdge());
+            break;
+          case TokenType.Graph:
+            seenNonImport = true;
+            program.graphs.push(this.parseGraph());
+            break;
+          default: {
+            this.errors.push(this.error(
+              `Unexpected token '${token.value}', expected 'import', 'memory', 'context', 'node', 'edge', or 'graph'`
+            ));
+            const posBefore = this.pos;
+            this.synchronize();
+            if (this.pos === posBefore && !this.isAtEnd()) this.advance();
+            break;
           }
-          program.imports.push(this.parseImportDecl());
-          break;
-        case TokenType.Memory:
-          seenNonImport = true;
-          program.memories.push(this.parseMemoryDecl());
-          break;
-        case TokenType.Context:
-          seenNonImport = true;
-          program.contexts.push(this.parseContext());
-          break;
-        case TokenType.Node:
-          seenNonImport = true;
-          program.nodes.push(this.parseNode());
-          break;
-        case TokenType.Edge:
-          seenNonImport = true;
-          program.edges.push(this.parseEdge());
-          break;
-        case TokenType.Graph:
-          seenNonImport = true;
-          program.graphs.push(this.parseGraph());
-          break;
-        default:
-          throw this.error(`Unexpected token '${token.value}', expected 'import', 'memory', 'context', 'node', 'edge', or 'graph'`);
+        }
+      } catch (e) {
+        if (e instanceof GraftError) {
+          this.errors.push(e);
+          const posBefore = this.pos;
+          this.synchronize();
+          if (this.pos === posBefore && !this.isAtEnd()) this.advance();
+        } else {
+          throw e;
+        }
       }
     }
 
-    return program;
+    return { program, errors: this.errors };
+  }
+
+  private synchronize(): void {
+    let braceDepth = 0;
+    while (!this.isAtEnd()) {
+      const token = this.current();
+      if (token.type === TokenType.LBrace) {
+        braceDepth++;
+      } else if (token.type === TokenType.RBrace) {
+        if (braceDepth > 0) {
+          braceDepth--;
+        } else {
+          // Closing brace at depth 0 — skip it and stop
+          this.advance();
+          break;
+        }
+      } else if (braceDepth === 0 && Parser.DECLARATION_KEYWORDS.has(token.type)) {
+        // At top level, found a declaration keyword — stop (don't consume it)
+        break;
+      }
+      this.advance();
+    }
   }
 
   // --- Import ------------------------------------------------

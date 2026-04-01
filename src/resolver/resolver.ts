@@ -41,7 +41,11 @@ function parseSource(source: string): Program {
   const lexer = new Lexer(source);
   const tokens = lexer.tokenize();
   const parser = new Parser(tokens);
-  return parser.parse();
+  const { program, errors } = parser.parse();
+  if (errors.length > 0) {
+    throw errors[0];
+  }
+  return program;
 }
 
 function emptyProgram(): Program {
