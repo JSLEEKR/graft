@@ -298,6 +298,19 @@ connection.onRenameRequest((params) => {
 
   const newName = params.newName;
 
+  // Validate newName is a legal Graft identifier
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(newName)) return null;
+
+  // Reject Graft keywords
+  const GRAFT_KEYWORDS = new Set([
+    'context', 'node', 'memory', 'graph', 'edge', 'import', 'from',
+    'reads', 'writes', 'produces', 'budget', 'model', 'max_tokens',
+    'on_failure', 'retry', 'fallback', 'skip', 'abort', 'done',
+    'foreach', 'as', 'max_iterations', 'parallel', 'when', 'else',
+    'storage', 'tools', 'in',
+  ]);
+  if (GRAFT_KEYWORDS.has(newName)) return null;
+
   // Check for conflicts in current file
   if (word !== newName && (
     state.index.contextMap.has(newName) ||

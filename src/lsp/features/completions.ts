@@ -4,7 +4,7 @@ import type { Program } from '../../parser/ast.js';
 import type { ProgramIndex } from '../../program-index.js';
 import { MODEL_MAP } from '../../constants.js';
 import { formatType } from './hover.js';
-import { getWordAtPosition } from './utils.js';
+import { getWordAtPosition, isInComment, isInString } from './utils.js';
 
 export function getCompletions(
   text: string,
@@ -158,49 +158,6 @@ function getFieldCompletions(name: string, index: ProgramIndex | null): Completi
   return [];
 }
 
-function isInComment(lines: string[], line: number, character: number): boolean {
-  let inBlock = false;
-  for (let i = 0; i <= line; i++) {
-    const l = (lines[i] ?? '').replace(/\r$/, '');
-    const endCol = i === line ? character : l.length;
-    let j = 0;
-    while (j < endCol) {
-      if (!inBlock) {
-        if (l[j] === '/' && j + 1 < l.length && l[j + 1] === '/') {
-          if (i === line) return true;
-          break;
-        }
-        if (l[j] === '/' && j + 1 < l.length && l[j + 1] === '*') {
-          inBlock = true;
-          j += 2;
-          continue;
-        }
-        if (l[j] === '"') {
-          j++;
-          while (j < endCol && l[j] !== '"') j++;
-          if (j < endCol) j++;
-          continue;
-        }
-      } else {
-        if (l[j] === '*' && j + 1 < l.length && l[j + 1] === '/') {
-          inBlock = false;
-          j += 2;
-          continue;
-        }
-      }
-      j++;
-    }
-  }
-  return inBlock;
-}
-
-function isInString(lineText: string, character: number): boolean {
-  let inStr = false;
-  for (let i = 0; i < character && i < lineText.length; i++) {
-    if (lineText[i] === '"') inStr = !inStr;
-  }
-  return inStr;
-}
 
 function isInsideBracketAfter(lines: string[], currentLine: number, character: number, keyword: string): boolean {
   let depth = 0;
