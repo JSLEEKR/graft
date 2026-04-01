@@ -1,5 +1,51 @@
 # Changelog
 
+## v2.2.0 (2026-04-01)
+
+### Added
+- **LSP server**: Language Server Protocol support for Graft files
+  - Real-time diagnostics (errors + warnings) on document open/change
+  - Hover info: context fields, node config, memory details, produces summary
+  - Go-to-definition: navigate to declarations including cross-file imports
+  - 2-file architecture (`server.ts` + `features.ts`) with pure function handlers
+  - `graft-lsp` binary entry for editor integration
+- **VS Code extension**: `editors/vscode/` with TextMate grammar and LSP client
+  - Syntax highlighting for all 35 keywords, type keywords, domain types, operators
+  - Comment support (`//` line, `/* */` block), bracket matching, auto-closing pairs
+  - LSP client auto-launches `graft-lsp` on `.gft` file open
+- **npm distribution**: `@graft-lang/graft` scoped package
+  - `exports` with `.` and `./ast` sub-paths
+  - `files` array + `.npmignore` defense-in-depth
+  - `prepublishOnly` script (build + test)
+  - MIT LICENSE file, README badges (npm version, Node.js, license)
+- **Structured error codes**: `GraftErrorCode` 21-member union type on all diagnostics
+  - SCOPE_*, TYPE_*, ESTIMATE_*, IMPORT_*, COMPILE_* code families
+  - Optional 4th param on `GraftError` constructor (backward compatible)
+- **Correctness warnings**:
+  - Foreach binding name collision detection (`SCOPE_BINDING_COLLISION`)
+  - Conditional edge transform warning (`TRANSFORM_ON_CONDITIONAL`)
+  - Multiple graph warning (`GRAPH_MULTIPLE`)
+  - `loadMemory` verbose option for corrupt JSON diagnostics
+- **Source file tracking**: `sourceFile` on `ContextDecl` and `NodeDecl` for cross-file navigation
+- **ProgramIndex**: O(1) Map-based lookups (5 maps) replacing Array.find() throughout pipeline
+- 88 new tests (376 total)
+
+### Changed
+- `resolve()` accepts `Program` instead of source string (eliminates double-parse)
+- Executor decomposed: `prompt-builder.ts` (pure functions) + `flow-runner.ts` (flow execution)
+- `VERSION` derived from package.json via `createRequire` with fallback
+- `compile()` returns program even on `GRAPH_MISSING` (enables LSP for library files)
+- Package renamed from `graft` to `@graft-lang/graft`
+
+### Development Process
+- 6 adversarial debate rounds (R1-R6), ~33 agent calls
+- R1-R3 (MEDIUM): Tech debt, executor decomposition, correctness fixes
+- R4 (HIGH): LSP server — 4-agent analysis, A3 found GRAPH_MISSING bug
+- R5 (MEDIUM): npm + VS Code — A3 caught comment syntax, escape sequence, k-integer priority issues
+- R6 (TEST-ONLY): Integration tests + v2.1 adversarial backlog (4 proposals resolved)
+- 25 new ratchet-locked decisions (132 total)
+- Cross-critique skipped in all MEDIUM rounds (score range ≤ 1)
+
 ## v2.1.0 (2026-04-01)
 
 ### Added

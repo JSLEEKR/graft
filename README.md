@@ -68,6 +68,12 @@ Current multi-agent systems waste tokens by passing full natural language contex
 ## Installation
 
 ```bash
+npm install -g @graft-lang/graft
+```
+
+Or from source:
+
+```bash
 git clone https://github.com/JSLEEKR/graft.git
 cd graft
 npm install
@@ -228,6 +234,11 @@ Graft compiles to Claude Code harness structure:
       └── TokenEstimator (budget analysis)
   → CodeGen (AST → .claude/ structure)
   → Executor (optional: runtime pipeline execution)
+
+LSP Server (graft-lsp)
+  → Compile on document change
+  → ProgramIndex (O(1) declaration lookups)
+  → Diagnostics, Hover, Go-to-Definition
 ```
 
 ## Project Structure
@@ -239,7 +250,9 @@ src/
 ├── constants.ts          # Shared constants (MODEL_MAP, thresholds)
 ├── utils.ts              # Shared utilities (JSON example generation)
 ├── runner.ts             # graft run command
-├── errors/diagnostics.ts # GraftError + SourceLocation
+├── version.ts            # VERSION from package.json
+├── program-index.ts      # O(1) Map-based declaration lookups
+├── errors/diagnostics.ts # GraftError + GraftErrorCode + SourceLocation
 ├── lexer/
 │   ├── tokens.ts         # TokenType enum, Token interface
 │   └── lexer.ts          # Hand-written tokenizer
@@ -258,8 +271,13 @@ src/
 │   ├── hooks.ts          # Edge → hook .sh
 │   ├── orchestration.ts  # Graph → CLAUDE.md
 │   └── settings.ts       # → settings.json
+├── lsp/
+│   ├── server.ts         # LSP server entry (JSON-RPC over stdio)
+│   └── features.ts       # Diagnostics, hover, go-to-definition
 └── runtime/
     ├── executor.ts       # Pipeline execution engine
+    ├── prompt-builder.ts # Prompt construction (pure functions)
+    ├── flow-runner.ts    # Sequential/parallel/foreach flow execution
     ├── memory.ts         # Memory load/save functions
     ├── subprocess.ts     # Claude CLI spawning + token usage parsing
     ├── token-tracker.ts  # Token budget tracking per node
@@ -269,7 +287,7 @@ src/
 ## Development
 
 ```bash
-npm test              # Run all 288 tests
+npm test              # Run all 376 tests
 npm run build         # Compile TypeScript
 npm run bench         # Run 16 benchmarks
 npx tsc --noEmit      # Type check only
@@ -279,6 +297,7 @@ npx tsc --noEmit      # Type check only
 
 | Version | Features |
 |---------|----------|
+| **v2.2** | LSP server, VS Code extension, npm distribution, error codes, ProgramIndex, 376 tests |
 | **v2.1** | Token tracking, correctness fixes, shared module extraction, 288 tests |
 | **v2.0** | Import system, persistent memory, writes clause, 249 tests |
 | **v1.2** | `graft run` execution engine, dry run, parallel/foreach runtime |
