@@ -4,6 +4,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { compile, compileAndWrite } from './compiler.js';
 import { VERSION } from './version.js';
+import { formatTokenReport } from './format.js';
 
 const KNOWN_BACKENDS = new Set(['claude']);
 
@@ -50,11 +51,7 @@ program
 
     if (result.report) {
       console.log('✓ Token analysis:');
-      for (const node of result.report.nodes) {
-        console.log(`    ${node.name.padEnd(20)} in ~${node.estimatedIn.toLocaleString('en-US').padStart(6)}  out ~${node.estimatedOut.toLocaleString('en-US').padStart(6)}`);
-      }
-      console.log(`    Best path:  ${result.report.bestCase.toLocaleString('en-US').padStart(8)} tokens ${result.report.bestCase <= result.report.budget ? '✓' : '✗'} ${result.report.bestCase <= result.report.budget ? 'within' : 'exceeds'} budget (${result.report.budget.toLocaleString('en-US')})`);
-      console.log(`    Worst path: ${result.report.worstCase.toLocaleString('en-US').padStart(8)} tokens ${result.report.worstCase <= result.report.budget ? '✓' : '⚠'} ${result.report.worstCase <= result.report.budget ? 'within' : 'exceeds'} budget (${result.report.budget.toLocaleString('en-US')})`);
+      console.log(formatTokenReport(result.report, { showBudget: true }));
     }
 
     for (const w of result.warnings) {
@@ -93,11 +90,7 @@ program
 
     if (result.report) {
       console.log('✓ Token analysis:');
-      for (const node of result.report.nodes) {
-        console.log(`    ${node.name.padEnd(20)} in ~${node.estimatedIn.toLocaleString('en-US').padStart(6)}  out ~${node.estimatedOut.toLocaleString('en-US').padStart(6)}`);
-      }
-      console.log(`    Best path:  ${result.report.bestCase.toLocaleString('en-US').padStart(8)} tokens`);
-      console.log(`    Worst path: ${result.report.worstCase.toLocaleString('en-US').padStart(8)} tokens`);
+      console.log(formatTokenReport(result.report));
     }
 
     for (const w of result.warnings) {

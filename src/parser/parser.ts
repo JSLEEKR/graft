@@ -618,7 +618,7 @@ export class Parser {
     // v1.1: enforce no nesting (body must contain only 'node' kind entries)
     for (const step of body) {
       if (step.kind !== 'node') {
-        throw this.error('Nested parallel or foreach inside foreach is not supported in v1.1');
+        throw this.error('Nested parallel or foreach inside foreach is not supported');
       }
     }
 

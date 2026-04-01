@@ -405,7 +405,7 @@ describe('Parser', () => {
             }
           } -> done
         }
-      `)).toThrow('Nested parallel or foreach inside foreach is not supported in v1.1');
+      `)).toThrow('Nested parallel or foreach inside foreach is not supported');
     });
   });
 

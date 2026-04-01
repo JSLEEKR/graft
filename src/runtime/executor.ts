@@ -51,8 +51,6 @@ export class Executor {
   private program: Program;
   private options: RunOptions;
   private index: ProgramIndex;
-  private nodeMap: Map<string, NodeDecl>;
-  private edgeMap: Map<string, EdgeDecl[]>;
   private outputs: Map<string, unknown>;
   private spawner: SpawnerFn;
   private sessionDir: string;
@@ -69,10 +67,6 @@ export class Executor {
     this.outputs = new Map();
     this.memoryDir = path.join(options.workDir, '.graft', 'memory');
     this.memoryNames = new Set(program.memories.map(m => m.name));
-
-    // Reuse index maps
-    this.nodeMap = this.index.nodeMap;
-    this.edgeMap = this.index.edgesBySource;
 
     this.sessionDir = path.join(options.workDir, '.graft', 'session');
     this.nodeOutputDir = path.join(this.sessionDir, 'node_outputs');
@@ -124,7 +118,7 @@ export class Executor {
     const flowCtx: FlowContext = {
       executeNode: (name: string) => this.executeNode(name),
       getFailureStrategy: (name: string) => {
-        const nodeDecl = this.nodeMap.get(name);
+        const nodeDecl = this.index.nodeMap.get(name);
         return nodeDecl?.onFailure;
       },
       outputs: this.outputs,
@@ -175,7 +169,7 @@ export class Executor {
 
   private async executeNode(name: string): Promise<NodeResult> {
     const startTime = Date.now();
-    const nodeDecl = this.nodeMap.get(name);
+    const nodeDecl = this.index.nodeMap.get(name);
 
     if (!nodeDecl) {
       return {
@@ -328,7 +322,7 @@ export class Executor {
     }
 
     // Apply edge transforms and write transformed outputs for downstream nodes
-    const edges = this.edgeMap.get(nodeDecl.name) ?? [];
+    const edges = this.index.edgesBySource.get(nodeDecl.name) ?? [];
     for (const edge of edges) {
       if (edge.transforms.length > 0 && edge.target.kind === 'direct') {
         const transformed = applyTransforms(output, edge.transforms);

@@ -4,18 +4,12 @@ import { ProgramIndex } from '../program-index.js';
 
 export class ScopeChecker {
   private program: Program;
-  private contextNames: Set<string>;
-  private nodeNames: Set<string>;
-  private memoryNames: Set<string>;
   private nodeWritesMap: Map<string, WriteRef[]>; // node name -> writes targets
   private index: ProgramIndex;
 
   constructor(program: Program, index?: ProgramIndex) {
     this.program = program;
     this.index = index ?? new ProgramIndex(program);
-    this.contextNames = new Set(program.contexts.map(c => c.name));
-    this.nodeNames = new Set(program.nodes.map(n => n.name));
-    this.memoryNames = new Set(program.memories.map(m => m.name));
     this.nodeWritesMap = new Map();
 
     for (const node of program.nodes) {
@@ -38,7 +32,7 @@ export class ScopeChecker {
 
   private checkDuplicateNames(errors: GraftError[]): void {
     for (const mem of this.program.memories) {
-      if (this.contextNames.has(mem.name)) {
+      if (this.index.contextMap.has(mem.name)) {
         errors.push(new GraftError(
           `Name '${mem.name}' is declared as both a context and a memory`,
           mem.location,
@@ -84,9 +78,9 @@ export class ScopeChecker {
     for (const node of this.program.nodes) {
       for (const ref of node.reads) {
         // ref.context could be a context name, produces name, or memory name
-        const isContext = this.contextNames.has(ref.context);
+        const isContext = this.index.contextMap.has(ref.context);
         const isProduces = this.index.producesFieldsMap.has(ref.context);
-        const isMemory = this.memoryNames.has(ref.context);
+        const isMemory = this.index.memoryMap.has(ref.context);
 
         if (!isContext && !isProduces && !isMemory) {
           errors.push(new GraftError(
@@ -146,7 +140,7 @@ export class ScopeChecker {
   private checkNodeWrites(errors: GraftError[]): void {
     for (const node of this.program.nodes) {
       for (const writeRef of node.writes) {
-        if (!this.memoryNames.has(writeRef.memory)) {
+        if (!this.index.memoryMap.has(writeRef.memory)) {
           errors.push(new GraftError(
             `writes target '${writeRef.memory}' is not a declared memory`,
             writeRef.location,
@@ -170,7 +164,7 @@ export class ScopeChecker {
 
   private checkEdges(errors: GraftError[]): void {
     for (const edge of this.program.edges) {
-      if (!this.nodeNames.has(edge.source)) {
+      if (!this.index.nodeMap.has(edge.source)) {
         errors.push(new GraftError(
           `Edge source '${edge.source}' is not a declared node`,
           edge.location,
@@ -180,7 +174,7 @@ export class ScopeChecker {
       }
 
       if (edge.target.kind === 'direct') {
-        if (!this.nodeNames.has(edge.target.node)) {
+        if (!this.index.nodeMap.has(edge.target.node)) {
           errors.push(new GraftError(
             `Edge target '${edge.target.node}' is not a declared node`,
             edge.location,
@@ -190,7 +184,7 @@ export class ScopeChecker {
         }
       } else {
         for (const branch of edge.target.branches) {
-          if (!this.nodeNames.has(branch.target)) {
+          if (!this.index.nodeMap.has(branch.target)) {
             errors.push(new GraftError(
               `Edge target '${branch.target}' is not a declared node`,
               edge.location,
@@ -227,7 +221,7 @@ export class ScopeChecker {
   private checkGraphFlow(errors: GraftError[]): void {
     for (const graph of this.program.graphs) {
       // Validate graph input references a declared context
-      if (!this.contextNames.has(graph.input)) {
+      if (!this.index.contextMap.has(graph.input)) {
         errors.push(new GraftError(
           `Graph input '${graph.input}' is not a declared context`,
           graph.location,
@@ -255,7 +249,7 @@ export class ScopeChecker {
     for (const step of nodes) {
       switch (step.kind) {
         case 'node':
-          if (!this.nodeNames.has(step.name)) {
+          if (!this.index.nodeMap.has(step.name)) {
             errors.push(new GraftError(
               `Node '${step.name}' in graph flow is not declared`,
               location,
@@ -266,7 +260,7 @@ export class ScopeChecker {
           break;
         case 'parallel':
           for (const branch of step.branches) {
-            if (!this.nodeNames.has(branch)) {
+            if (!this.index.nodeMap.has(branch)) {
               errors.push(new GraftError(
                 `Node '${branch}' in parallel block is not declared`,
                 location,
@@ -279,7 +273,7 @@ export class ScopeChecker {
           break;
         case 'foreach': {
           // Validate source node exists
-          if (!this.nodeNames.has(step.source)) {
+          if (!this.index.nodeMap.has(step.source)) {
             errors.push(new GraftError(
               `Foreach source node '${step.source}' is not declared`,
               location,
@@ -310,7 +304,7 @@ export class ScopeChecker {
           }
           // C-01: Foreach binding name collision detection
           const binding = step.binding;
-          if (this.nodeNames.has(binding)) {
+          if (this.index.nodeMap.has(binding)) {
             errors.push(new GraftError(
               `Foreach binding '${binding}' collides with declared node '${binding}'`,
               location,
@@ -324,14 +318,14 @@ export class ScopeChecker {
               'warning',
               'SCOPE_BINDING_COLLISION',
             ));
-          } else if (this.contextNames.has(binding)) {
+          } else if (this.index.contextMap.has(binding)) {
             errors.push(new GraftError(
               `Foreach binding '${binding}' collides with declared context '${binding}'`,
               location,
               'warning',
               'SCOPE_BINDING_COLLISION',
             ));
-          } else if (this.memoryNames.has(binding)) {
+          } else if (this.index.memoryMap.has(binding)) {
             errors.push(new GraftError(
               `Foreach binding '${binding}' collides with declared memory '${binding}'`,
               location,
@@ -352,7 +346,7 @@ export class ScopeChecker {
       if (!node.onFailure) continue;
       const strategy = node.onFailure;
       if (strategy.type === 'fallback' || strategy.type === 'retry_then_fallback') {
-        if (!this.nodeNames.has(strategy.node)) {
+        if (!this.index.nodeMap.has(strategy.node)) {
           errors.push(new GraftError(
             `Fallback node '${strategy.node}' in '${node.name}' on_failure is not a declared node`,
             node.location,
