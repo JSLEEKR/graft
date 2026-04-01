@@ -1,5 +1,36 @@
 # Changelog
 
+## v2.0.0 (2026-04-01)
+
+### Added
+- **Import system**: `import { X, Y } from "./file.gft"` — share contexts and nodes across files
+  - DFS circular import detection with ancestor set tracking
+  - ExportableNames snapshot prevents transitive re-export
+  - FileReader injection for testability
+  - Only contexts and nodes importable (edges, graphs, memories excluded)
+- **Persistent memory**: `memory M(max_tokens: 1k, storage: file) { fields }` — state that persists across pipeline runs
+  - Stored in `.graft/memory/<name>.json`, survives session cleanup
+  - `writes: [M]` clause on nodes to declare memory mutation
+  - Field-matching merge: only schema-declared fields written, unrelated fields preserved
+  - Always reload from disk per node execution (fixes foreach staleness)
+  - Dry run guard: memory saves skipped during `--dry-run`
+  - `loadMemory` returns null on missing/corrupt files (graceful first-run)
+- 5 new keywords: `import`, `from`, `memory`, `writes`, `storage`
+- Memory-aware agent generation (`.graft/memory/` paths in reads, "Memory Saving" section in writes)
+- Orchestration "Persistent Memory" preamble section with per-step memory load/save annotations
+- Memory validation in analyzer: name collision detection, writes validation, field-level read checking, token estimation with 0.3 partial factor
+- Example files: `shared.gft` (library), `chatbot.gft` (import + memory + writes)
+- 78 new tests (249 total)
+
+### Development Process
+- 5 adversarial debate rounds (R1-R5), ~70 agent calls
+- R1: Lexer + AST + Parser — A3 caught duplicate writes silent overwrite, empty import list/path
+- R2: Import Resolver — A1's ExportableNames snapshot was only correct approach; A3 caught entry-file parse error gap
+- R3: Analyzer — A1 forced dissenter reversed: "collision detection is correctness, not a feature"
+- R4: CodeGen + Runtime — A3 found foreach memory staleness bug (all others missed); A2 forced dissenter self-rebutted all 3 positions
+- R5: Integration — minimal controversy, 4:0 consensus
+- 34 new ratchet-locked decisions (92 total)
+
 ## v1.2.0 (2026-04-01)
 
 ### Added
