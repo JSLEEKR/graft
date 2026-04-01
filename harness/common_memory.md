@@ -1,7 +1,7 @@
-# Common Memory — Graft Compiler v1
-## Last updated: v2.0-R5 completed (v2.0 DONE)
+# Common Memory — Graft Compiler
+## Last updated: v2.1-R1 completed
 
-## Ratchet-Locked Decisions (92 total)
+## Ratchet-Locked Decisions (96 total, 2 unlocked)
 
 ### T1-T6 (abbreviated — all LOCKED)
 T1: tsc-only, ESM, NodeNext, explicit vitest, shebang, strict, no barrels, .js extensions
@@ -77,6 +77,16 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - [v2.0-R33] examples/chatbot.gft uses import + memory + writes — LOCKED
 - [v2.0-R34] Integration tests use temp files for import tests — LOCKED
 
+### v2.1-R1 Ratchets (Cleanup and Refactoring)
+- [T6] MODEL_MAP duplicated — UNLOCKED (extracted to src/constants.ts)
+- [v1.2-R06] MODEL_MAP duplicated in executor.ts — UNLOCKED (extracted to src/constants.ts)
+- [v2.1-R01] MODEL_MAP, PARTIAL_FIELD_FACTOR, BUDGET_WARNING_THRESHOLD, BUDGET_CRITICAL_THRESHOLD in src/constants.ts — single source of truth — LOCKED
+- [v2.1-R02] fieldsToJsonExample and typeToExample in src/utils.ts — single source of truth — LOCKED
+- [v2.1-R03] loadMemory and saveMemory as standalone functions in src/runtime/memory.ts — LOCKED
+- [v2.1-R04] saveMemory always saves; dryRun guard is caller's responsibility — LOCKED
+- [v2.1-R05] PARTIAL_FIELD_FACTOR applies to all per-field fraction estimates (partial reads AND select transforms) — LOCKED
+- [v2.1-R06] TOOL_MAP stays in src/codegen/agents.ts (not extracted) — LOCKED
+
 ## Review Feedback
 - T1-T7: ALL PASS. Test progression: 5 → 31 → 31 → 64 → 78 → 101 → 110
 - v1.2: PASS. 171 tests (135 existing + 36 new). All 12 ratchet items compliant.
@@ -85,6 +95,7 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v2.0-R3: PASS. 224 tests (214 existing + 10 new). All 5 ratchet items compliant. Zero deviations.
 - v2.0-R4: PASS. 241 tests (224 existing + 17 new). All 8 ratchet items compliant. Zero deviations.
 - v2.0-R5: PASS. 249 tests (241 existing + 8 new). All 3 ratchet items compliant. Zero deviations.
+- v2.1-R1: PASS. 249 tests (0 new — pure refactoring). 6 new ratchet items, 2 unlocked. Zero deviations. MEDIUM tier (2 agents).
 
 ## Recurring Patterns
 - A3-Skeptic: critical bugs every task (T2-T7 consecutively)
@@ -101,13 +112,17 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - Transitive re-export bug: 2 of 4 agents (A2, A4) had it in Step 1, caught by cross-critique
 - v2.0-R3: A1 forced dissenter reversed own position — "collision detection is correctness, not a feature"
 - v2.0-R4: A3 found foreach memory staleness bug (all 3 others missed); A2 forced dissenter self-rebutted all 3 positions (shallow merge, buildContextSection load, empty scaffold)
+- v2.1-R1: MEDIUM tier effective for mechanical refactoring (2 agents, 6 total calls vs 14). A3's 0.3 semantic trap warning (line 195) overruled by convergence — same concept applies.
+
+## Debate ROI
+- v2.1-R1 (MEDIUM): 6 agent calls, 0 bugs found, 0 design changes. Appropriate for mechanical refactoring.
 
 ## Notes for Future
 - Conditional edge routing: deferred to v1.3
 - Full failure strategies (retry/fallback/skip): deferred, code structured for future addition
 - Token budget enforcement (Graft tokens vs Claude CLI dollars): approximation only
-- fieldsToJsonExample duplicated from agents.ts; consider extracting if agents.ts exports it
 - Memory importability: deferred (v2.0-R13 locked as excluded)
 - entryFile guard in resolver: scopes name merging to entry file only (justified deviation from convergence spec)
 - All 249 tests currently passing
 - v2.0 complete: import system + memory across all pipeline stages (lexer → parser → resolver → analyzer → codegen → runtime → integration)
+- v2.1-R1 complete: constants/utils/memory extracted to shared modules, MODEL_MAP deduplication resolved
