@@ -1,7 +1,7 @@
 # Common Memory — Graft Compiler
-## Last updated: v2.2-R6 completed
+## Last updated: v3.0-R8 completed (v3.0.0 release)
 
-## Ratchet-Locked Decisions (132 total, 2 unlocked)
+## Ratchet-Locked Decisions (168 total, 4 unlocked)
 
 ### T1-T6 (abbreviated — all LOCKED)
 T1: tsc-only, ESM, NodeNext, explicit vitest, shebang, strict, no barrels, .js extensions
@@ -137,6 +137,58 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - [v2.2-R24] VS Code: command-based ServerOptions (graft-lsp on PATH), CJS output — LOCKED
 - [v2.2-R25] TextMate: // and /* */ comments only, no escape sequences, k-integer before integer — LOCKED
 
+### v3.0-R1 Ratchets (Pipeline Split + ProgramIndex Threading)
+- [v3.0-R01] compileToProgram() does NOT check GRAPH_MISSING (codegen prerequisite only) — LOCKED
+- [v3.0-R02] ProgramIndex optional param with ?? new ProgramIndex(program) fallback on ScopeChecker, TokenEstimator, Executor — LOCKED
+- [v3.0-R03] RuntimeState interface in prompt-builder.ts (not a new file); PromptContext and FlowContext extend it — LOCKED
+
+### v3.0-R2 Ratchets (WriteRef + Multi-field Reads)
+- [v3.0-R04] WriteRef { memory, field?, location } replaces string[] on NodeDecl.writes — LOCKED
+- [v3.0-R05] ContextRef.field changes from string | undefined to string[] | undefined — LOCKED
+- [v3.0-R06] Multi-field brace syntax: reads: [Ctx.{f1, f2}] parsed to field: ["f1", "f2"] — LOCKED
+- [v3.0-R07] Estimator scaling: Math.min(PARTIAL_FIELD_FACTOR * ref.field.length, 1.0) at all 3 sites — LOCKED
+- [v3.0-R08] Codegen single-field dot, multi-field brace display — LOCKED
+- [v3.0-R09] Scope checker validates WriteRef.field against memory schema — LOCKED
+
+### v3.0-R3 Ratchets (CodegenBackend Interface)
+- [v3.0-R10] CodegenBackend interface with 4 fine-grained methods (generateAgent, generateHook, generateOrchestration, generateSettings) — LOCKED
+- [v3.0-R11] ClaudeCodeBackend delegates to existing standalone functions (no restructuring) — LOCKED
+- [v3.0-R12] generate() accepts optional backend param, defaults to ClaudeCodeBackend — LOCKED
+- [v3.0-R13] ProgramIndex.graphMap: Map<string, GraphDecl> — LOCKED
+- [v3.0-R14] CONFIG_UNKNOWN_BACKEND error code in GraftErrorCode union — LOCKED
+- [v3.0-R15] generateSettings() accepts optional ProgramIndex (avoids double construction) — LOCKED
+
+### v3.0-R4 Ratchets (Field-Level Analyzer)
+- [v2.2-R05] TypeChecker NOT migrated to ProgramIndex — UNLOCKED (now accepts ProgramIndex)
+- [v3.0-R16] ProgramIndex.producesFieldsMap: Map<string, Map<string, TypeExpr>> (keyed by both node name AND produces name) — LOCKED
+- [v3.0-R17] ProgramIndex.memoryFieldsMap: Map<string, Map<string, TypeExpr>> — LOCKED
+- [v3.0-R18] TypeChecker accepts optional ProgramIndex (same pattern as ScopeChecker, TokenEstimator) — LOCKED
+- [v3.0-R19] TYPE_WRITE_FIELD_OVERLAP error code in GraftErrorCode union — LOCKED
+
+### v3.0-R5 Ratchets (Failure Strategies Runtime)
+- [v1.2-R07] Abort-on-failure MVP; retry/fallback/skip deferred — UNLOCKED (now fully implemented)
+- [v3.0-R20] executeWithFailureStrategy in flow-runner.ts handles retry/fallback/skip/abort/retry_then_fallback — LOCKED
+- [v3.0-R21] FlowContext.getFailureStrategy?: (name: string) => FailureStrategy | undefined — LOCKED
+- [v3.0-R22] Executor passes getFailureStrategy via nodeDecl.onFailure lookup — LOCKED
+- [v3.0-R23] SCOPE_INVALID_FALLBACK error code validates fallback node references — LOCKED
+
+### v3.0-R6 Ratchets (Quality + Cleanup)
+- [v2.2-R08] GraftErrorCode: 18-member union type — UNLOCKED (now 30+ members with sub-unions)
+- [v2.2-R10] Parser/lexer remain throw-based; error codes only on analyzer — UNLOCKED (parser now has PARSE_ codes)
+- [v3.0-R24] SourceLocation.length?: number on all tokens — LOCKED
+- [v3.0-R25] GraftErrorCode = ParseErrorCode | ScopeErrorCode | TypeErrorCode | BudgetErrorCode | ImportErrorCode | GraphErrorCode | ConfigErrorCode — LOCKED
+- [v3.0-R26] TRANSFORM_ON_CONDITIONAL renamed to SCOPE_TRANSFORM_CONDITIONAL — LOCKED
+- [v3.0-R27] PARSE_UNEXPECTED_TOKEN and PARSE_MISSING_FIELD on parser throws — LOCKED
+- [v3.0-R28] Foreach binding save/restore (hadBinding + prevBinding pattern) — LOCKED
+- [v3.0-R29] Dead bench script removed from package.json — LOCKED
+- [v3.0-R30] LSP 200ms debounce on onDidChangeContent — LOCKED
+
+### v3.0-R7 Ratchets (LSP Improvements + Runtime Field Writes)
+- [v3.0-R31] saveMemory accepts optional fields?: string[] for field-level writes — LOCKED
+- [v3.0-R32] Executor passes WriteRef.field to saveMemory as [writeRef.field] — LOCKED
+- [v3.0-R33] LSP import dependency tracking (importDeps map) with transitive invalidation — LOCKED
+- [v3.0-R34] LSP diagnostic ranges use SourceLocation.length (non-zero-width squiggles) — LOCKED
+
 ## Review Feedback
 - T1-T7: ALL PASS. Test progression: 5 → 31 → 31 → 64 → 78 → 101 → 110
 - v1.2: PASS. 171 tests (135 existing + 36 new). All 12 ratchet items compliant.
@@ -155,6 +207,14 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v2.2-R4: PASS. 359 tests (337 existing + 22 new). 6 new ratchet items. Zero negative deviations. HIGH tier (4 agents, cross-critique skipped).
 - v2.2-R5: PASS. 363 tests (359 existing + 4 new). 4 new ratchet items. Zero deviations. MEDIUM tier (2 agents, cross-critique skipped).
 - v2.2-R6: PASS. 376 tests (363 existing + 13 new). 0 new ratchet items. TEST-ONLY tier. All 4 adversarial test proposals from v2.1 implemented.
+- v3.0-R1: PASS. 384 tests (376 existing + 8 new). 3 new ratchet items. MEDIUM tier (2 agents, cross-critique skipped). Zero deviations.
+- v3.0-R2: PASS. 404 tests (384 existing + 20 new). 6 new ratchet items. MEDIUM tier. Zero deviations. A3-Skeptic found 2 critical silent runtime bugs (writes.join→[object Object], string iteration on ref.field).
+- v3.0-R3: PASS. 419 tests (404 existing + 15 new). 6 new ratchet items. HIGH tier (4 agents, cross-critique skipped). Zero deviations. Dead import cleanup from reviewer suggestion.
+- v3.0-R4: PASS. 430 tests (419 existing + 11 new). 4 new ratchet items, 1 unlocked (v2.2-R05). MEDIUM tier. ScopeChecker/TypeChecker deduplication via ProgramIndex field maps.
+- v3.0-R5: PASS. 443 tests (430 existing + 13 new). 4 new ratchet items, 1 unlocked (v1.2-R07). Failure strategies runtime (retry/fallback/skip/abort/retry_then_fallback).
+- v3.0-R6: PASS. 456 tests (443 existing + 13 new). 7 new ratchet items, 2 unlocked (v2.2-R08, v2.2-R10). Quality + cleanup round.
+- v3.0-R7: PASS. 465 tests (456 existing + 9 new). 4 new ratchet items. LSP improvements + runtime field writes.
+- v3.0-R8: PASS. 477 tests (465 existing + 12 new). 0 new ratchet items. TEST-ONLY integration + regression.
 
 ## Recurring Patterns
 - A3-Skeptic: critical bugs every task (T2-T7 consecutively)
@@ -190,10 +250,15 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v2.2-R4 (HIGH): 11 agent calls (2 research + 4 analysis + 1 convergence + 1 impl + 1 review + 2 skipped cross-critique). 1 bug found (GRAPH_MISSING drops program). New LSP subsystem.
 - v2.2-R5 (MEDIUM): 5 agent calls (2 analysis + 1 convergence + 1 impl + 1 review). 0 bugs, 3 correctness corrections from A3 (comment syntax, escape sequences, k-integer priority). Configuration-only round.
 - v2.2-R6 (TEST-ONLY): 2 agent calls (1 impl + 1 review). 0 bugs. Integration tests + adversarial backlog cleared.
+- v3.0-R1 (MEDIUM): 5 agent calls. 0 bugs. Pipeline split + ProgramIndex threading.
+- v3.0-R2 (MEDIUM): 5 agent calls. 2 critical bugs found by A3-Skeptic. WriteRef + multi-field reads.
+- v3.0-R3 (HIGH): 7 agent calls. 0 bugs. CodegenBackend interface.
+- v3.0-R4 (MEDIUM): 5 agent calls. 0 bugs. ProgramIndex field maps.
+- v3.0-R5 through R8: Direct implementation (context recovered from session summary). Failure strategies, quality cleanup, LSP improvements, integration tests.
 
 ## Notes for Future
 - Conditional edge routing: deferred to v1.3
-- Full failure strategies (retry/fallback/skip): deferred, code structured for future addition
+- Full failure strategies (retry/fallback/skip): IMPLEMENTED in v3.0-R5
 - Token budget enforcement (Graft tokens vs Claude CLI dollars): approximation only
 - Memory importability: deferred (v2.0-R13 locked as excluded)
 - entryFile guard in resolver: scopes name merging to entry file only (justified deviation from convergence spec)
@@ -213,5 +278,14 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v2.2-R4 complete: LSP server with diagnostics, hover, go-to-definition. 2-file structure (server.ts + features.ts). compile() fixed to return program on GRAPH_MISSING.
 - v2.2-R5 complete: npm distribution metadata (@graft-lang/graft), VS Code extension (syntax highlighting, LSP client). Zero production code changes.
 - v2.2-R6 complete: integration tests (end-to-end compile, LSP round-trip, npm pack, adversarial backlog). All 4 v2.1 adversarial proposals resolved.
-- All 376 tests currently passing
+- All 477 tests currently passing
 - v2.2 complete: 6 rounds (R1-R6), all PASS. Tech debt + correctness + LSP + npm + VS Code + integration.
+- v3.0-R1 complete: Pipeline split (compileToProgram/compileAndGenerate/compile), ProgramIndex threading, RuntimeState interface.
+- v3.0-R2 complete: WriteRef replaces string[] writes, multi-field partial reads (ContextRef.field: string[]), brace syntax in parser, all 10 source files + 5 test files updated.
+- v3.0-R3 complete: CodegenBackend interface + ClaudeCodeBackend + backend-aware generate() + ProgramIndex.graphMap + CONFIG_UNKNOWN_BACKEND + CLI --backend flag.
+- v3.0-R4 complete: ProgramIndex field-level maps (producesFieldsMap, memoryFieldsMap), TypeChecker migrated to ProgramIndex, ScopeChecker deduplication.
+- v3.0-R5 complete: Failure strategies runtime (executeWithFailureStrategy, SCOPE_INVALID_FALLBACK, retry/fallback/skip/abort/retry_then_fallback).
+- v3.0-R6 complete: SourceLocation.length, GraftErrorCode sub-unions, PARSE_ codes, SCOPE_TRANSFORM_CONDITIONAL rename, foreach binding cleanup, bench removal, LSP debounce.
+- v3.0-R7 complete: Field-level saveMemory, executor field writes, LSP cache invalidation, diagnostic range width.
+- v3.0-R8 complete: Integration + regression tests (end-to-end pipeline, failure strategies, WriteRef, multi-field reads, parse codes, SourceLocation length).
+- v3.0 COMPLETE: 8 rounds (R1-R8), all PASS. Multi-backend codegen + field-level writes + failure strategies + quality cleanup + LSP improvements.

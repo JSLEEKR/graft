@@ -99,7 +99,7 @@ describe('buildContextSection', () => {
 
   it('handles partial field reads', () => {
     const node = makeNode({
-      reads: [{ context: 'UserRequest', field: 'question', location: loc }],
+      reads: [{ context: 'UserRequest', field: ['question'], location: loc }],
     });
     const ctx = makeCtx({ input: { question: 'hello', extra: 'ignored' } });
     const section = buildContextSection(node, ctx);
@@ -112,7 +112,7 @@ describe('buildContextSection', () => {
     const outputs = new Map<string, unknown>();
     outputs.set('Research', { findings: ['a', 'b'], confidence: 0.9 });
     const node = makeNode({
-      reads: [{ context: 'Research', field: 'findings', location: loc }],
+      reads: [{ context: 'Research', field: ['findings'], location: loc }],
     });
     const ctx = makeCtx({ outputs });
     const section = buildContextSection(node, ctx);

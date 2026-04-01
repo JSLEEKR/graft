@@ -61,10 +61,10 @@ export class Executor {
   private memoryNames: Set<string>;
   private tracker!: TokenTracker;
 
-  constructor(program: Program, options: RunOptions) {
+  constructor(program: Program, options: RunOptions, index?: ProgramIndex) {
     this.program = program;
     this.options = options;
-    this.index = new ProgramIndex(program);
+    this.index = index ?? new ProgramIndex(program);
     this.spawner = options.spawner ?? spawnClaude;
     this.outputs = new Map();
     this.memoryDir = path.join(options.workDir, '.graft', 'memory');
@@ -123,6 +123,10 @@ export class Executor {
     // Execute flow nodes
     const flowCtx: FlowContext = {
       executeNode: (name: string) => this.executeNode(name),
+      getFailureStrategy: (name: string) => {
+        const nodeDecl = this.nodeMap.get(name);
+        return nodeDecl?.onFailure;
+      },
       outputs: this.outputs,
       input: this.options.input,
     };
@@ -338,12 +342,13 @@ export class Executor {
     }
 
     // Save to memory for writes targets
-    for (const writeName of nodeDecl.writes) {
-      if (this.memoryNames.has(writeName)) {
+    for (const writeRef of nodeDecl.writes) {
+      if (this.memoryNames.has(writeRef.memory)) {
         if (!this.options.dryRun) {
-          const mem = this.index.memoryMap.get(writeName);
+          const mem = this.index.memoryMap.get(writeRef.memory);
           if (mem) {
-            saveMemory(this.memoryDir, mem, output);
+            const fields = writeRef.field ? [writeRef.field] : undefined;
+            saveMemory(this.memoryDir, mem, output, fields);
           }
         }
       }

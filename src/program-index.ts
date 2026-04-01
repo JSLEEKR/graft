@@ -1,4 +1,4 @@
-import { Program, ContextDecl, NodeDecl, MemoryDecl, EdgeDecl } from './parser/ast.js';
+import { Program, ContextDecl, NodeDecl, MemoryDecl, EdgeDecl, GraphDecl, TypeExpr } from './parser/ast.js';
 
 export class ProgramIndex {
   readonly contextMap: Map<string, ContextDecl>;
@@ -6,6 +6,9 @@ export class ProgramIndex {
   readonly memoryMap: Map<string, MemoryDecl>;
   readonly edgesBySource: Map<string, EdgeDecl[]>;
   readonly producesNodeMap: Map<string, NodeDecl>;
+  readonly graphMap: Map<string, GraphDecl>;
+  readonly producesFieldsMap: Map<string, Map<string, TypeExpr>>;
+  readonly memoryFieldsMap: Map<string, Map<string, TypeExpr>>;
 
   constructor(program: Program) {
     this.contextMap = new Map();
@@ -30,6 +33,31 @@ export class ProgramIndex {
       const existing = this.edgesBySource.get(e.source) ?? [];
       existing.push(e);
       this.edgesBySource.set(e.source, existing);
+    }
+
+    this.graphMap = new Map();
+    for (const g of program.graphs) {
+      this.graphMap.set(g.name, g);
+    }
+
+    this.producesFieldsMap = new Map();
+    for (const n of program.nodes) {
+      const fields = new Map<string, TypeExpr>();
+      for (const f of n.produces.fields) {
+        fields.set(f.name, f.type);
+      }
+      // Keyed by both node name AND produces name for different lookup patterns
+      this.producesFieldsMap.set(n.name, fields);
+      this.producesFieldsMap.set(n.produces.name, fields);
+    }
+
+    this.memoryFieldsMap = new Map();
+    for (const m of program.memories) {
+      const fields = new Map<string, TypeExpr>();
+      for (const f of m.fields) {
+        fields.set(f.name, f.type);
+      }
+      this.memoryFieldsMap.set(m.name, fields);
     }
   }
 }

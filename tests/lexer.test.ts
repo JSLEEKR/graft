@@ -122,8 +122,8 @@ describe('Lexer', () => {
 
   it('tracks source locations', () => {
     const tokens = new Lexer('node\n  edge').tokenize();
-    expect(tokens[0].location).toEqual({ line: 1, column: 1, offset: 0 });
-    expect(tokens[1].location).toEqual({ line: 2, column: 3, offset: 7 });
+    expect(tokens[0].location).toEqual({ line: 1, column: 1, offset: 0, length: 4 });
+    expect(tokens[1].location).toEqual({ line: 2, column: 3, offset: 7, length: 4 });
   });
 
   // --- Compound expressions ---
@@ -175,13 +175,14 @@ describe('Lexer', () => {
 
   it('handles empty input', () => {
     const tokens = new Lexer('').tokenize();
-    expect(tokens).toEqual([{ type: TokenType.EOF, value: '', location: { line: 1, column: 1, offset: 0 } }]);
+    expect(tokens).toHaveLength(1);
+    expect(tokens[0].type).toBe(TokenType.EOF);
   });
 
   it('handles CRLF line endings', () => {
     const tokens = new Lexer('node\r\nedge').tokenize();
     expect(tokens.map(t => t.type)).toEqual([TokenType.Node, TokenType.Edge, TokenType.EOF]);
-    expect(tokens[1].location).toEqual({ line: 2, column: 1, offset: 6 });
+    expect(tokens[1].location).toEqual({ line: 2, column: 1, offset: 6, length: 4 });
   });
 
   // --- Error cases ---

@@ -1032,7 +1032,7 @@ describe('ScopeChecker — conditional edge transforms', () => {
     };
     const checker = new ScopeChecker(program);
     const diagnostics = checker.check();
-    const warning = diagnostics.find(d => d.severity === 'warning' && d.code === 'TRANSFORM_ON_CONDITIONAL');
+    const warning = diagnostics.find(d => d.severity === 'warning' && d.code === 'SCOPE_TRANSFORM_CONDITIONAL');
     expect(warning).toBeDefined();
     expect(warning!.message).toContain("Transforms on conditional edge");
     expect(warning!.message).toContain("may not be applied at runtime");
@@ -1059,7 +1059,7 @@ describe('ScopeChecker — conditional edge transforms', () => {
     `);
     const checker = new ScopeChecker(program);
     const diagnostics = checker.check();
-    const warning = diagnostics.find(d => d.code === 'TRANSFORM_ON_CONDITIONAL');
+    const warning = diagnostics.find(d => d.code === 'SCOPE_TRANSFORM_CONDITIONAL');
     expect(warning).toBeUndefined();
   });
 });

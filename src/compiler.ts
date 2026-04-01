@@ -8,17 +8,22 @@ import { TokenEstimator, TokenReport } from './analyzer/estimator.js';
 import { generate, GeneratedFile, writeFiles } from './codegen/codegen.js';
 import { GraftError } from './errors/diagnostics.js';
 import { Program } from './parser/ast.js';
+import { ProgramIndex } from './program-index.js';
 
-export interface CompileResult {
+export interface ProgramResult {
   success: boolean;
   program?: Program;
+  index?: ProgramIndex;
   report?: TokenReport;
-  files?: GeneratedFile[];
   errors: GraftError[];
   warnings: GraftError[];
 }
 
-export function compile(source: string, sourceFile: string): CompileResult {
+export interface CompileResult extends ProgramResult {
+  files?: GeneratedFile[];
+}
+
+export function compileToProgram(source: string, sourceFile: string): ProgramResult {
   const errors: GraftError[] = [];
   const warnings: GraftError[] = [];
 
@@ -61,21 +66,14 @@ export function compile(source: string, sourceFile: string): CompileResult {
     program = resolveResult.program;
   }
 
-  // Guard: no graph declaration
-  if (program.graphs.length === 0) {
-    return {
-      success: false,
-      program,
-      errors: [new GraftError('No graph declaration found', { line: 1, column: 1, offset: 0 }, 'error', 'GRAPH_MISSING')],
-      warnings,
-    };
-  }
+  // Build ProgramIndex once (after resolve, before analyzers)
+  const index = new ProgramIndex(program);
 
   // Analyze: scope
-  const scopeDiagnostics = new ScopeChecker(program).check();
+  const scopeDiagnostics = new ScopeChecker(program, index).check();
 
-  // Analyze: types
-  const typeDiagnostics = new TypeChecker(program).check();
+  // Analyze: types (ratchet v3.0-R4: TypeChecker migrated to ProgramIndex)
+  const typeDiagnostics = new TypeChecker(program, index).check();
 
   // Separate errors from warnings
   for (const d of [...scopeDiagnostics, ...typeDiagnostics]) {
@@ -87,17 +85,44 @@ export function compile(source: string, sourceFile: string): CompileResult {
   }
 
   if (errors.length > 0) {
-    return { success: false, program, errors, warnings };
+    return { success: false, program, index, errors, warnings };
   }
 
   // Analyze: tokens
-  const report = new TokenEstimator(program).estimate();
+  const report = new TokenEstimator(program, index).estimate();
   warnings.push(...report.warnings);
 
-  // Generate
-  const files = generate(program, report, sourceFile);
+  return { success: true, program, index, report, errors, warnings };
+}
 
-  return { success: true, program, report, files, errors, warnings };
+export function compileAndGenerate(source: string, sourceFile: string): CompileResult {
+  const result = compileToProgram(source, sourceFile);
+
+  if (!result.success || !result.program) {
+    return result;
+  }
+
+  // Guard: no graph declaration (codegen prerequisite)
+  if (result.program.graphs.length === 0) {
+    return {
+      ...result,
+      success: false,
+      errors: [
+        ...result.errors,
+        new GraftError('No graph declaration found', { line: 1, column: 1, offset: 0 }, 'error', 'GRAPH_MISSING'),
+      ],
+    };
+  }
+
+  // Generate
+  const files = generate(result.program, result.report!, sourceFile, result.index);
+
+  return { ...result, files };
+}
+
+/** Backward-compatible alias for compileAndGenerate */
+export function compile(source: string, sourceFile: string): CompileResult {
+  return compileAndGenerate(source, sourceFile);
 }
 
 export function compileAndWrite(source: string, sourceFile: string, outDir: string): CompileResult {

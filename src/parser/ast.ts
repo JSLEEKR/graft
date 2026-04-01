@@ -42,7 +42,7 @@ export interface NodeDecl {
   budgetOut: number;
   reads: ContextRef[];
   tools: string[];
-  writes: string[];
+  writes: WriteRef[];
   onFailure?: FailureStrategy;
   produces: ProducesDecl;
   location: SourceLocation;
@@ -113,7 +113,14 @@ export type TypeExpr =
 // Context references in reads
 export interface ContextRef {
   context: string;
-  field?: string;  // partial read: Research.findings
+  field?: string[];  // partial read: Research.findings or Research.{findings, confidence}
+  location: SourceLocation;
+}
+
+// Write references in writes
+export interface WriteRef {
+  memory: string;
+  field?: string;
   location: SourceLocation;
 }
 

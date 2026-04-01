@@ -149,7 +149,7 @@ export class Lexer {
     }
     this.pos++;
     this.column++;
-    this.tokens.push({ type: TokenType.StringLiteral, value, location: loc });
+    this.tokens.push({ type: TokenType.StringLiteral, value, location: { ...loc, length: value.length + 2 } });
   }
 
   private readNumber(): void {
@@ -166,7 +166,7 @@ export class Lexer {
       value += 'k';
       this.pos++;
       this.column++;
-      this.tokens.push({ type: TokenType.KIntegerLiteral, value, location: loc });
+      this.tokens.push({ type: TokenType.KIntegerLiteral, value, location: { ...loc, length: value.length } });
       return;
     }
 
@@ -185,11 +185,11 @@ export class Lexer {
         this.pos++;
         this.column++;
       }
-      this.tokens.push({ type: TokenType.FloatLiteral, value, location: loc });
+      this.tokens.push({ type: TokenType.FloatLiteral, value, location: { ...loc, length: value.length } });
       return;
     }
 
-    this.tokens.push({ type: TokenType.IntegerLiteral, value, location: loc });
+    this.tokens.push({ type: TokenType.IntegerLiteral, value, location: { ...loc, length: value.length } });
   }
 
   private readIdentifierOrKeyword(): void {
@@ -204,7 +204,7 @@ export class Lexer {
     this.tokens.push({
       type: keywordType ?? TokenType.Identifier,
       value,
-      location: loc,
+      location: { ...loc, length: value.length },
     });
   }
 
@@ -216,7 +216,7 @@ export class Lexer {
     // Two-character symbols first (maximal munch)
     const twoChar = this.matchTwoChar(ch, next);
     if (twoChar) {
-      this.tokens.push({ type: twoChar[0], value: twoChar[1], location: loc });
+      this.tokens.push({ type: twoChar[0], value: twoChar[1], location: { ...loc, length: 2 } });
       this.pos += 2;
       this.column += 2;
       return true;
@@ -225,7 +225,7 @@ export class Lexer {
     // Single-character symbols
     const singleType = SINGLE_CHAR[ch];
     if (singleType !== undefined) {
-      this.tokens.push({ type: singleType, value: ch, location: loc });
+      this.tokens.push({ type: singleType, value: ch, location: { ...loc, length: 1 } });
       this.pos++;
       this.column++;
       return true;

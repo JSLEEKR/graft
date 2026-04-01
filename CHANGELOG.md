@@ -1,5 +1,44 @@
 # Changelog
 
+## v3.0.0 (2026-04-02)
+
+### Added
+- **Pluggable codegen backends**: `CodegenBackend` interface with 4 methods (`generateAgent`, `generateHook`, `generateOrchestration`, `generateSettings`)
+  - `ClaudeCodeBackend` as default implementation, delegating to existing standalone functions
+  - New backends can target Cursor rules, Windsurf, raw markdown, etc.
+- **Field-level memory writes**: `writes: [Memory.field]` syntax for surgical field updates
+  - `WriteRef { memory, field?, location }` replaces `writes: string[]`
+  - Runtime `saveMemory` accepts optional `fields?: string[]` for field-level merges
+- **Multi-field partial reads**: `reads: [Ctx.{f1, f2}]` brace syntax
+  - `ContextRef.field` changed from `string | undefined` to `string[] | undefined`
+  - Token estimator scales by `PARTIAL_FIELD_FACTOR * fieldCount` at all 3 estimation sites
+- **Failure strategies**: `on_failure` clause fully implemented
+  - 5 strategies: `retry(N)`, `fallback(NodeName)`, `skip`, `abort`, `retry_then_fallback(N, NodeName)`
+  - `executeWithFailureStrategy` in flow-runner.ts
+  - `SCOPE_INVALID_FALLBACK` compile-time validation for fallback references
+- **Pipeline entry points**: `compileToProgram()`, `compileAndGenerate()`, `compile()` (3-tier API)
+- **ProgramIndex field maps**: `producesFieldsMap` (dual-keyed), `memoryFieldsMap` for O(1) field lookups
+- **GraftErrorCode sub-unions**: `ParseErrorCode | ScopeErrorCode | TypeErrorCode | BudgetErrorCode | ImportErrorCode | GraphErrorCode | ConfigErrorCode`
+- **Parse error codes**: `PARSE_UNEXPECTED_TOKEN`, `PARSE_MISSING_FIELD` on parser diagnostics
+- **SourceLocation.length**: all tokens carry `length` for non-zero-width LSP diagnostic squiggles
+- **LSP improvements**: 200ms debounce, import dependency tracking with transitive invalidation
+- 101 new tests (477 total)
+
+### Changed
+- `TypeChecker` accepts `ProgramIndex` (unlocked from v2.2 ratchet)
+- `RuntimeState` interface unifies `PromptContext` and `FlowContext` in prompt-builder.ts
+- `TRANSFORM_ON_CONDITIONAL` renamed to `SCOPE_TRANSFORM_CONDITIONAL`
+- Foreach binding save/restore prevents scope leakage
+- Removed bench script (dead code)
+
+### Development Process
+- 8 rounds: R1-R4 (debate), R5-R8 (DIRECT — no debate, 100% first-try pass)
+- ~26 agent calls (most efficient version relative to output)
+- A3-Skeptic caught 2 silent runtime corruption bugs in R2 (WriteRef `.join()` on objects, string iteration on field arrays)
+- Cross-critique skipped in all eligible rounds (high consensus)
+- 17 new ratchet decisions, 4 unlocked (168 total)
+- DIRECT tier validated: well-scoped additive rounds need no debate
+
 ## v2.2.0 (2026-04-01)
 
 ### Added

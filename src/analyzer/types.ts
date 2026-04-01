@@ -1,23 +1,14 @@
 import { Program } from '../parser/ast.js';
 import { GraftError } from '../errors/diagnostics.js';
+import { ProgramIndex } from '../program-index.js';
 
 export class TypeChecker {
   private program: Program;
-  private producesFieldsMap: Map<string, Set<string>>; // node name -> produces field names
-  private memoryFieldsMap: Map<string, Set<string>>; // memory name -> field names
+  private index: ProgramIndex;
 
-  constructor(program: Program) {
+  constructor(program: Program, index?: ProgramIndex) {
     this.program = program;
-    this.producesFieldsMap = new Map();
-    this.memoryFieldsMap = new Map();
-
-    for (const node of program.nodes) {
-      const fieldNames = new Set(node.produces.fields.map(f => f.name));
-      this.producesFieldsMap.set(node.name, fieldNames);
-    }
-    for (const mem of program.memories) {
-      this.memoryFieldsMap.set(mem.name, new Set(mem.fields.map(f => f.name)));
-    }
+    this.index = index ?? new ProgramIndex(program);
   }
 
   check(): GraftError[] {
@@ -30,21 +21,21 @@ export class TypeChecker {
   private checkWritesSchemaOverlap(diagnostics: GraftError[]): void {
     for (const node of this.program.nodes) {
       if (node.writes.length === 0) continue;
-      const producesFields = this.producesFieldsMap.get(node.name);
+      const producesFields = this.index.producesFieldsMap.get(node.name);
       if (!producesFields) continue; // scope checker catches
 
-      for (const writeName of node.writes) {
-        const memoryFields = this.memoryFieldsMap.get(writeName);
+      for (const writeRef of node.writes) {
+        const memoryFields = this.index.memoryFieldsMap.get(writeRef.memory);
         if (!memoryFields) continue; // scope checker catches undeclared
 
         let hasOverlap = false;
-        for (const field of producesFields) {
+        for (const field of producesFields.keys()) {
           if (memoryFields.has(field)) { hasOverlap = true; break; }
         }
 
         if (!hasOverlap) {
           diagnostics.push(new GraftError(
-            `Node '${node.name}' writes to memory '${writeName}' but produces no matching fields`,
+            `Node '${node.name}' writes to memory '${writeRef.memory}' but produces no matching fields`,
             node.location,
             'warning',
             'TYPE_SCHEMA_MISMATCH',
@@ -56,7 +47,7 @@ export class TypeChecker {
 
   private checkEdgeTransforms(errors: GraftError[]): void {
     for (const edge of this.program.edges) {
-      const sourceFields = this.producesFieldsMap.get(edge.source);
+      const sourceFields = this.index.producesFieldsMap.get(edge.source);
       if (!sourceFields) continue; // scope checker will catch this
 
       for (const transform of edge.transforms) {

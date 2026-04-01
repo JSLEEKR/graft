@@ -6,7 +6,7 @@
 
 **A graph-native language for AI agent harness engineering.**
 
-Graft compiles `.gft` source files into Claude Code harness structures (`.claude/` directory) and executes them. It provides declarative context flow definitions, compile-time token budget analysis, structured inter-agent communication, cross-file imports, and persistent memory — replacing wasteful natural language token passing in multi-agent systems.
+Graft compiles `.gft` source files into execution harnesses and runs them. It provides declarative context flow definitions, compile-time token budget analysis, structured inter-agent communication, cross-file imports, persistent memory with field-level writes, and pluggable codegen backends — replacing wasteful natural language token passing in multi-agent systems.
 
 ```graft
 import { UserMessage, SystemConfig } from "./shared.gft"
@@ -17,8 +17,9 @@ memory ConversationLog(max_tokens: 2k, storage: file) {
 }
 
 node Responder(model: sonnet, budget: 4k/2k) {
-  reads: [UserMessage, SystemConfig, ConversationLog]
-  writes: [ConversationLog]
+  reads: [UserMessage, SystemConfig, ConversationLog.{turns, summary}]
+  writes: [ConversationLog.turns]
+  on_failure: retry(2)
   produces Response {
     reply: String
   }
@@ -64,6 +65,8 @@ Current multi-agent systems waste tokens by passing full natural language contex
 | Context scope | Implicit, leaks everywhere | Explicit `reads` declarations, compiler-verified |
 | Cross-file sharing | Copy-paste definitions | `import { X } from "./shared.gft"` |
 | State persistence | External storage setup | `memory` declarations with automatic load/save |
+| Failure handling | Try/catch boilerplate | Declarative `on_failure: retry(3)`, `fallback(Node)`, `skip` |
+| Output targets | Hardcoded to one tool | Pluggable `CodegenBackend` interface |
 
 ## Installation
 
@@ -162,7 +165,7 @@ graph CodeReview(input: TaskSpec, output: FinalReport, budget: 35k) {
 import { UserMessage, SystemConfig } from "./shared.gft"
 ```
 
-**Memory** — persistent state across pipeline runs:
+**Memory** — persistent state with field-level writes:
 ```graft
 memory UserPrefs(max_tokens: 500, storage: file) {
   theme: String
@@ -170,8 +173,9 @@ memory UserPrefs(max_tokens: 500, storage: file) {
 }
 
 node Personalizer(model: haiku, budget: 2k/1k) {
-  reads: [UserPrefs]
-  writes: [UserPrefs]
+  reads: [UserPrefs.{theme, language}]
+  writes: [UserPrefs.theme]
+  on_failure: fallback(DefaultResponder)
   produces Response { content: String }
 }
 ```
@@ -213,13 +217,15 @@ max_tokens: 1k    // 1000 tokens
 
 Graft compiles to Claude Code harness structure:
 
-| Graft Element | Claude Code Output | Purpose |
+| Graft Element | Default Output (Claude Code) | Purpose |
 |--------------|-------------------|---------|
 | `node` | `.claude/agents/*.md` | Agent definition (model, tools, output schema) |
 | `edge` | `.claude/hooks/*.sh` | Data transform between nodes (jq) |
 | `graph` | `.claude/CLAUDE.md` | Orchestration plan |
 | `memory` | `.graft/memory/*.json` | Persistent state across runs |
 | settings | `.claude/settings.json` | Model routing, budget, hook registration |
+
+Output targets are pluggable via the `CodegenBackend` interface. The default `ClaudeCodeBackend` generates the structure above.
 
 ## Compiler Architecture
 
@@ -266,7 +272,8 @@ src/
 │   ├── types.ts          # Type checker
 │   └── estimator.ts      # Token flow estimator
 ├── codegen/
-│   ├── codegen.ts        # Generator orchestrator
+│   ├── codegen.ts        # Generator orchestrator + CodegenBackend interface
+│   ├── claude-backend.ts # ClaudeCodeBackend (default output target)
 │   ├── agents.ts         # Node → agent .md
 │   ├── hooks.ts          # Edge → hook .sh
 │   ├── orchestration.ts  # Graph → CLAUDE.md
@@ -287,9 +294,8 @@ src/
 ## Development
 
 ```bash
-npm test              # Run all 376 tests
+npm test              # Run all 477 tests
 npm run build         # Compile TypeScript
-npm run bench         # Run 16 benchmarks
 npx tsc --noEmit      # Type check only
 ```
 
@@ -297,6 +303,7 @@ npx tsc --noEmit      # Type check only
 
 | Version | Features |
 |---------|----------|
+| **v3.0** | Pluggable codegen backends, field-level writes, multi-field reads, failure strategies, 477 tests |
 | **v2.2** | LSP server, VS Code extension, npm distribution, error codes, ProgramIndex, 376 tests |
 | **v2.1** | Token tracking, correctness fixes, shared module extraction, 288 tests |
 | **v2.0** | Import system, persistent memory, writes clause, 249 tests |

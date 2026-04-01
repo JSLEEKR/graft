@@ -24,9 +24,9 @@ export class TokenEstimator {
   private nodeMap: Map<string, NodeDecl>;
   private edgeMap: Map<string, EdgeDecl>; // "source->target" key
 
-  constructor(program: Program) {
+  constructor(program: Program, index?: ProgramIndex) {
     this.program = program;
-    this.index = new ProgramIndex(program);
+    this.index = index ?? new ProgramIndex(program);
     this.nodeMap = this.index.nodeMap;
     this.edgeMap = new Map();
 
@@ -166,13 +166,13 @@ export class TokenEstimator {
       // If reading a context
       const ctx = this.index.contextMap.get(ref.context);
       if (ctx) {
-        estimatedIn += ref.field ? Math.floor(ctx.maxTokens * PARTIAL_FIELD_FACTOR) : ctx.maxTokens;
+        estimatedIn += ref.field ? Math.floor(ctx.maxTokens * Math.min(PARTIAL_FIELD_FACTOR * ref.field.length, 1.0)) : ctx.maxTokens;
         continue;
       }
       // If reading a memory
       const mem = this.index.memoryMap.get(ref.context);
       if (mem) {
-        estimatedIn += ref.field ? Math.floor(mem.maxTokens * PARTIAL_FIELD_FACTOR) : mem.maxTokens;
+        estimatedIn += ref.field ? Math.floor(mem.maxTokens * Math.min(PARTIAL_FIELD_FACTOR * ref.field.length, 1.0)) : mem.maxTokens;
         continue;
       }
       // If reading a produces output from upstream node
@@ -185,7 +185,7 @@ export class TokenEstimator {
         if (edge) {
           upstreamTokens = this.applyTransformReductions(upstreamTokens, edge.transforms);
         }
-        estimatedIn += ref.field ? Math.floor(upstreamTokens * PARTIAL_FIELD_FACTOR) : upstreamTokens;
+        estimatedIn += ref.field ? Math.floor(upstreamTokens * Math.min(PARTIAL_FIELD_FACTOR * ref.field.length, 1.0)) : upstreamTokens;
       }
     }
     return estimatedIn;

@@ -129,7 +129,9 @@ describe('Parser v2 — writes clause in node', () => {
       context Input(max_tokens: 1k) { q: String }
       ${nodeWithWrites}
     `);
-    expect(program.nodes[0].writes).toEqual(['ConvHistory']);
+    expect(program.nodes[0].writes).toEqual([
+      expect.objectContaining({ memory: 'ConvHistory' }),
+    ]);
   });
 
   it('parses a node with multiple write targets', () => {
@@ -143,7 +145,10 @@ describe('Parser v2 — writes clause in node', () => {
         }
       }
     `);
-    expect(program.nodes[0].writes).toEqual(['ConvHistory', 'AuditLog']);
+    expect(program.nodes[0].writes).toEqual([
+      expect.objectContaining({ memory: 'ConvHistory' }),
+      expect.objectContaining({ memory: 'AuditLog' }),
+    ]);
   });
 
   it('defaults writes to empty array when not specified', () => {

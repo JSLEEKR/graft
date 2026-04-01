@@ -6,16 +6,19 @@ import {
   TextDocumentSyncKind,
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { fileURLToPath } from 'node:url';
-import { compile } from '../compiler.js';
-import { ProgramIndex } from '../program-index.js';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { compileToProgram } from '../compiler.js';
 import type { Program } from '../parser/ast.js';
+import type { ProgramIndex } from '../program-index.js';
 import { toDiagnostics, getHoverInfo, getDefinitionLocation, getWordAtPosition } from './features.js';
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
 
 const cache = new Map<string, { program: Program; index: ProgramIndex }>();
+const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+// Track import dependencies: importedFile → Set of URIs that import it
+const importDeps = new Map<string, Set<string>>();
 
 connection.onInitialize(() => ({
   capabilities: {
@@ -25,25 +28,55 @@ connection.onInitialize(() => ({
   },
 }));
 
-documents.onDidChangeContent((change) => {
-  const doc = change.document;
+function validateDocument(doc: TextDocument): void {
   const uri = doc.uri;
   const filePath = fileURLToPath(uri);
 
   try {
-    const result = compile(doc.getText(), filePath);
+    const result = compileToProgram(doc.getText(), filePath);
 
-    // Filter GRAPH_MISSING for LSP -- library files are valid
-    const errors = result.errors.filter(e => e.code !== 'GRAPH_MISSING');
-    const diagnostics = toDiagnostics(errors, result.warnings);
+    const diagnostics = toDiagnostics(result.errors, result.warnings);
     connection.sendDiagnostics({ uri, diagnostics });
 
-    if (result.program) {
-      cache.set(uri, { program: result.program, index: new ProgramIndex(result.program) });
+    if (result.program && result.index) {
+      cache.set(uri, { program: result.program, index: result.index });
+      // Track import dependencies
+      for (const imp of result.program.imports) {
+        if (imp.resolvedPath) {
+          const depUri = pathToFileURL(imp.resolvedPath).toString();
+          let dependents = importDeps.get(depUri);
+          if (!dependents) {
+            dependents = new Set();
+            importDeps.set(depUri, dependents);
+          }
+          dependents.add(uri);
+        }
+      }
     }
   } catch {
     connection.sendDiagnostics({ uri, diagnostics: [] });
   }
+}
+
+documents.onDidChangeContent((change) => {
+  const uri = change.document.uri;
+  const existing = debounceTimers.get(uri);
+  if (existing) clearTimeout(existing);
+  debounceTimers.set(uri, setTimeout(() => {
+    debounceTimers.delete(uri);
+    const doc = documents.get(uri);
+    if (doc) {
+      validateDocument(doc);
+      // Invalidate dependents of this file
+      const dependents = importDeps.get(uri);
+      if (dependents) {
+        for (const depUri of dependents) {
+          const depDoc = documents.get(depUri);
+          if (depDoc) validateDocument(depDoc);
+        }
+      }
+    }
+  }, 200));
 });
 
 documents.onDidClose((e) => {

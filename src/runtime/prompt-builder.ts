@@ -1,10 +1,13 @@
 import { NodeDecl } from '../parser/ast.js';
 import { fieldsToJsonExample } from '../utils.js';
 
-export interface PromptContext {
+export interface RuntimeState {
   outputs: Map<string, unknown>;
-  graphInputName: string;
   input: Record<string, unknown>;
+}
+
+export interface PromptContext extends RuntimeState {
+  graphInputName: string;
 }
 
 export function resolveField(data: unknown, field: string): unknown {
@@ -43,8 +46,10 @@ export function buildContextSection(nodeDecl: NodeDecl, ctx: PromptContext): str
     const contextData = ctx.outputs.get(ref.context);
     if (contextData !== undefined) {
       if (ref.field) {
-        const fieldVal = resolveField(contextData, ref.field);
-        sections.push(`### ${ref.context}.${ref.field}\n\`\`\`json\n${JSON.stringify(fieldVal, null, 2)}\n\`\`\``);
+        for (const f of ref.field) {
+          const fieldVal = resolveField(contextData, f);
+          sections.push(`### ${ref.context}.${f}\n\`\`\`json\n${JSON.stringify(fieldVal, null, 2)}\n\`\`\``);
+        }
       } else {
         sections.push(`### ${ref.context}\n\`\`\`json\n${JSON.stringify(contextData, null, 2)}\n\`\`\``);
       }
@@ -52,8 +57,10 @@ export function buildContextSection(nodeDecl: NodeDecl, ctx: PromptContext): str
       // Check if input matches the context name
       if (ref.context === ctx.graphInputName) {
         if (ref.field) {
-          const fieldVal = resolveField(ctx.input, ref.field);
-          sections.push(`### ${ref.context}.${ref.field}\n\`\`\`json\n${JSON.stringify(fieldVal, null, 2)}\n\`\`\``);
+          for (const f of ref.field) {
+            const fieldVal = resolveField(ctx.input, f);
+            sections.push(`### ${ref.context}.${f}\n\`\`\`json\n${JSON.stringify(fieldVal, null, 2)}\n\`\`\``);
+          }
         } else {
           sections.push(`### ${ref.context}\n\`\`\`json\n${JSON.stringify(ctx.input, null, 2)}\n\`\`\``);
         }

@@ -65,26 +65,24 @@ function formatReads(node: NodeDecl, memoryNames: Set<string>): string {
   if (node.reads.length === 0) return 'No external context required.';
   return node.reads.map(ref => {
     const isMemory = memoryNames.has(ref.context);
-    if (isMemory) {
-      if (ref.field) {
-        return `- Load \`${ref.context}.${ref.field}\` from \`.graft/memory/${ref.context.toLowerCase()}.json\``;
-      }
-      return `- Load \`${ref.context}\` from \`.graft/memory/${ref.context.toLowerCase()}.json\``;
-    }
-    if (ref.field) {
-      return `- Load \`${ref.context}.${ref.field}\` from \`.graft/session/\``;
-    }
-    return `- Load \`${ref.context}\` from \`.graft/session/\``;
+    const fieldLabel = ref.field
+      ? (ref.field.length === 1 ? `.${ref.field[0]}` : `.{${ref.field.join(', ')}}`)
+      : '';
+    const dir = isMemory ? `.graft/memory/${ref.context.toLowerCase()}.json` : '.graft/session/';
+    return `- Load \`${ref.context}${fieldLabel}\` from \`${dir}\``;
   }).join('\n');
 }
 
 function formatWrites(node: NodeDecl, memoryNames: Set<string>): string {
-  const memoryWrites = node.writes.filter(w => memoryNames.has(w));
+  const memoryWrites = node.writes.filter(w => memoryNames.has(w.memory));
   if (memoryWrites.length === 0) return '';
   return `
 ## Memory Saving
 After producing output, save to persistent memory:
-${memoryWrites.map(w => `- Save to \`.graft/memory/${w.toLowerCase()}.json\``).join('\n')}
+${memoryWrites.map(w => {
+    const fieldLabel = w.field ? `.${w.field}` : '';
+    return `- Save to \`.graft/memory/${w.memory.toLowerCase()}.json\`${fieldLabel ? ` (field: ${w.field})` : ''}`;
+  }).join('\n')}
 
 `;
 }

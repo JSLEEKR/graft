@@ -1,6 +1,6 @@
 {
   "name": "@graft-lang/graft",
-  "version": "2.2.0",
+  "version": "3.0.0",
   "description": "Graft compiler — compile .gft graph DSL to Claude Code harness structures",
   "type": "module",
   "license": "MIT",
@@ -36,7 +36,6 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "tsc --noEmit",
-    "bench": "npx tsx benchmarks/run.ts",
     "prepublishOnly": "npm run build && npm test"
   },
   "engines": {

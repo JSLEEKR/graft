@@ -1,10 +1,10 @@
 // src/parser/parser.ts
 import { Token, TokenType, KEYWORDS } from '../lexer/tokens.js';
-import { GraftError } from '../errors/diagnostics.js';
+import { GraftError, GraftErrorCode } from '../errors/diagnostics.js';
 import {
   Program, ContextDecl, NodeDecl, EdgeDecl, GraphDecl,
   ImportDecl, MemoryDecl,
-  Field, TypeExpr, ContextRef, ProducesDecl,
+  Field, TypeExpr, ContextRef, WriteRef, ProducesDecl,
   Transform, Condition, FailureStrategy,
   EdgeTarget, ConditionalBranch,
   FlowNode,
@@ -165,7 +165,7 @@ export class Parser {
 
     let reads: ContextRef[] = [];
     let tools: string[] = [];
-    let writes: string[] = [];
+    let writes: WriteRef[] = [];
     let onFailure: FailureStrategy | undefined;
     let produces: ProducesDecl | undefined;
     let hasWrites = false;
@@ -186,7 +186,7 @@ export class Parser {
         hasWrites = true;
         this.advance();
         this.expect(TokenType.Colon);
-        writes = this.parseIdentifierList();
+        writes = this.parseWriteRefList();
       } else if (this.check(TokenType.OnFailure)) {
         this.advance();
         this.expect(TokenType.Colon);
@@ -200,7 +200,7 @@ export class Parser {
     this.expect(TokenType.RBrace);
 
     if (!produces) {
-      throw new GraftError('Node must have a produces declaration', loc);
+      throw new GraftError('Node must have a produces declaration', loc, 'error', 'PARSE_MISSING_FIELD');
     }
 
     return { name, model, budgetIn, budgetOut, reads, tools, writes, onFailure, produces, location: loc };
@@ -223,12 +223,44 @@ export class Parser {
       if (refs.length > 0) this.expect(TokenType.Comma);
       const loc = this.current().location;
       const context = this.expectIdentifier();
+      let field: string[] | undefined;
+      if (this.check(TokenType.Dot)) {
+        this.advance();
+        if (this.check(TokenType.LBrace)) {
+          this.advance();
+          const fields: string[] = [];
+          while (!this.check(TokenType.RBrace)) {
+            if (fields.length > 0) this.expect(TokenType.Comma);
+            fields.push(this.expectIdentifierOrKeyword());
+          }
+          if (fields.length === 0) {
+            throw this.error('Multi-field read must specify at least one field');
+          }
+          this.expect(TokenType.RBrace);
+          field = fields;
+        } else {
+          field = [this.expectIdentifierOrKeyword()];
+        }
+      }
+      refs.push({ context, field, location: loc });
+    }
+    this.expect(TokenType.RBracket);
+    return refs;
+  }
+
+  private parseWriteRefList(): WriteRef[] {
+    this.expect(TokenType.LBracket);
+    const refs: WriteRef[] = [];
+    while (!this.check(TokenType.RBracket)) {
+      if (refs.length > 0) this.expect(TokenType.Comma);
+      const loc = this.current().location;
+      const memory = this.expectIdentifier();
       let field: string | undefined;
       if (this.check(TokenType.Dot)) {
         this.advance();
         field = this.expectIdentifierOrKeyword();
       }
-      refs.push({ context, field, location: loc });
+      refs.push({ memory, field, location: loc });
     }
     this.expect(TokenType.RBracket);
     return refs;
@@ -777,7 +809,7 @@ export class Parser {
   private expect(type: TokenType): Token {
     const token = this.current();
     if (token.type !== type) {
-      throw this.error(`Expected '${type}', got '${token.value}' (${token.type})`);
+      throw this.error(`Expected '${type}', got '${token.value}' (${token.type})`, 'PARSE_UNEXPECTED_TOKEN');
     }
     this.advance();
     return token;
@@ -807,7 +839,7 @@ export class Parser {
     return this.current().type === TokenType.EOF;
   }
 
-  private error(message: string): GraftError {
-    return new GraftError(message, this.current().location);
+  private error(message: string, code: GraftErrorCode = 'PARSE_UNEXPECTED_TOKEN'): GraftError {
+    return new GraftError(message, this.current().location, 'error', code);
   }
 }

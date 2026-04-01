@@ -19,7 +19,7 @@ export function loadMemory(
   }
 }
 
-export function saveMemory(memoryDir: string, mem: MemoryDecl, nodeOutput: unknown): void {
+export function saveMemory(memoryDir: string, mem: MemoryDecl, nodeOutput: unknown, fields?: string[]): void {
   fs.mkdirSync(memoryDir, { recursive: true });
   const filePath = path.join(memoryDir, `${mem.name.toLowerCase()}.json`);
 
@@ -34,7 +34,10 @@ export function saveMemory(memoryDir: string, mem: MemoryDecl, nodeOutput: unkno
 
   if (typeof nodeOutput === 'object' && nodeOutput !== null) {
     const output = nodeOutput as Record<string, unknown>;
-    for (const field of mem.fields) {
+    const targetFields = fields
+      ? mem.fields.filter(f => fields.includes(f.name))
+      : mem.fields;
+    for (const field of targetFields) {
       if (field.name in output) {
         current[field.name] = output[field.name];
       }

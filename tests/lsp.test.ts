@@ -125,10 +125,10 @@ describe('getHoverInfo', () => {
         budgetOut: 2000,
         reads: [
           { context: 'TaskSpec', location: loc },
-          { context: 'Research', field: 'findings', location: loc },
+          { context: 'Research', field: ['findings'], location: loc },
         ],
         tools: [],
-        writes: ['session_log'],
+        writes: [{ memory: 'session_log', location: loc }],
         onFailure: undefined,
         produces: {
           name: 'Analysis',

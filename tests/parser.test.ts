@@ -99,7 +99,7 @@ describe('Parser', () => {
       `);
       expect(program.nodes[0].reads[0]).toMatchObject({
         context: 'Research',
-        field: 'findings',
+        field: ['findings'],
       });
     });
 

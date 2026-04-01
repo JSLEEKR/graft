@@ -5,6 +5,8 @@ import * as path from 'node:path';
 import { compile, compileAndWrite } from './compiler.js';
 import { VERSION } from './version.js';
 
+const KNOWN_BACKENDS = new Set(['claude']);
+
 const program = new Command();
 
 program
@@ -17,7 +19,12 @@ program
   .description('Compile .gft source to Claude Code harness structure')
   .argument('<file>', '.gft source file')
   .option('--out-dir <dir>', 'output directory', '.')
-  .action((file: string, opts: { outDir: string }) => {
+  .option('--backend <name>', 'codegen backend', 'claude')
+  .action((file: string, opts: { outDir: string; backend: string }) => {
+    if (!KNOWN_BACKENDS.has(opts.backend)) {
+      console.error(`Error: unknown backend '${opts.backend}'. Available: ${[...KNOWN_BACKENDS].join(', ')}`);
+      process.exit(1);
+    }
     const source = readSource(file);
 
     let result;

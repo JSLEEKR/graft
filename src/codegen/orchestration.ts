@@ -88,8 +88,8 @@ function generateSteps(
             memoryLines += `\n- Memory load: \`.graft/memory/${mr.context.toLowerCase()}.json\``;
           }
           for (const w of nodeDecl.writes) {
-            if (memoryNames.has(w)) {
-              memoryLines += `\n- Memory save: \`.graft/memory/${w.toLowerCase()}.json\``;
+            if (memoryNames.has(w.memory)) {
+              memoryLines += `\n- Memory save: \`.graft/memory/${w.memory.toLowerCase()}.json\``;
             }
           }
         }
@@ -123,8 +123,8 @@ function generateSteps(
               branchMemAnnotations += ` [mem-read: ${mr.context.toLowerCase()}]`;
             }
             for (const w of branchDecl.writes) {
-              if (memoryNames.has(w)) {
-                branchMemAnnotations += ` [mem-write: ${w.toLowerCase()}]`;
+              if (memoryNames.has(w.memory)) {
+                branchMemAnnotations += ` [mem-write: ${w.memory.toLowerCase()}]`;
               }
             }
           }

@@ -1,4 +1,4 @@
-import { Program, FlowNode } from '../parser/ast.js';
+import { Program, FlowNode, WriteRef } from '../parser/ast.js';
 import { GraftError, SourceLocation } from '../errors/diagnostics.js';
 import { ProgramIndex } from '../program-index.js';
 
@@ -6,29 +6,20 @@ export class ScopeChecker {
   private program: Program;
   private contextNames: Set<string>;
   private nodeNames: Set<string>;
-  private producesMap: Map<string, Set<string>>; // produces name -> field names
   private memoryNames: Set<string>;
-  private memoryFieldsMap: Map<string, Set<string>>;
-  private nodeWritesMap: Map<string, string[]>; // node name -> writes targets
+  private nodeWritesMap: Map<string, WriteRef[]>; // node name -> writes targets
   private index: ProgramIndex;
 
-  constructor(program: Program) {
+  constructor(program: Program, index?: ProgramIndex) {
     this.program = program;
-    this.index = new ProgramIndex(program);
+    this.index = index ?? new ProgramIndex(program);
     this.contextNames = new Set(program.contexts.map(c => c.name));
     this.nodeNames = new Set(program.nodes.map(n => n.name));
-    this.producesMap = new Map();
     this.memoryNames = new Set(program.memories.map(m => m.name));
-    this.memoryFieldsMap = new Map();
     this.nodeWritesMap = new Map();
 
     for (const node of program.nodes) {
-      const fieldNames = new Set(node.produces.fields.map(f => f.name));
-      this.producesMap.set(node.produces.name, fieldNames);
       this.nodeWritesMap.set(node.name, node.writes);
-    }
-    for (const mem of program.memories) {
-      this.memoryFieldsMap.set(mem.name, new Set(mem.fields.map(f => f.name)));
     }
   }
 
@@ -41,6 +32,7 @@ export class ScopeChecker {
     this.checkEdges(errors);
     this.checkMultipleGraphs(errors);
     this.checkGraphFlow(errors);
+    this.checkFailureStrategies(errors);
     return errors;
   }
 
@@ -54,7 +46,7 @@ export class ScopeChecker {
           'SCOPE_DUPLICATE_NAME',
         ));
       }
-      if (this.producesMap.has(mem.name)) {
+      if (this.index.producesFieldsMap.has(mem.name)) {
         errors.push(new GraftError(
           `Name '${mem.name}' conflicts with a produces declaration`,
           mem.location,
@@ -93,7 +85,7 @@ export class ScopeChecker {
       for (const ref of node.reads) {
         // ref.context could be a context name, produces name, or memory name
         const isContext = this.contextNames.has(ref.context);
-        const isProduces = this.producesMap.has(ref.context);
+        const isProduces = this.index.producesFieldsMap.has(ref.context);
         const isMemory = this.memoryNames.has(ref.context);
 
         if (!isContext && !isProduces && !isMemory) {
@@ -106,38 +98,44 @@ export class ScopeChecker {
           continue;
         }
 
-        // Check partial reference field
+        // Check partial reference fields
         if (ref.field) {
           if (isContext) {
             const ctx = this.index.contextMap.get(ref.context)!;
             const fieldNames = new Set(ctx.fields.map(f => f.name));
-            if (!fieldNames.has(ref.field)) {
-              errors.push(new GraftError(
-                `Field '${ref.field}' does not exist in context '${ref.context}'`,
-                ref.location,
-                'error',
-                'SCOPE_FIELD_NOT_FOUND',
-              ));
+            for (const f of ref.field) {
+              if (!fieldNames.has(f)) {
+                errors.push(new GraftError(
+                  `Field '${f}' does not exist in context '${ref.context}'`,
+                  ref.location,
+                  'error',
+                  'SCOPE_FIELD_NOT_FOUND',
+                ));
+              }
             }
           } else if (isProduces) {
-            const fields = this.producesMap.get(ref.context)!;
-            if (!fields.has(ref.field)) {
-              errors.push(new GraftError(
-                `Field '${ref.field}' does not exist in produces '${ref.context}'`,
-                ref.location,
-                'error',
-                'SCOPE_FIELD_NOT_FOUND',
-              ));
+            const fields = this.index.producesFieldsMap.get(ref.context)!;
+            for (const f of ref.field) {
+              if (!fields.has(f)) {
+                errors.push(new GraftError(
+                  `Field '${f}' does not exist in produces '${ref.context}'`,
+                  ref.location,
+                  'error',
+                  'SCOPE_FIELD_NOT_FOUND',
+                ));
+              }
             }
           } else if (isMemory) {
-            const fields = this.memoryFieldsMap.get(ref.context)!;
-            if (!fields.has(ref.field)) {
-              errors.push(new GraftError(
-                `Field '${ref.field}' does not exist in memory '${ref.context}'`,
-                ref.location,
-                'error',
-                'SCOPE_FIELD_NOT_FOUND',
-              ));
+            const fields = this.index.memoryFieldsMap.get(ref.context)!;
+            for (const f of ref.field) {
+              if (!fields.has(f)) {
+                errors.push(new GraftError(
+                  `Field '${f}' does not exist in memory '${ref.context}'`,
+                  ref.location,
+                  'error',
+                  'SCOPE_FIELD_NOT_FOUND',
+                ));
+              }
             }
           }
         }
@@ -147,14 +145,24 @@ export class ScopeChecker {
 
   private checkNodeWrites(errors: GraftError[]): void {
     for (const node of this.program.nodes) {
-      for (const writeName of node.writes) {
-        if (!this.memoryNames.has(writeName)) {
+      for (const writeRef of node.writes) {
+        if (!this.memoryNames.has(writeRef.memory)) {
           errors.push(new GraftError(
-            `writes target '${writeName}' is not a declared memory`,
-            node.location,
+            `writes target '${writeRef.memory}' is not a declared memory`,
+            writeRef.location,
             'error',
             'SCOPE_INVALID_WRITES',
           ));
+        } else if (writeRef.field) {
+          const fields = this.index.memoryFieldsMap.get(writeRef.memory)!;
+          if (!fields.has(writeRef.field)) {
+            errors.push(new GraftError(
+              `Field '${writeRef.field}' does not exist in memory '${writeRef.memory}'`,
+              writeRef.location,
+              'error',
+              'SCOPE_FIELD_NOT_FOUND',
+            ));
+          }
         }
       }
     }
@@ -199,7 +207,7 @@ export class ScopeChecker {
           `Transforms on conditional edge from '${edge.source}' may not be applied at runtime`,
           edge.location,
           'warning',
-          'TRANSFORM_ON_CONDITIONAL',
+          'SCOPE_TRANSFORM_CONDITIONAL',
         ));
       }
     }
@@ -229,7 +237,7 @@ export class ScopeChecker {
       }
 
       // Validate graph output references a declared produces type
-      if (!this.producesMap.has(graph.output)) {
+      if (!this.index.producesFieldsMap.has(graph.output)) {
         errors.push(new GraftError(
           `Graph output '${graph.output}' is not a declared produces type`,
           graph.location,
@@ -309,7 +317,7 @@ export class ScopeChecker {
               'warning',
               'SCOPE_BINDING_COLLISION',
             ));
-          } else if (this.producesMap.has(binding)) {
+          } else if (this.index.producesFieldsMap.has(binding)) {
             errors.push(new GraftError(
               `Foreach binding '${binding}' collides with produces declaration '${binding}'`,
               location,
@@ -339,13 +347,31 @@ export class ScopeChecker {
     }
   }
 
+  private checkFailureStrategies(errors: GraftError[]): void {
+    for (const node of this.program.nodes) {
+      if (!node.onFailure) continue;
+      const strategy = node.onFailure;
+      if (strategy.type === 'fallback' || strategy.type === 'retry_then_fallback') {
+        if (!this.nodeNames.has(strategy.node)) {
+          errors.push(new GraftError(
+            `Fallback node '${strategy.node}' in '${node.name}' on_failure is not a declared node`,
+            node.location,
+            'error',
+            'SCOPE_INVALID_FALLBACK',
+          ));
+        }
+      }
+    }
+  }
+
   private checkParallelWrites(branches: string[], location: SourceLocation, errors: GraftError[]): void {
     const memoryWriters = new Map<string, string[]>();
 
     for (const branch of branches) {
       const writes = this.nodeWritesMap.get(branch);
       if (!writes) continue;
-      for (const memName of writes) {
+      for (const writeRef of writes) {
+        const memName = writeRef.memory;
         const writers = memoryWriters.get(memName);
         if (writers) {
           writers.push(branch);

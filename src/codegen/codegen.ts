@@ -2,33 +2,36 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Program } from '../parser/ast.js';
 import { TokenReport } from '../analyzer/estimator.js';
-import { generateAgent } from './agents.js';
-import { generateHook } from './hooks.js';
-import { generateOrchestration } from './orchestration.js';
-import { generateSettings } from './settings.js';
+import { ProgramIndex } from '../program-index.js';
+import { CodegenBackend, CodegenContext } from './backend.js';
+import { ClaudeCodeBackend } from './claude-backend.js';
 
 export interface GeneratedFile {
   path: string;
   content: string;
 }
 
-export function generate(program: Program, report: TokenReport, sourceFile: string): GeneratedFile[] {
-  const files: GeneratedFile[] = [];
+const defaultBackend = new ClaudeCodeBackend();
 
-  // Build memory name set for agent generation
+export function generate(program: Program, report: TokenReport, sourceFile: string, index?: ProgramIndex, backend?: CodegenBackend): GeneratedFile[] {
+  const idx = index ?? new ProgramIndex(program);
+  const be = backend ?? defaultBackend;
+  const ctx: CodegenContext = { program, report, index: idx, sourceFile };
+
+  const files: GeneratedFile[] = [];
   const memoryNames = new Set(program.memories.map(m => m.name));
 
-  // Agents — pass memoryNames
+  // Agents
   for (const node of program.nodes) {
     files.push({
       path: `.claude/agents/${node.name.toLowerCase()}.md`,
-      content: generateAgent(node, memoryNames),
+      content: be.generateAgent(node, memoryNames, ctx),
     });
   }
 
   // Hooks
   for (const edge of program.edges) {
-    const hook = generateHook(edge);
+    const hook = be.generateHook(edge, ctx);
     if (hook && edge.target.kind === 'direct') {
       const source = edge.source.toLowerCase();
       const target = edge.target.node.toLowerCase();
@@ -42,11 +45,11 @@ export function generate(program: Program, report: TokenReport, sourceFile: stri
   // Orchestration
   files.push({
     path: '.claude/CLAUDE.md',
-    content: generateOrchestration(program, report),
+    content: be.generateOrchestration(ctx),
   });
 
   // Settings
-  const settings = generateSettings(program, sourceFile);
+  const settings = be.generateSettings(ctx);
   files.push({
     path: '.claude/settings.json',
     content: JSON.stringify(settings, null, 2),

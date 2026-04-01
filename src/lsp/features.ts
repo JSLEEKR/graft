@@ -21,10 +21,11 @@ export function toDiagnostics(errors: GraftError[], warnings: GraftError[]): Dia
 function makeDiagnostic(e: GraftError, severity: DiagnosticSeverity): Diagnostic {
   const line = Math.max(0, e.location.line - 1);
   const character = Math.max(0, e.location.column - 1);
+  const endCharacter = character + (e.location.length ?? 1);
   return {
     range: {
       start: { line, character },
-      end: { line, character },
+      end: { line, character: endCharacter },
     },
     severity,
     message: e.message,
@@ -64,8 +65,13 @@ export function getHoverInfo(word: string, index: ProgramIndex): Hover | null {
 
   const node = index.nodeMap.get(word);
   if (node) {
-    const reads = node.reads.map(r => r.field ? `${r.context}.${r.field}` : r.context).join(', ');
-    const writes = node.writes.length > 0 ? `\nwrites: ${node.writes.join(', ')}` : '';
+    const reads = node.reads.map(r => {
+      if (!r.field) return r.context;
+      return r.field.length === 1 ? `${r.context}.${r.field[0]}` : `${r.context}.{${r.field.join(', ')}}`;
+    }).join(', ');
+    const writes = node.writes.length > 0
+      ? `\nwrites: ${node.writes.map(w => w.field ? `${w.memory}.${w.field}` : w.memory).join(', ')}`
+      : '';
     const producesFields = node.produces.fields.map(f => `  ${f.name}: ${formatType(f.type)}`).join('\n');
     return mkHover(
       `**node** ${node.name}\n` +

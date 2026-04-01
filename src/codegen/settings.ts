@@ -48,12 +48,12 @@ function findFirstNodeName(flow: FlowNode[]): string | undefined {
   return undefined;
 }
 
-export function generateSettings(program: Program, sourceFile: string): GraftSettings {
-  const index = new ProgramIndex(program);
+export function generateSettings(program: Program, sourceFile: string, index?: ProgramIndex): GraftSettings {
+  const idx = index ?? new ProgramIndex(program);
   const graph = program.graphs[0];
   const firstNodeName = graph ? findFirstNodeName(graph.flow) : undefined;
   const firstNodeModel = firstNodeName
-    ? index.nodeMap.get(firstNodeName)?.model
+    ? idx.nodeMap.get(firstNodeName)?.model
     : undefined;
   const defaultModel = firstNodeModel
     ? (MODEL_MAP[firstNodeModel] || firstNodeModel)

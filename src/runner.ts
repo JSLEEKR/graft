@@ -29,6 +29,8 @@ export async function run(opts: RunInput): Promise<RunResult> {
     return { success: false, graph: '', nodeResults: [], finalOutput: null, totalDurationMs: 0, errors: compileResult.errors.map(e => e.message) };
   }
 
+  const programIndex = compileResult.index;
+
   let input: Record<string, unknown>;
   if (opts.input) {
     input = opts.input;
@@ -46,6 +48,6 @@ export async function run(opts: RunInput): Promise<RunResult> {
   const executor = new Executor(compileResult.program, {
     sourceFile: path.basename(sourceFile), input, workDir,
     dryRun: opts.dryRun, verbose: opts.verbose, timeoutMs: opts.timeoutMs, spawner: opts.spawner,
-  });
+  }, programIndex);
   return executor.execute();
 }
