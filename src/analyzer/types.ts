@@ -1,4 +1,4 @@
-import { Program } from '../parser/ast.js';
+import { Program, TypeExpr } from '../parser/ast.js';
 import { GraftError } from '../errors/diagnostics.js';
 import { ProgramIndex } from '../program-index.js';
 
@@ -15,6 +15,7 @@ export class TypeChecker {
     const diagnostics: GraftError[] = [];
     this.checkEdgeTransforms(diagnostics);
     this.checkWritesSchemaOverlap(diagnostics);
+    this.checkConditionTypes(diagnostics);
     return diagnostics;
   }
 
@@ -51,7 +52,6 @@ export class TypeChecker {
       if (!sourceFields) continue; // scope checker will catch this
 
       for (const transform of edge.transforms) {
-        // TODO: condition type compatibility -- e.g., >= on String fields (v2)
         if (transform.type === 'select') {
           for (const f of transform.fields) {
             if (!sourceFields.has(f)) {
@@ -85,4 +85,39 @@ export class TypeChecker {
       }
     }
   }
+
+  private checkConditionTypes(errors: GraftError[]): void {
+    for (const edge of this.program.edges) {
+      if (edge.target.kind !== 'conditional') continue;
+
+      const sourceFields = this.index.producesFieldsMap.get(edge.source);
+      if (!sourceFields) continue; // scope checker catches this
+
+      for (const branch of edge.target.branches) {
+        if (!branch.condition) continue; // else branch
+        const { op, field } = branch.condition;
+
+        // Only ordered comparisons need numeric types
+        if (op === '==' || op === '!=') continue;
+
+        const fieldType = sourceFields.get(field);
+        if (!fieldType) continue; // scope checker catches this
+
+        if (!isNumericType(fieldType)) {
+          errors.push(new GraftError(
+            `Ordered comparison '${op}' requires numeric type, but field '${field}' has type '${fieldType.kind === 'primitive' ? fieldType.name : fieldType.kind}'`,
+            edge.location,
+            'error',
+            'TYPE_CONDITION_MISMATCH',
+          ));
+        }
+      }
+    }
+  }
+}
+
+function isNumericType(type: TypeExpr): boolean {
+  if (type.kind === 'primitive') return type.name === 'Int' || type.name === 'Float';
+  if (type.kind === 'primitive_range') return true; // Float(0..1) is numeric
+  return false;
 }

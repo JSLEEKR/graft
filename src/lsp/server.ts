@@ -16,7 +16,7 @@ import { Lexer } from '../lexer/lexer.js';
 import { Parser } from '../parser/parser.js';
 import type { Program } from '../parser/ast.js';
 import type { ProgramIndex } from '../program-index.js';
-import { toDiagnostics, getHoverInfo, getDefinitionLocation, getWordAtPosition, getCompletions, extractUndefinedName, buildAutoImportEdit, computeRelativeImportPath } from './features.js';
+import { toDiagnostics, getHoverInfo, getDefinitionLocation, getWordAtPosition, getCompletions, extractUndefinedName, buildAutoImportEdit, computeRelativeImportPath, getDocumentSymbols } from './features.js';
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
@@ -69,6 +69,7 @@ connection.onInitialize((params) => {
       completionProvider: {
         triggerCharacters: ['.', '[', '{'],
       },
+      documentSymbolProvider: true,
       codeActionProvider: {
         codeActionKinds: [CodeActionKind.QuickFix],
       },
@@ -189,6 +190,12 @@ connection.onCompletion((params) => {
     state ?? null,
     resolveImportNames,
   );
+});
+
+connection.onDocumentSymbol((params) => {
+  const state = touchCache(params.textDocument.uri);
+  if (!state) return [];
+  return getDocumentSymbols(state.program, state.index);
 });
 
 // --- Workspace Export Scanning ---

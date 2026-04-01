@@ -25,7 +25,8 @@ export type ScopeErrorCode =
 export type TypeErrorCode =
   | 'TYPE_FIELD_NOT_FOUND'
   | 'TYPE_SCHEMA_MISMATCH'
-  | 'TYPE_WRITE_FIELD_OVERLAP';
+  | 'TYPE_WRITE_FIELD_OVERLAP'
+  | 'TYPE_CONDITION_MISMATCH';
 
 export type BudgetErrorCode =
   | 'BUDGET_EXCEEDED'
