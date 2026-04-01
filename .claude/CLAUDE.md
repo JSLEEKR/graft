@@ -499,8 +499,19 @@ Subagent DevNotes-Writer:
     Orchestrator applies the draft:
     1. Append section to GraftDevNotes/graft-v1-development-notes.md
     2. Create NEW .mdx file in jslee-homepage/content/blog/
-    3. Commit + push both repos
-    4. Do NOT modify existing blog posts
+    3. Update README.md in graft repo to reflect current version
+    4. Commit + push both repos
+    5. Do NOT modify existing blog posts
+
+  README Update Rules:
+    - Update version number and feature list to match current release
+    - Update code examples if new syntax was added (e.g., import, memory, writes)
+    - Update "Usage" section with new CLI commands (e.g., graft run)
+    - Update "Compiler Architecture" diagram if pipeline changed
+    - Update "Project Structure" tree if new directories/files added
+    - Update test count in "Development" section
+    - Update "Scope" section: move delivered features from Future to Included
+    - Keep README concise — link to blog posts for detailed dev notes
 ```
 
 ### Transition Output Structure

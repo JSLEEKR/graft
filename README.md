@@ -2,56 +2,49 @@
 
 **A graph-native language for AI agent harness engineering.**
 
-Graft compiles `.gft` source files into Claude Code harness structures (`.claude/` directory). It provides declarative context flow definitions, compile-time token budget analysis, and structured inter-agent communication — replacing wasteful natural language token passing in multi-agent systems.
+Graft compiles `.gft` source files into Claude Code harness structures (`.claude/` directory) and executes them. It provides declarative context flow definitions, compile-time token budget analysis, structured inter-agent communication, cross-file imports, and persistent memory — replacing wasteful natural language token passing in multi-agent systems.
 
 ```graft
-context UserRequest(max_tokens: 500) {
-  question: String
+import { UserMessage, SystemConfig } from "./shared.gft"
+
+memory ConversationLog(max_tokens: 2k, storage: file) {
+  turns: List<Turn { role: String, content: String }>
+  summary: Optional<String>
 }
 
-node Researcher(model: sonnet, budget: 2k/1k) {
-  reads: [UserRequest]
-  produces Research {
-    findings: List<String>
-    confidence: Float(0..1)
+node Responder(model: sonnet, budget: 4k/2k) {
+  reads: [UserMessage, SystemConfig, ConversationLog]
+  writes: [ConversationLog]
+  produces Response {
+    reply: String
   }
 }
 
-node Writer(model: haiku, budget: 1500/800) {
-  reads: [Research.findings]
-  produces Answer {
-    response: String
-  }
-}
+edge Responder -> done
 
-edge Researcher -> Writer
-  | select(findings)
-  | compact
-
-graph SimpleQA(input: UserRequest, output: Answer, budget: 6k) {
-  Researcher -> Writer -> done
+graph Chat(input: UserMessage, output: Response, budget: 8k) {
+  Responder -> done
 }
 ```
 
 ```
-$ graft compile hello.gft
+$ graft compile chatbot.gft
 
 ✓ Parse OK
+✓ Imports resolved (1 file)
 ✓ Scope check OK
 ✓ Type check OK
 ✓ Token analysis:
-    Researcher           in ~  2,000  out ~  1,000
-    Writer               in ~    210  out ~    800
-    Best path:     4,010 tokens ✓ within budget (6,000)
-    Worst path:    4,010 tokens ✓ within budget (6,000)
+    Responder            in ~  2,600  out ~  2,000
+    Best path:     4,600 tokens ✓ within budget (8,000)
+    Worst path:    4,600 tokens ✓ within budget (8,000)
 
 Generated:
   .claude/CLAUDE.md
-  .claude/agents/researcher.md
-  .claude/agents/writer.md
-  .claude/hooks/researcher-to-writer.sh
+  .claude/agents/responder.md
   .claude/settings.json
   .graft/session/node_outputs/.gitkeep
+  .graft/memory/.gitkeep
   .graft/token_log.txt
 ```
 
@@ -65,6 +58,8 @@ Current multi-agent systems waste tokens by passing full natural language contex
 | Token budgets | Only known at runtime | Compile-time static analysis |
 | Inter-agent communication | Natural language strings | Structured IR with schemas |
 | Context scope | Implicit, leaks everywhere | Explicit `reads` declarations, compiler-verified |
+| Cross-file sharing | Copy-paste definitions | `import { X } from "./shared.gft"` |
+| State persistence | External storage setup | `memory` declarations with automatic load/save |
 
 ## Installation
 
@@ -79,10 +74,26 @@ npm run build
 
 ```bash
 # Compile: .gft → .claude/ harness structure
-node dist/index.js compile <file.gft> [--out-dir <dir>]
+graft compile <file.gft> [--out-dir <dir>]
 
 # Check: parse + analyze only (no file generation)
-node dist/index.js check <file.gft>
+graft check <file.gft>
+
+# Run: compile and execute a pipeline
+graft run <file.gft> --input <json> [--dry-run] [--verbose] [--timeout <seconds>]
+```
+
+### Examples
+
+```bash
+# Compile the chatbot example (uses imports + memory)
+graft compile examples/chatbot.gft --out-dir ./output
+
+# Dry run — simulate execution without spawning Claude subprocesses
+graft run examples/hello.gft --input '{"question":"test"}' --dry-run
+
+# Check a library file (no graph required)
+graft check examples/shared.gft
 ```
 
 ## Language Overview
@@ -123,11 +134,51 @@ edge Analyzer -> Reviewer
   | compact
 ```
 
-**Graph** — execution unit with budget:
+**Graph** — execution unit with budget and flow control:
 ```graft
 graph CodeReview(input: TaskSpec, output: FinalReport, budget: 35k) {
-  Planner -> Implementer -> Verifier -> Aggregator -> done
+  Planner
+  -> parallel {
+    SecurityReviewer
+    PerformanceReviewer
+    StyleReviewer
+  }
+  -> Aggregator -> done
 }
+```
+
+**Import** — share contexts and nodes across files:
+```graft
+import { UserMessage, SystemConfig } from "./shared.gft"
+```
+
+**Memory** — persistent state across pipeline runs:
+```graft
+memory UserPrefs(max_tokens: 500, storage: file) {
+  theme: String
+  language: String
+}
+
+node Personalizer(model: haiku, budget: 2k/1k) {
+  reads: [UserPrefs]
+  writes: [UserPrefs]
+  produces Response { content: String }
+}
+```
+
+### Flow Control
+
+```graft
+# Sequential
+A -> B -> C -> done
+
+# Parallel execution
+parallel { A B C } -> Aggregator -> done
+
+# Foreach iteration
+foreach(Splitter.output.tasks as task, max_iterations: 10) {
+  Processor -> Validator
+} -> Collector -> done
 ```
 
 ### Type System
@@ -157,6 +208,7 @@ Graft compiles to Claude Code harness structure:
 | `node` | `.claude/agents/*.md` | Agent definition (model, tools, output schema) |
 | `edge` | `.claude/hooks/*.sh` | Data transform between nodes (jq) |
 | `graph` | `.claude/CLAUDE.md` | Orchestration plan |
+| `memory` | `.graft/memory/*.json` | Persistent state across runs |
 | settings | `.claude/settings.json` | Model routing, budget, hook registration |
 
 ## Compiler Architecture
@@ -165,11 +217,13 @@ Graft compiles to Claude Code harness structure:
 .gft source
   → Lexer (tokenization)
   → Parser (recursive descent → AST)
+  → Resolver (import resolution, circular detection)
   → Analyzer
-      ├── ScopeChecker (reads/edge/flow validation)
+      ├── ScopeChecker (reads/edge/flow/memory validation)
       ├── TypeChecker (transform field validation)
       └── TokenEstimator (budget analysis)
   → CodeGen (AST → .claude/ structure)
+  → Executor (optional: runtime pipeline execution)
 ```
 
 ## Project Structure
@@ -178,6 +232,7 @@ Graft compiles to Claude Code harness structure:
 src/
 ├── index.ts              # CLI entry (commander)
 ├── compiler.ts           # Pipeline orchestrator
+├── runner.ts             # graft run command
 ├── errors/diagnostics.ts # GraftError + SourceLocation
 ├── lexer/
 │   ├── tokens.ts         # TokenType enum, Token interface
@@ -185,42 +240,43 @@ src/
 ├── parser/
 │   ├── ast.ts            # AST type definitions
 │   └── parser.ts         # Recursive descent parser
+├── resolver/
+│   └── resolver.ts       # Import resolution + circular detection
 ├── analyzer/
 │   ├── scope.ts          # Scope checker
 │   ├── types.ts          # Type checker
 │   └── estimator.ts      # Token flow estimator
-└── codegen/
-    ├── codegen.ts        # Generator orchestrator
-    ├── agents.ts         # Node → agent .md
-    ├── hooks.ts          # Edge → hook .sh
-    ├── orchestration.ts  # Graph → CLAUDE.md
-    └── settings.ts       # → settings.json
+├── codegen/
+│   ├── codegen.ts        # Generator orchestrator
+│   ├── agents.ts         # Node → agent .md
+│   ├── hooks.ts          # Edge → hook .sh
+│   ├── orchestration.ts  # Graph → CLAUDE.md
+│   └── settings.ts       # → settings.json
+└── runtime/
+    ├── executor.ts       # Pipeline execution engine
+    ├── subprocess.ts     # Claude CLI spawning
+    └── transforms.ts     # Edge transform functions
 ```
 
 ## Development
 
 ```bash
-npm test              # Run all 110 tests
+npm test              # Run all 249 tests
 npm run build         # Compile TypeScript
+npm run bench         # Run 16 benchmarks
 npx tsc --noEmit      # Type check only
 ```
 
-## v1 Scope
+## Version History
 
-### Included
-- Lexer, recursive descent parser, AST
-- Static analysis: scope checking, type checking, token flow estimation
-- Code generator: AST → `.claude/` structure
-- CLI: `graft compile`, `graft check`
-- Grammar: `context`, `node`, `edge` (with pipe transforms), `graph` (sequential flow)
+| Version | Features |
+|---------|----------|
+| **v2.0** | Import system, persistent memory, writes clause, 249 tests |
+| **v1.2** | `graft run` execution engine, dry run, parallel/foreach runtime |
+| **v1.1** | `parallel {}`, `foreach() {}` flow control, multi-field select |
+| **v1.0** | Full compiler pipeline, CLI, 110 tests, 14 benchmarks |
 
-### Future (v2+)
-- `memory`, `import` declarations
-- `foreach`, `parallel` flow control
-- `Sequential`/`Indexed` context types
-- `graft run`, `graft analyze` commands
-- Runtime token accounting
-- Multi-provider model support
+See [CHANGELOG.md](CHANGELOG.md) for details. Dev notes on [jsleekr.com](https://jsleekr.com).
 
 ## Design Philosophy
 
@@ -228,7 +284,7 @@ npx tsc --noEmit      # Type check only
 2. **Declare, don't wire.** Define agent communication declaratively; the compiler optimizes.
 3. **Token budgets are types.** Token safety at compile time, like memory safety.
 4. **Edges are transforms, not wires.** Token savings happen at the edges.
-5. **Memory has hierarchy.** Hot/Warm/Cold memory tiers manage context automatically.
+5. **Files are modules.** Share contexts and nodes across pipelines via imports.
 
 ## License
 
