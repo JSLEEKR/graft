@@ -8,6 +8,7 @@ export class ScopeChecker {
   private producesMap: Map<string, Set<string>>; // produces name -> field names
   private memoryNames: Set<string>;
   private memoryFieldsMap: Map<string, Set<string>>;
+  private nodeWritesMap: Map<string, string[]>; // node name -> writes targets
 
   constructor(program: Program) {
     this.program = program;
@@ -16,10 +17,12 @@ export class ScopeChecker {
     this.producesMap = new Map();
     this.memoryNames = new Set(program.memories.map(m => m.name));
     this.memoryFieldsMap = new Map();
+    this.nodeWritesMap = new Map();
 
     for (const node of program.nodes) {
       const fieldNames = new Set(node.produces.fields.map(f => f.name));
       this.producesMap.set(node.produces.name, fieldNames);
+      this.nodeWritesMap.set(node.name, node.writes);
     }
     for (const mem of program.memories) {
       this.memoryFieldsMap.set(mem.name, new Set(mem.fields.map(f => f.name)));
@@ -29,6 +32,7 @@ export class ScopeChecker {
   check(): GraftError[] {
     const errors: GraftError[] = [];
     this.checkDuplicateNames(errors);
+    this.checkMaxTokens(errors);
     this.checkNodeReads(errors);
     this.checkNodeWrites(errors);
     this.checkEdges(errors);
@@ -47,6 +51,25 @@ export class ScopeChecker {
       if (this.producesMap.has(mem.name)) {
         errors.push(new GraftError(
           `Name '${mem.name}' conflicts with a produces declaration`,
+          mem.location,
+        ));
+      }
+    }
+  }
+
+  private checkMaxTokens(errors: GraftError[]): void {
+    for (const ctx of this.program.contexts) {
+      if (ctx.maxTokens <= 0) {
+        errors.push(new GraftError(
+          `Context '${ctx.name}' has invalid max_tokens: ${ctx.maxTokens} (must be > 0)`,
+          ctx.location,
+        ));
+      }
+    }
+    for (const mem of this.program.memories) {
+      if (mem.maxTokens <= 0) {
+        errors.push(new GraftError(
+          `Memory '${mem.name}' has invalid max_tokens: ${mem.maxTokens} (must be > 0)`,
           mem.location,
         ));
       }
@@ -187,6 +210,7 @@ export class ScopeChecker {
               ));
             }
           }
+          this.checkParallelWrites(step.branches, location, errors);
           break;
         case 'foreach': {
           // Validate source node exists
@@ -217,6 +241,33 @@ export class ScopeChecker {
           this.walkFlowNodes(step.body, location, errors);
           break;
         }
+      }
+    }
+  }
+
+  private checkParallelWrites(branches: string[], location: SourceLocation, errors: GraftError[]): void {
+    const memoryWriters = new Map<string, string[]>();
+
+    for (const branch of branches) {
+      const writes = this.nodeWritesMap.get(branch);
+      if (!writes) continue;
+      for (const memName of writes) {
+        const writers = memoryWriters.get(memName);
+        if (writers) {
+          writers.push(branch);
+        } else {
+          memoryWriters.set(memName, [branch]);
+        }
+      }
+    }
+
+    for (const [memName, writers] of memoryWriters) {
+      if (writers.length > 1) {
+        errors.push(new GraftError(
+          `Nodes ${writers.map(w => `'${w}'`).join(' and ')} both write to memory '${memName}' in parallel`,
+          location,
+          'warning',
+        ));
       }
     }
   }

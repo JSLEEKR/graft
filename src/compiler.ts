@@ -65,12 +65,19 @@ export function compile(source: string, sourceFile: string): CompileResult {
   }
 
   // Analyze: scope
-  const scopeErrors = new ScopeChecker(program).check();
-  errors.push(...scopeErrors);
+  const scopeDiagnostics = new ScopeChecker(program).check();
 
   // Analyze: types
-  const typeErrors = new TypeChecker(program).check();
-  errors.push(...typeErrors);
+  const typeDiagnostics = new TypeChecker(program).check();
+
+  // Separate errors from warnings
+  for (const d of [...scopeDiagnostics, ...typeDiagnostics]) {
+    if (d.severity === 'warning') {
+      warnings.push(d);
+    } else {
+      errors.push(d);
+    }
+  }
 
   if (errors.length > 0) {
     return { success: false, program, errors, warnings };
