@@ -271,4 +271,246 @@ graph SimpleRun(input: UserRequest, output: Analysis, budget: 6k) {
     });
     expect(result.tokenUsage!.perNode[0].actual).toBe(700);
   });
+
+  // --- Integration tests: multi-node, parallel, format, threshold ---
+
+  const MULTI_NODE_GFT = `
+context UserRequest(max_tokens: 500) {
+  question: String
+}
+
+node Researcher(model: sonnet, budget: 2k/1k) {
+  reads: [UserRequest]
+  produces Research {
+    findings: String
+  }
+}
+
+node Writer(model: sonnet, budget: 2k/1k) {
+  reads: [Research]
+  produces Article {
+    content: String
+  }
+}
+
+edge Researcher -> Writer
+
+graph Pipeline(input: UserRequest, output: Article, budget: 8k) {
+  Researcher -> Writer -> done
+}
+`;
+
+  const PARALLEL_GFT = `
+context UserRequest(max_tokens: 500) {
+  question: String
+}
+
+node AnalyzerA(model: sonnet, budget: 2k/1k) {
+  reads: [UserRequest]
+  produces ResultA {
+    data: String
+  }
+}
+
+node AnalyzerB(model: haiku, budget: 1k/500) {
+  reads: [UserRequest]
+  produces ResultB {
+    data: String
+  }
+}
+
+graph ParallelRun(input: UserRequest, output: ResultA, budget: 8k) {
+  parallel { AnalyzerA, AnalyzerB } -> done
+}
+`;
+
+  it('multi-node sequential pipeline tracks tokens per node', async () => {
+    const { compile } = await import('../src/compiler.js');
+    const compiled = compile(MULTI_NODE_GFT, 'test.gft');
+    expect(compiled.success).toBe(true);
+
+    let callCount = 0;
+    const mockSpawner = async () => {
+      callCount++;
+      const usage = callCount === 1
+        ? { input_tokens: 400, output_tokens: 150 }
+        : { input_tokens: 600, output_tokens: 250 };
+      return {
+        stdout: JSON.stringify({
+          result: JSON.stringify(callCount === 1 ? { findings: 'test data' } : { content: 'test article' }),
+          usage,
+          model: 'claude-sonnet-4-20250514',
+        }),
+        stderr: '',
+        exitCode: 0,
+      };
+    };
+
+    const executor = new Executor(compiled.program!, {
+      sourceFile: 'test.gft',
+      input: { question: 'test' },
+      workDir: tmpDir,
+      spawner: mockSpawner,
+    });
+
+    const result = await executor.execute();
+    expect(result.success).toBe(true);
+    expect(result.tokenUsage).toBeDefined();
+    expect(result.tokenUsage!.perNode).toHaveLength(2);
+    // consumed = (400+150) + (600+250) = 1400
+    expect(result.tokenUsage!.consumed).toBe(1400);
+
+    // Verify token_log.txt has 2 lines
+    const logPath = path.join(tmpDir, '.graft', 'token_log.txt');
+    const logContent = fs.readFileSync(logPath, 'utf-8').trim();
+    const logLines = logContent.split('\n').filter(l => l.length > 0);
+    expect(logLines).toHaveLength(2);
+  });
+
+  it('parallel node token tracking sums both nodes', async () => {
+    const { compile } = await import('../src/compiler.js');
+    const compiled = compile(PARALLEL_GFT, 'test.gft');
+    expect(compiled.success).toBe(true);
+
+    const mockSpawner = async () => ({
+      stdout: JSON.stringify({
+        result: JSON.stringify({ data: 'test' }),
+        usage: { input_tokens: 500, output_tokens: 200 },
+        model: 'claude-sonnet-4-20250514',
+      }),
+      stderr: '',
+      exitCode: 0,
+    });
+
+    const executor = new Executor(compiled.program!, {
+      sourceFile: 'test.gft',
+      input: { question: 'test' },
+      workDir: tmpDir,
+      spawner: mockSpawner,
+    });
+
+    const result = await executor.execute();
+    expect(result.success).toBe(true);
+    expect(result.tokenUsage).toBeDefined();
+    expect(result.tokenUsage!.perNode).toHaveLength(2);
+    // Both nodes return 500+200=700, so consumed = 1400
+    expect(result.tokenUsage!.consumed).toBe(1400);
+  });
+
+  it('dry run with multi-node pipeline uses estimates for all nodes', async () => {
+    const { compile } = await import('../src/compiler.js');
+    const compiled = compile(MULTI_NODE_GFT, 'test.gft');
+    expect(compiled.success).toBe(true);
+
+    const executor = new Executor(compiled.program!, {
+      sourceFile: 'test.gft',
+      input: { question: 'test' },
+      workDir: tmpDir,
+      dryRun: true,
+    });
+
+    const result = await executor.execute();
+    expect(result.success).toBe(true);
+    expect(result.tokenUsage).toBeDefined();
+    expect(result.tokenUsage!.perNode).toHaveLength(2);
+
+    // All perNode entries should have actual: undefined
+    for (const entry of result.tokenUsage!.perNode) {
+      expect(entry.actual).toBeUndefined();
+    }
+
+    // consumed uses estimates: Researcher (2000+1000) + Writer (2000+1000) = 6000
+    expect(result.tokenUsage!.consumed).toBe(6000);
+  });
+
+  it('token log format contains required fields', async () => {
+    const { compile } = await import('../src/compiler.js');
+    const compiled = compile(SIMPLE_GFT, 'test.gft');
+
+    const mockSpawner = async () => ({
+      stdout: JSON.stringify({
+        result: JSON.stringify({ result: 'test' }),
+        usage: { input_tokens: 300, output_tokens: 100 },
+        model: 'claude-sonnet-4-20250514',
+      }),
+      stderr: '',
+      exitCode: 0,
+    });
+
+    const executor = new Executor(compiled.program!, {
+      sourceFile: 'test.gft',
+      input: { question: 'test' },
+      workDir: tmpDir,
+      spawner: mockSpawner,
+    });
+
+    await executor.execute();
+    const logPath = path.join(tmpDir, '.graft', 'token_log.txt');
+    const logContent = fs.readFileSync(logPath, 'utf-8');
+    const line = logContent.trim().split('\n')[0];
+
+    // ISO timestamp in brackets
+    expect(line).toMatch(/\[\d{4}-\d{2}-\d{2}T/);
+    // Node name
+    expect(line).toContain('Node Analyzer');
+    // Estimated value
+    expect(line).toContain('estimated: 3000');
+    // Actual value
+    expect(line).toContain('actual: 400');
+    // Cumulative with budget and percentage
+    expect(line).toMatch(/cumulative: \d+\/6000/);
+    expect(line).toMatch(/\(\d+(\.\d+)?%\)/);
+  });
+
+  it('budget threshold detection at >= 80%', async () => {
+    const { compile } = await import('../src/compiler.js');
+    // Use SIMPLE_GFT which has budget: 6k (6000)
+    // Mock spawner returns usage that pushes to >= 80% of 6000 = 4800
+    const compiled = compile(SIMPLE_GFT, 'test.gft');
+
+    const mockSpawner = async () => ({
+      stdout: JSON.stringify({
+        result: JSON.stringify({ result: 'test' }),
+        usage: { input_tokens: 3000, output_tokens: 2000 },
+        model: 'claude-sonnet-4-20250514',
+      }),
+      stderr: '',
+      exitCode: 0,
+    });
+
+    const executor = new Executor(compiled.program!, {
+      sourceFile: 'test.gft',
+      input: { question: 'test' },
+      workDir: tmpDir,
+      spawner: mockSpawner,
+    });
+
+    const result = await executor.execute();
+    expect(result.success).toBe(true);
+    // 3000 + 2000 = 5000 consumed, budget = 6000, fraction = 5000/6000 ~ 0.833
+    expect(result.tokenUsage!.fraction).toBeGreaterThanOrEqual(0.8);
+  });
+
+  it('examples/hello.gft compiles and dry-runs without errors', async () => {
+    const { compile } = await import('../src/compiler.js');
+    const helloPath = path.resolve(__dirname, '..', 'examples', 'hello.gft');
+    const helloSource = fs.readFileSync(helloPath, 'utf-8');
+
+    const compiled = compile(helloSource, 'hello.gft');
+    expect(compiled.success).toBe(true);
+    expect(compiled.program).toBeDefined();
+
+    const executor = new Executor(compiled.program!, {
+      sourceFile: 'hello.gft',
+      input: { question: 'What is Graft?' },
+      workDir: tmpDir,
+      dryRun: true,
+    });
+
+    const result = await executor.execute();
+    expect(result.success).toBe(true);
+    expect(result.tokenUsage).toBeDefined();
+    expect(result.tokenUsage!.budget).toBeGreaterThan(0);
+    expect(result.tokenUsage!.perNode.length).toBeGreaterThanOrEqual(1);
+  });
 });
