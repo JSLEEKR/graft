@@ -49,12 +49,16 @@ export class ScopeChecker {
         errors.push(new GraftError(
           `Name '${mem.name}' is declared as both a context and a memory`,
           mem.location,
+          'error',
+          'SCOPE_DUPLICATE_NAME',
         ));
       }
       if (this.producesMap.has(mem.name)) {
         errors.push(new GraftError(
           `Name '${mem.name}' conflicts with a produces declaration`,
           mem.location,
+          'error',
+          'SCOPE_DUPLICATE_NAME',
         ));
       }
     }
@@ -66,6 +70,8 @@ export class ScopeChecker {
         errors.push(new GraftError(
           `Context '${ctx.name}' has invalid max_tokens: ${ctx.maxTokens} (must be > 0)`,
           ctx.location,
+          'error',
+          'SCOPE_MAX_TOKENS_INVALID',
         ));
       }
     }
@@ -74,6 +80,8 @@ export class ScopeChecker {
         errors.push(new GraftError(
           `Memory '${mem.name}' has invalid max_tokens: ${mem.maxTokens} (must be > 0)`,
           mem.location,
+          'error',
+          'SCOPE_MAX_TOKENS_INVALID',
         ));
       }
     }
@@ -91,6 +99,8 @@ export class ScopeChecker {
           errors.push(new GraftError(
             `'${ref.context}' is not declared as a context, produces output, or memory`,
             ref.location,
+            'error',
+            'SCOPE_UNDEFINED_REF',
           ));
           continue;
         }
@@ -104,6 +114,8 @@ export class ScopeChecker {
               errors.push(new GraftError(
                 `Field '${ref.field}' does not exist in context '${ref.context}'`,
                 ref.location,
+                'error',
+                'SCOPE_FIELD_NOT_FOUND',
               ));
             }
           } else if (isProduces) {
@@ -112,6 +124,8 @@ export class ScopeChecker {
               errors.push(new GraftError(
                 `Field '${ref.field}' does not exist in produces '${ref.context}'`,
                 ref.location,
+                'error',
+                'SCOPE_FIELD_NOT_FOUND',
               ));
             }
           } else if (isMemory) {
@@ -120,6 +134,8 @@ export class ScopeChecker {
               errors.push(new GraftError(
                 `Field '${ref.field}' does not exist in memory '${ref.context}'`,
                 ref.location,
+                'error',
+                'SCOPE_FIELD_NOT_FOUND',
               ));
             }
           }
@@ -135,6 +151,8 @@ export class ScopeChecker {
           errors.push(new GraftError(
             `writes target '${writeName}' is not a declared memory`,
             node.location,
+            'error',
+            'SCOPE_INVALID_WRITES',
           ));
         }
       }
@@ -147,6 +165,8 @@ export class ScopeChecker {
         errors.push(new GraftError(
           `Edge source '${edge.source}' is not a declared node`,
           edge.location,
+          'error',
+          'SCOPE_UNDEFINED_REF',
         ));
       }
 
@@ -155,6 +175,8 @@ export class ScopeChecker {
           errors.push(new GraftError(
             `Edge target '${edge.target.node}' is not a declared node`,
             edge.location,
+            'error',
+            'SCOPE_UNDEFINED_REF',
           ));
         }
       } else {
@@ -163,6 +185,8 @@ export class ScopeChecker {
             errors.push(new GraftError(
               `Edge target '${branch.target}' is not a declared node`,
               edge.location,
+              'error',
+              'SCOPE_UNDEFINED_REF',
             ));
           }
         }
@@ -177,6 +201,8 @@ export class ScopeChecker {
         errors.push(new GraftError(
           `Graph input '${graph.input}' is not a declared context`,
           graph.location,
+          'error',
+          'SCOPE_UNDEFINED_REF',
         ));
       }
 
@@ -185,6 +211,8 @@ export class ScopeChecker {
         errors.push(new GraftError(
           `Graph output '${graph.output}' is not a declared produces type`,
           graph.location,
+          'error',
+          'SCOPE_UNDEFINED_REF',
         ));
       }
 
@@ -201,6 +229,8 @@ export class ScopeChecker {
             errors.push(new GraftError(
               `Node '${step.name}' in graph flow is not declared`,
               location,
+              'error',
+              'SCOPE_UNDEFINED_REF',
             ));
           }
           break;
@@ -210,6 +240,8 @@ export class ScopeChecker {
               errors.push(new GraftError(
                 `Node '${branch}' in parallel block is not declared`,
                 location,
+                'error',
+                'SCOPE_UNDEFINED_REF',
               ));
             }
           }
@@ -221,6 +253,8 @@ export class ScopeChecker {
             errors.push(new GraftError(
               `Foreach source node '${step.source}' is not declared`,
               location,
+              'error',
+              'SCOPE_UNDEFINED_REF',
             ));
           }
           // Validate source node produces the referenced field
@@ -231,6 +265,8 @@ export class ScopeChecker {
               errors.push(new GraftError(
                 `Field '${step.field}' does not exist in '${step.source}' produces output`,
                 location,
+                'error',
+                'SCOPE_FIELD_NOT_FOUND',
               ));
             }
           }
@@ -238,6 +274,8 @@ export class ScopeChecker {
             errors.push(new GraftError(
               'foreach max_iterations must be at least 1',
               location,
+              'error',
+              'SCOPE_INVALID_FOREACH',
             ));
           }
           // Recurse into body
@@ -270,6 +308,7 @@ export class ScopeChecker {
           `Nodes ${writers.map(w => `'${w}'`).join(' and ')} both write to memory '${memName}' in parallel`,
           location,
           'warning',
+          'SCOPE_PARALLEL_WRITES',
         ));
       }
     }

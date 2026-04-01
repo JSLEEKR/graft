@@ -8,6 +8,8 @@ import { MODEL_MAP } from '../constants.js';
 import { fieldsToJsonExample } from '../utils.js';
 import { loadMemory, saveMemory } from './memory.js';
 import { ProgramIndex } from '../program-index.js';
+import { buildPrompt, generateMockOutput, PromptContext } from './prompt-builder.js';
+import { executeFlowNodes, FlowContext } from './flow-runner.js';
 
 export type SpawnerFn = (options: SpawnOptions) => Promise<SpawnResult>;
 
@@ -119,8 +121,14 @@ export class Executor {
     );
 
     // Execute flow nodes
+    const flowCtx: FlowContext = {
+      executeNode: (name: string) => this.executeNode(name),
+      outputs: this.outputs,
+      input: this.options.input,
+    };
+
     try {
-      await this.executeFlowNodes(graph.flow, nodeResults, errors);
+      await executeFlowNodes(graph.flow, nodeResults, errors, flowCtx);
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e));
     }
@@ -161,78 +169,6 @@ export class Executor {
     }
   }
 
-  private async executeFlowNodes(
-    flow: FlowNode[],
-    nodeResults: NodeResult[],
-    errors: string[],
-  ): Promise<void> {
-    for (const flowNode of flow) {
-      if (errors.length > 0) break; // abort on failure
-
-      switch (flowNode.kind) {
-        case 'node': {
-          if (flowNode.name === 'done') continue;
-          const result = await this.executeNode(flowNode.name);
-          nodeResults.push(result);
-          if (!result.success) {
-            errors.push(result.error ?? `Node ${flowNode.name} failed`);
-          }
-          break;
-        }
-
-        case 'parallel': {
-          const promises = flowNode.branches
-            .filter(name => name !== 'done')
-            .map(name => this.executeNode(name));
-          const results = await Promise.allSettled(promises);
-          for (const [i, settled] of results.entries()) {
-            if (settled.status === 'fulfilled') {
-              nodeResults.push(settled.value);
-              if (!settled.value.success) {
-                errors.push(settled.value.error ?? `Node ${flowNode.branches[i]} failed`);
-              }
-            } else {
-              const name = flowNode.branches[i];
-              const nr: NodeResult = {
-                node: name,
-                output: null,
-                durationMs: 0,
-                success: false,
-                error: settled.reason instanceof Error ? settled.reason.message : String(settled.reason),
-              };
-              nodeResults.push(nr);
-              errors.push(nr.error!);
-            }
-          }
-          break;
-        }
-
-        case 'foreach': {
-          const sourceData = this.outputs.get(flowNode.source) ?? this.options.input;
-          const items = this.resolveField(sourceData, flowNode.field);
-          if (!Array.isArray(items)) {
-            errors.push(`foreach: ${flowNode.source}.${flowNode.field} is not an array`);
-            break;
-          }
-          const maxIter = Math.min(items.length, flowNode.maxIterations);
-          for (let i = 0; i < maxIter; i++) {
-            if (errors.length > 0) break;
-            // Set the binding as available data
-            this.outputs.set(flowNode.binding, items[i]);
-            // Execute the body for each item
-            await this.executeFlowNodes(flowNode.body, nodeResults, errors);
-          }
-          break;
-        }
-      }
-    }
-  }
-
-  private resolveField(data: unknown, field: string): unknown {
-    if (data === null || data === undefined || typeof data !== 'object') return undefined;
-    return (data as Record<string, unknown>)[field];
-  }
-
   private async executeNode(name: string): Promise<NodeResult> {
     const startTime = Date.now();
     const nodeDecl = this.nodeMap.get(name);
@@ -260,9 +196,17 @@ export class Executor {
       }
     }
 
+    // Build prompt context
+    const graph = this.program.graphs[0];
+    const promptCtx: PromptContext = {
+      outputs: this.outputs,
+      graphInputName: graph ? graph.input : '',
+      input: this.options.input,
+    };
+
     // Dry run: produce mock output
     if (this.options.dryRun) {
-      const mockOutput = this.generateMockOutput(nodeDecl);
+      const mockOutput = generateMockOutput(nodeDecl);
       this.storeOutput(nodeDecl, mockOutput);
       const estimated = { in: nodeDecl.budgetIn, out: nodeDecl.budgetOut };
       this.tracker.record(name, undefined, estimated);
@@ -275,7 +219,7 @@ export class Executor {
     }
 
     // Build prompt
-    const prompt = this.buildPrompt(nodeDecl);
+    const prompt = buildPrompt(nodeDecl, promptCtx);
     const resolvedModel = MODEL_MAP[nodeDecl.model] || nodeDecl.model;
 
     const args = [
@@ -405,64 +349,4 @@ export class Executor {
       }
     }
   }
-
-  private buildPrompt(nodeDecl: NodeDecl): string {
-    const jsonSchema = fieldsToJsonExample(nodeDecl.produces.fields);
-    const contextSection = this.buildContextSection(nodeDecl);
-
-    return `# ${nodeDecl.name} Agent
-
-## Task
-You are the ${nodeDecl.name} node in a Graft pipeline.
-
-## Input Context
-${contextSection}
-
-## Output Contract
-Produce JSON output matching this schema:
-\`\`\`json
-${JSON.stringify(jsonSchema, null, 2)}
-\`\`\`
-
-## Rules
-- Output ONLY valid JSON. No explanations, no markdown, no code fences.
-- Stay within ${nodeDecl.budgetOut} output tokens.
-`;
-  }
-
-  private buildContextSection(nodeDecl: NodeDecl): string {
-    const sections: string[] = [];
-
-    for (const ref of nodeDecl.reads) {
-      const contextData = this.outputs.get(ref.context);
-      if (contextData !== undefined) {
-        if (ref.field) {
-          const fieldVal = this.resolveField(contextData, ref.field);
-          sections.push(`### ${ref.context}.${ref.field}\n\`\`\`json\n${JSON.stringify(fieldVal, null, 2)}\n\`\`\``);
-        } else {
-          sections.push(`### ${ref.context}\n\`\`\`json\n${JSON.stringify(contextData, null, 2)}\n\`\`\``);
-        }
-      } else {
-        // Check if input matches the context name
-        const graph = this.program.graphs[0];
-        if (graph && ref.context === graph.input) {
-          if (ref.field) {
-            const fieldVal = this.resolveField(this.options.input, ref.field);
-            sections.push(`### ${ref.context}.${ref.field}\n\`\`\`json\n${JSON.stringify(fieldVal, null, 2)}\n\`\`\``);
-          } else {
-            sections.push(`### ${ref.context}\n\`\`\`json\n${JSON.stringify(this.options.input, null, 2)}\n\`\`\``);
-          }
-        } else {
-          sections.push(`### ${ref.context}\nNo data available.`);
-        }
-      }
-    }
-
-    return sections.length > 0 ? sections.join('\n\n') : 'No external context required.';
-  }
-
-  private generateMockOutput(nodeDecl: NodeDecl): Record<string, unknown> {
-    return fieldsToJsonExample(nodeDecl.produces.fields);
-  }
 }
-

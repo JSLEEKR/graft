@@ -60,6 +60,7 @@ export class TokenEstimator {
         `Worst-case token usage (${worstCase}) exceeds budget (${graph.budget})`,
         graph.location,
         'warning',
+        'BUDGET_EXCEEDED',
       ));
     }
 
@@ -85,6 +86,7 @@ export class TokenEstimator {
               `Node '${step.name}' estimated input (${estimatedIn}) exceeds budgetIn (${node.budgetIn})`,
               node.location,
               'warning',
+              'BUDGET_NODE_EXCEEDED',
             ));
           }
           reports.push({ name: step.name, estimatedIn, estimatedOut: node.budgetOut });
@@ -100,6 +102,7 @@ export class TokenEstimator {
                 `Node '${branchName}' estimated input (${estimatedIn}) exceeds budgetIn (${node.budgetIn})`,
                 node.location,
                 'warning',
+                'BUDGET_NODE_EXCEEDED',
               ));
             }
             reports.push({ name: branchName, estimatedIn, estimatedOut: node.budgetOut });

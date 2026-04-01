@@ -59,7 +59,7 @@ export function compile(source: string, sourceFile: string): CompileResult {
   if (program.graphs.length === 0) {
     return {
       success: false,
-      errors: [new GraftError('No graph declaration found', { line: 1, column: 1, offset: 0 })],
+      errors: [new GraftError('No graph declaration found', { line: 1, column: 1, offset: 0 }, 'error', 'GRAPH_MISSING')],
       warnings,
     };
   }

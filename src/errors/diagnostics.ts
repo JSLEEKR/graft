@@ -4,11 +4,37 @@ export interface SourceLocation {
   offset: number;
 }
 
+export type GraftErrorCode =
+  // Scope errors
+  | 'SCOPE_DUPLICATE_NAME'
+  | 'SCOPE_UNDEFINED_REF'
+  | 'SCOPE_FIELD_NOT_FOUND'
+  | 'SCOPE_INVALID_WRITES'
+  | 'SCOPE_INVALID_FOREACH'
+  | 'SCOPE_PARALLEL_WRITES'
+  | 'SCOPE_MAX_TOKENS_INVALID'
+  // Type errors
+  | 'TYPE_FIELD_NOT_FOUND'
+  | 'TYPE_SCHEMA_MISMATCH'
+  // Budget warnings
+  | 'BUDGET_EXCEEDED'
+  | 'BUDGET_NODE_EXCEEDED'
+  // Import errors
+  | 'IMPORT_CIRCULAR'
+  | 'IMPORT_NOT_FOUND'
+  | 'IMPORT_NAME_NOT_FOUND'
+  | 'IMPORT_DUPLICATE_NAME'
+  | 'IMPORT_INVALID_PATH'
+  | 'IMPORT_PARSE_ERROR'
+  // Graph errors
+  | 'GRAPH_MISSING';
+
 export class GraftError extends Error {
   constructor(
     message: string,
     public readonly location: SourceLocation,
     public readonly severity: 'error' | 'warning' = 'error',
+    public readonly code?: GraftErrorCode,
   ) {
     super(message);
     this.name = 'GraftError';

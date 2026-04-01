@@ -95,6 +95,8 @@ function resolveImport(
     ctx.errors.push(new GraftError(
       `Import path must end with .gft: "${importDecl.path}"`,
       importDecl.location,
+      'error',
+      'IMPORT_INVALID_PATH',
     ));
     return;
   }
@@ -104,6 +106,8 @@ function resolveImport(
     ctx.errors.push(new GraftError(
       `Circular import detected: "${importDecl.path}"`,
       importDecl.location,
+      'error',
+      'IMPORT_CIRCULAR',
     ));
     return;
   }
@@ -117,6 +121,8 @@ function resolveImport(
       ctx.errors.push(new GraftError(
         `Import file not found: "${importDecl.path}"`,
         importDecl.location,
+        'error',
+        'IMPORT_NOT_FOUND',
       ));
       return;
     }
@@ -129,6 +135,8 @@ function resolveImport(
         ctx.errors.push(new GraftError(
           `Error parsing imported file "${importDecl.path}": ${e.message}`,
           importDecl.location,
+          'error',
+          'IMPORT_PARSE_ERROR',
         ));
       } else {
         throw e;
@@ -171,6 +179,8 @@ function resolveImport(
       ctx.errors.push(new GraftError(
         `Name "${name}" not found in "${importDecl.path}"${suggestion}`,
         importDecl.location,
+        'error',
+        'IMPORT_NAME_NOT_FOUND',
       ));
       continue;
     }
@@ -181,6 +191,8 @@ function resolveImport(
       ctx.errors.push(new GraftError(
         `Duplicate name "${name}": already declared in ${path.basename(existingFile)}`,
         importDecl.location,
+        'error',
+        'IMPORT_DUPLICATE_NAME',
       ));
       continue;
     }

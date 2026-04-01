@@ -47,6 +47,7 @@ export class TypeChecker {
             `Node '${node.name}' writes to memory '${writeName}' but produces no matching fields`,
             node.location,
             'warning',
+            'TYPE_SCHEMA_MISMATCH',
           ));
         }
       }
@@ -66,6 +67,8 @@ export class TypeChecker {
               errors.push(new GraftError(
                 `select: field '${f}' does not exist in '${edge.source}' output`,
                 edge.location,
+                'error',
+                'TYPE_FIELD_NOT_FOUND',
               ));
             }
           }
@@ -74,6 +77,8 @@ export class TypeChecker {
             errors.push(new GraftError(
               `filter: field '${transform.field}' does not exist in '${edge.source}' output`,
               edge.location,
+              'error',
+              'TYPE_FIELD_NOT_FOUND',
             ));
           }
         } else if (transform.type === 'drop') {
@@ -81,6 +86,8 @@ export class TypeChecker {
             errors.push(new GraftError(
               `drop: field '${transform.field}' does not exist in '${edge.source}' output`,
               edge.location,
+              'error',
+              'TYPE_FIELD_NOT_FOUND',
             ));
           }
         }
