@@ -11,7 +11,11 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "declaration": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "paths": {
+      "vscode-languageserver/node": ["./node_modules/vscode-languageserver/lib/node/main.d.ts"],
+      "vscode-languageserver": ["./node_modules/vscode-languageserver/lib/common/api.d.ts"]
+    }
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist", "tests"]
