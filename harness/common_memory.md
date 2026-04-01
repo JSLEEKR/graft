@@ -1,7 +1,7 @@
 # Common Memory — Graft Compiler
-## Last updated: v3.1-R5 completed (v3.1.0 release)
+## Last updated: v3.2-R4 completed (v3.2.0 release)
 
-## Ratchet-Locked Decisions (172 total, 4 unlocked)
+## Ratchet-Locked Decisions (180 total, 5 unlocked)
 
 ### T1-T6 (abbreviated — all LOCKED)
 T1: tsc-only, ESM, NodeNext, explicit vitest, shebang, strict, no barrels, .js extensions
@@ -209,6 +209,18 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - [v3.1-R11] src/types.ts is the ONLY barrel file (public API boundary exception to T1 no-barrels ratchet) — LOCKED
 - [v3.1-R12] Sub-path exports: ./compiler, ./runtime, ./types in package.json — LOCKED
 
+### v3.2-R1 Ratchets (Parser Error Recovery)
+- [v3.2-R01] Parser.parse() returns ParseResult { program: Program, errors: GraftError[] } — program always non-null — LOCKED
+- [v3.2-R02] synchronize() tracks brace depth to avoid false keyword matches inside blocks — LOCKED
+- [v3.2-R03] Inner parseX functions keep throwing; only top-level parse() catches and recovers — LOCKED
+- [v3.2-R04] MAX_ERRORS = 25 limit prevents pathological input — LOCKED
+- [v3.2-R05] Progress guard: if synchronize() doesn't advance pos, force advance — LOCKED
+- [v2.2-R10] "Parser/lexer remain throw-based" — UNLOCKED (parser moves to error accumulation; lexer stays throw-based)
+
+### v3.2-R2 Ratchets (LSP Polish)
+- [v3.2-R06] KEYWORD_DOCS checked before ProgramIndex in getHoverInfo() — LOCKED
+- [v3.2-R07] LRU cache eviction at MAX_CACHE_SIZE = 50 with lastAccess tracking — LOCKED
+
 ## Review Feedback
 - T1-T7: ALL PASS. Test progression: 5 → 31 → 31 → 64 → 78 → 101 → 110
 - v1.2: PASS. 171 tests (135 existing + 36 new). All 12 ratchet items compliant.
@@ -240,6 +252,10 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v3.1-R3: PASS. 519 tests (513 existing + 6 new). 3 new ratchet items. DIRECT tier. Tech debt cleanup.
 - v3.1-R4: PASS. 527 tests (519 existing + 8 new). 2 new ratchet items. DIRECT tier. Programmatic API surface.
 - v3.1-R5: PASS. 537 tests (527 existing + 10 new). 0 new ratchet items. TEST-ONLY integration + regression.
+- v3.2-R1: PASS. 555 tests (537 existing + 18 new). 5 new ratchet items, 1 unlocked (v2.2-R10). MEDIUM tier (A2+A3, merged Step 3+4). Parser error recovery.
+- v3.2-R2: PASS. 570 tests (555 existing + 15 new). 2 new ratchet items. DIRECT tier. LSP polish (keyword hover, storage completions, import wiring, LRU cache).
+- v3.2-R3: PASS. 570 tests (0 new). 0 new ratchet items. DIRECT tier. Tech debt (./format export, TD-05 already done).
+- v3.2-R4: PASS. 582 tests (570 existing + 12 new). 0 new ratchet items. TEST-ONLY integration + regression.
 
 ## Recurring Patterns
 - A3-Skeptic: critical bugs every task (T2-T7 consecutively)
@@ -285,6 +301,10 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v3.1-R3 (DIRECT): 2 agent calls. 0 bugs. Tech debt cleanup (4 items).
 - v3.1-R4 (DIRECT): 2 agent calls. 0 bugs. API surface.
 - v3.1-R5 (TEST-ONLY): 2 agent calls. 0 bugs. Integration tests.
+- v3.2-R1 (MEDIUM): 4 agent calls (2 analysis + 1 merged convergence+impl + 1 review). A3-Skeptic identified brace-depth tracking requirement and progress guard. A2-Pragmatist identified seenNonImport advance() fix.
+- v3.2-R2 (DIRECT): 2 agent calls. 0 bugs. LSP polish (4 items).
+- v3.2-R3 (DIRECT): 1 agent call (orchestrator direct). TD-05 already implemented. ./format export added.
+- v3.2-R4 (TEST-ONLY): 2 agent calls. 0 bugs. Integration tests.
 
 ## Notes for Future
 - Conditional edge routing: deferred to v1.3
@@ -292,7 +312,7 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - Token budget enforcement (Graft tokens vs Claude CLI dollars): approximation only
 - Memory importability: deferred (v2.0-R13 locked as excluded)
 - entryFile guard in resolver: scopes name merging to entry file only (justified deviation from convergence spec)
-- All 537 tests currently passing
+- All 582 tests currently passing
 - v2.0 complete: import system + memory across all pipeline stages (lexer → parser → resolver → analyzer → codegen → runtime → integration)
 - v2.1-R1 complete: constants/utils/memory extracted to shared modules, MODEL_MAP deduplication resolved
 - v2.1-R2 complete: writes schema validation, max_tokens > 0, parallel write detection, compiler.ts warning routing
@@ -308,7 +328,7 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v2.2-R4 complete: LSP server with diagnostics, hover, go-to-definition. 2-file structure (server.ts + features.ts). compile() fixed to return program on GRAPH_MISSING.
 - v2.2-R5 complete: npm distribution metadata (@graft-lang/graft), VS Code extension (syntax highlighting, LSP client). Zero production code changes.
 - v2.2-R6 complete: integration tests (end-to-end compile, LSP round-trip, npm pack, adversarial backlog). All 4 v2.1 adversarial proposals resolved.
-- All 537 tests currently passing
+- All 582 tests currently passing
 - v2.2 complete: 6 rounds (R1-R6), all PASS. Tech debt + correctness + LSP + npm + VS Code + integration.
 - v3.0-R1 complete: Pipeline split (compileToProgram/compileAndGenerate/compile), ProgramIndex threading, RuntimeState interface.
 - v3.0-R2 complete: WriteRef replaces string[] writes, multi-field partial reads (ContextRef.field: string[]), brace syntax in parser, all 10 source files + 5 test files updated.
@@ -325,3 +345,8 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v3.1-R4 complete: Programmatic API surface (./compiler, ./runtime, ./types sub-path exports, src/types.ts barrel file).
 - v3.1-R5 complete: Integration + regression tests (10 cross-cutting tests covering all R1-R4 features).
 - v3.1 COMPLETE: 5 rounds (R1-R5), all PASS. LSP completions + parallel fix + fallback cycles + tech debt + API surface. 537 tests.
+- v3.2-R1 complete: Parser error recovery (ParseResult, synchronize() with brace-depth, progress guard, MAX_ERRORS=25, error accumulation). MEDIUM tier, A2+A3 debate.
+- v3.2-R2 complete: LSP polish (keyword hover docs, storage completions, import name resolution, LRU cache eviction).
+- v3.2-R3 complete: Tech debt (./format sub-path export, TD-05 duplicate writes already guarded).
+- v3.2-R4 complete: Integration + regression tests (12 cross-cutting tests covering R1-R3 features).
+- v3.2 COMPLETE: 4 rounds (R1-R4), all PASS. Parser error recovery + LSP polish + tech debt + integration. 582 tests.

@@ -26,6 +26,24 @@ describe('packaging', () => {
         types: './dist/parser/ast.d.ts',
       });
 
+      // sub-path exports
+      expect(exports['./compiler']).toEqual({
+        import: './dist/compiler.js',
+        types: './dist/compiler.d.ts',
+      });
+      expect(exports['./runtime']).toEqual({
+        import: './dist/runtime/executor.js',
+        types: './dist/runtime/executor.d.ts',
+      });
+      expect(exports['./types']).toEqual({
+        import: './dist/types.js',
+        types: './dist/types.d.ts',
+      });
+      expect(exports['./format']).toEqual({
+        import: './dist/format.js',
+        types: './dist/format.d.ts',
+      });
+
       // files
       expect(pkg.files).toEqual(['dist/', 'README.md', 'LICENSE']);
 

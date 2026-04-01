@@ -1,5 +1,28 @@
 # Changelog
 
+## v3.2.0 (2026-04-02)
+
+### Added
+- **Parser error recovery**: parser accumulates errors with panic-mode recovery at declaration boundaries instead of throwing on first error
+  - `ParseResult` return type: `{ program: Program, errors: GraftError[] }` — program always non-null
+  - `synchronize()` with brace-depth tracking to avoid false keyword matches inside blocks
+  - Progress guard prevents infinite loops; MAX_ERRORS = 25 limit
+  - Inner parseX functions keep throwing; only top-level parse loop catches and recovers
+- **Keyword hover documentation**: hover over Graft keywords (context, node, memory, graph, edge, import, reads, writes, produces, model, max_tokens, on_failure, storage, foreach, parallel) shows documentation with syntax examples
+- **Storage completions**: `storage:` keyword offers `file` as completion
+- **Import completion wiring**: import brace completions now resolve actual exported names from target files
+- **LRU cache eviction**: LSP server cache evicts oldest entries when exceeding 50 documents
+- **`./format` sub-path export**: `import { formatTokenReport } from '@graft-lang/graft/format'`
+
+### Changed
+- `Parser.parse()` returns `ParseResult` instead of `Program` (non-breaking: program field is always populated)
+- Compiler no longer wraps parser in try-catch; uses `ParseResult.errors` directly
+- LSP import completions extract actual file path from `from "..."` instead of passing empty string
+
+### Stats
+- 582 tests (45 new), 172 ratchets
+- 4 rounds (1 MEDIUM, 2 DIRECT, 1 TEST-ONLY), ~10 agent calls
+
 ## v3.1.0 (2026-04-02)
 
 ### Added

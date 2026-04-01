@@ -131,6 +131,7 @@ Available sub-path exports:
 | `@graft-lang/graft/compiler` | `compileToProgram`, `compile`, `compileAndGenerate`, `compileAndWrite` |
 | `@graft-lang/graft/runtime` | `Executor`, `RunResult`, `RunOptions`, `NodeResult` |
 | `@graft-lang/graft/types` | `Program`, `ProgramIndex`, `GraftError`, `GraftErrorCode`, `TokenReport`, `CodegenBackend`, etc. |
+| `@graft-lang/graft/format` | `formatTokenReport` (shared CLI formatting) |
 | `@graft-lang/graft/ast` | Raw AST type definitions (existing) |
 
 ## Language Overview
@@ -256,7 +257,7 @@ Output targets are pluggable via the `CodegenBackend` interface. The default `Cl
 ```
 .gft source
   → Lexer (tokenization)
-  → Parser (recursive descent → AST)
+  → Parser (recursive descent → AST, error recovery)
   → Resolver (import resolution, circular detection)
   → Analyzer
       ├── ScopeChecker (reads/edge/flow/memory validation)
@@ -268,7 +269,7 @@ Output targets are pluggable via the `CodegenBackend` interface. The default `Cl
 LSP Server (graft-lsp)
   → Compile on document change
   → ProgramIndex (O(1) declaration lookups)
-  → Diagnostics, Hover, Go-to-Definition
+  → Diagnostics, Hover, Go-to-Definition, Completions
 ```
 
 ## Project Structure
@@ -320,7 +321,7 @@ src/
 ## Development
 
 ```bash
-npm test              # Run all 537 tests
+npm test              # Run all 582 tests
 npm run build         # Compile TypeScript
 npx tsc --noEmit      # Type check only
 ```
@@ -329,6 +330,7 @@ npx tsc --noEmit      # Type check only
 
 | Version | Features |
 |---------|----------|
+| **v3.2** | Parser error recovery, keyword hover, LRU cache, import completion wiring, 582 tests |
 | **v3.1** | LSP completions, programmatic API surface, parallel failure fix, fallback cycle detection, 537 tests |
 | **v3.0** | Pluggable codegen backends, field-level writes, multi-field reads, failure strategies, 477 tests |
 | **v2.2** | LSP server, VS Code extension, npm distribution, error codes, ProgramIndex, 376 tests |
