@@ -1,6 +1,6 @@
 import type { CompletionItem } from 'vscode-languageserver/node';
 import { CompletionItemKind, InsertTextFormat } from 'vscode-languageserver/node';
-import type { Program } from '../../parser/ast.js';
+import { type Program, BUILTIN_FUNCTIONS } from '../../parser/ast.js';
 import type { ProgramIndex } from '../../program-index.js';
 import { MODEL_MAP } from '../../constants.js';
 import { formatType } from './hover.js';
@@ -121,6 +121,10 @@ export function getCompletions(
       for (const name of cache.index.graphMap.keys()) {
         items.push({ label: name, kind: CompletionItemKind.Module, detail: 'graph call' });
       }
+    }
+    // Built-in expression functions
+    for (const [name, info] of Object.entries(BUILTIN_FUNCTIONS)) {
+      items.push({ label: name, kind: CompletionItemKind.Function, detail: `builtin (${info.arity} arg${info.arity !== 1 ? 's' : ''})` });
     }
     return items;
   }

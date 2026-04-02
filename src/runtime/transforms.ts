@@ -101,8 +101,8 @@ export function evalCondition(item: unknown, condition: Condition): boolean {
   }
   const target = condition.value;
   switch (condition.op) {
-    case '==': return val === target;
-    case '!=': return val !== target;
+    case '==': return val == target;
+    case '!=': return val != target;
     case '>': return typeof val === 'number' && typeof target === 'number' && val > target;
     case '>=': return typeof val === 'number' && typeof target === 'number' && val >= target;
     case '<': return typeof val === 'number' && typeof target === 'number' && val < target;

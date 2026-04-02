@@ -69,6 +69,21 @@ export function evaluateExpr(expr: Expr, outputs: Map<string, unknown>, variable
     }
     case 'group':
       return evaluateExpr(expr.inner, outputs, variables, warnings);
+    case 'call': {
+      const args = expr.args.map(a => evaluateExpr(a, outputs, variables, warnings));
+      switch (expr.name) {
+        case 'len': {
+          const val = args[0];
+          if (Array.isArray(val)) return val.length;
+          if (typeof val === 'string') return val.length;
+          return 0;
+        }
+        case 'max': return Math.max(Number(args[0]), Number(args[1]));
+        case 'min': return Math.min(Number(args[0]), Number(args[1]));
+        case 'str': return String(args[0]);
+        default: return undefined;
+      }
+    }
   }
 }
 
@@ -350,7 +365,15 @@ export async function executeFlowNodes(
           variables: childVars,
           outputs: new Map(ctx.outputs),
         };
+        const beforeCount = nodeResults.length;
         await executeFlowNodes(graphDecl.flow, nodeResults, errors, childCtx);
+        // Capture last node output from child execution and store under graph call name
+        if (nodeResults.length > beforeCount) {
+          const lastResult = nodeResults[nodeResults.length - 1];
+          if (lastResult.success) {
+            ctx.outputs.set(flowNode.name, lastResult.output);
+          }
+        }
         break;
       }
 

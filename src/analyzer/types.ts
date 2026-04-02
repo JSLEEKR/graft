@@ -1,4 +1,4 @@
-import { Program, TypeExpr, conditionFieldName, Expr, FlowNode, GraphDecl } from '../parser/ast.js';
+import { Program, TypeExpr, conditionFieldName, Expr, FlowNode, GraphDecl, BUILTIN_FUNCTIONS } from '../parser/ast.js';
 import { GraftError } from '../errors/diagnostics.js';
 import { ProgramIndex } from '../program-index.js';
 
@@ -186,6 +186,15 @@ export class TypeChecker {
       }
       case 'group':
         return this.inferExprType(expr.inner, varTypes);
+      case 'call': {
+        switch (expr.name) {
+          case 'len': return 'number';
+          case 'max': return 'number';
+          case 'min': return 'number';
+          case 'str': return 'string';
+          default: return 'unknown';
+        }
+      }
     }
   }
 
@@ -236,6 +245,17 @@ export class TypeChecker {
       this.checkExprTypeErrors(expr.operand, varTypes, errors);
     } else if (expr.kind === 'group') {
       this.checkExprTypeErrors(expr.inner, varTypes, errors);
+    } else if (expr.kind === 'call') {
+      const builtin = BUILTIN_FUNCTIONS[expr.name];
+      if (builtin && expr.args.length !== builtin.arity) {
+        errors.push(new GraftError(
+          `Function '${expr.name}' expects ${builtin.arity} argument(s), got ${expr.args.length}`,
+          expr.location, 'error', 'TYPE_FUNC_ARITY',
+        ));
+      }
+      for (const arg of expr.args) {
+        this.checkExprTypeErrors(arg, varTypes, errors);
+      }
     }
   }
 

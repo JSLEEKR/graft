@@ -7,7 +7,7 @@ import {
   Field, TypeExpr, ContextRef, WriteRef, ProducesDecl,
   Transform, Condition, FailureStrategy,
   EdgeTarget, ConditionalBranch,
-  FlowNode, Expr, GraphParam, GraphArg,
+  FlowNode, Expr, GraphParam, GraphArg, BUILTIN_FUNCTIONS,
 } from './ast.js';
 
 // Build a Set of all keyword token types for O(1) lookup.
@@ -847,6 +847,23 @@ export class Parser {
       const inner = this.parseExpr();
       this.expect(TokenType.RParen);
       return { kind: 'group', inner, location: loc };
+    }
+
+    // Built-in function call: len(...), max(...), min(...), str(...)
+    if (token.type === TokenType.Identifier && token.value in BUILTIN_FUNCTIONS && this.peekType(1) === TokenType.LParen) {
+      const name = token.value;
+      this.advance(); // consume function name
+      this.advance(); // consume LParen
+      const args: Expr[] = [];
+      if (!this.check(TokenType.RParen)) {
+        args.push(this.parseExpr());
+        while (this.check(TokenType.Comma)) {
+          this.advance();
+          args.push(this.parseExpr());
+        }
+      }
+      this.expect(TokenType.RParen);
+      return { kind: 'call', name, args, location: loc };
     }
 
     // Field access: identifier (or keyword) followed by optional dots

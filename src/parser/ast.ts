@@ -5,7 +5,16 @@ export type Expr =
   | { kind: 'field_access'; segments: string[]; location: SourceLocation }
   | { kind: 'binary'; op: '+' | '-' | '/'; left: Expr; right: Expr; location: SourceLocation }
   | { kind: 'unary'; op: '-' | '!'; operand: Expr; location: SourceLocation }
-  | { kind: 'group'; inner: Expr; location: SourceLocation };
+  | { kind: 'group'; inner: Expr; location: SourceLocation }
+  | { kind: 'call'; name: string; args: Expr[]; location: SourceLocation };
+
+/** Built-in expression functions. Arity is fixed count or [min, max] range. */
+export const BUILTIN_FUNCTIONS: Record<string, { arity: number }> = {
+  len: { arity: 1 },
+  max: { arity: 2 },
+  min: { arity: 2 },
+  str: { arity: 1 },
+};
 
 export interface ImportDecl {
   names: string[];
@@ -157,6 +166,9 @@ export interface Condition {
 export function conditionFieldName(condition: Condition): string {
   if (condition.left.kind === 'field_access') {
     return condition.left.segments.join('.');
+  }
+  if (condition.left.kind === 'call') {
+    return `${condition.left.name}(...)`;
   }
   return '<expr>';
 }

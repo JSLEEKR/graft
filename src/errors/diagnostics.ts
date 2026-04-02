@@ -25,7 +25,8 @@ export type ScopeErrorCode =
   | 'SCOPE_VAR_ORDER'
   | 'SCOPE_GRAPH_RECURSION'
   | 'SCOPE_GRAPH_PARAM_MISSING'
-  | 'SCOPE_GRAPH_PARAM_TYPE';
+  | 'SCOPE_GRAPH_PARAM_TYPE'
+  | 'SCOPE_UNKNOWN_FUNCTION';
 
 export type TypeErrorCode =
   | 'TYPE_FIELD_NOT_FOUND'
@@ -33,7 +34,8 @@ export type TypeErrorCode =
   | 'TYPE_WRITE_FIELD_OVERLAP'
   | 'TYPE_CONDITION_MISMATCH'
   | 'TYPE_EXPR_MISMATCH'
-  | 'TYPE_VAR_CONDITION';
+  | 'TYPE_VAR_CONDITION'
+  | 'TYPE_FUNC_ARITY';
 
 export type BudgetErrorCode =
   | 'BUDGET_EXCEEDED'

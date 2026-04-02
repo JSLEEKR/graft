@@ -1,6 +1,6 @@
 import type { Hover } from 'vscode-languageserver/node';
 import { MarkupKind } from 'vscode-languageserver/node';
-import type { TypeExpr } from '../../parser/ast.js';
+import { type TypeExpr, BUILTIN_FUNCTIONS } from '../../parser/ast.js';
 import type { ProgramIndex } from '../../program-index.js';
 
 export const KEYWORD_DOCS: Record<string, string> = {
@@ -56,6 +56,18 @@ export function getHoverInfo(word: string, index: ProgramIndex): Hover | null {
   if (mem) {
     const fields = mem.fields.map(f => `  ${f.name}: ${formatType(f.type)}`).join('\n');
     return mkHover(`**memory** ${mem.name} (max_tokens: ${mem.maxTokens}, storage: ${mem.storage})\n\`\`\`\n${fields}\n\`\`\``);
+  }
+
+  // Built-in functions
+  if (word in BUILTIN_FUNCTIONS) {
+    const info = BUILTIN_FUNCTIONS[word];
+    const FUNC_DOCS: Record<string, string> = {
+      len: '**len**(value) → number\n\nReturns the length of an array or string.',
+      max: '**max**(a, b) → number\n\nReturns the larger of two numbers.',
+      min: '**min**(a, b) → number\n\nReturns the smaller of two numbers.',
+      str: '**str**(value) → string\n\nConverts a value to its string representation.',
+    };
+    return mkHover(FUNC_DOCS[word] ?? `**${word}**(${info.arity} args)`);
   }
 
   const producerNode = index.producesNodeMap.get(word);

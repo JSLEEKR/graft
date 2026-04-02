@@ -1,4 +1,4 @@
-import { FlowNode, Expr, GraphArg, GraphDecl } from '../parser/ast.js';
+import { FlowNode, Expr, GraphArg, GraphDecl, BUILTIN_FUNCTIONS } from '../parser/ast.js';
 import { GraftError, SourceLocation } from '../errors/diagnostics.js';
 import { ProgramIndex } from '../program-index.js';
 
@@ -70,6 +70,17 @@ export function checkExprSources(
       break;
     case 'group':
       checkExprSources(expr.inner, seenNodes, declaredVars, graphName, errors);
+      break;
+    case 'call':
+      if (!(expr.name in BUILTIN_FUNCTIONS)) {
+        errors.push(new GraftError(
+          `Unknown function '${expr.name}' in graph '${graphName}'`,
+          expr.location, 'error', 'SCOPE_UNKNOWN_FUNCTION',
+        ));
+      }
+      for (const arg of expr.args) {
+        checkExprSources(arg, seenNodes, declaredVars, graphName, errors);
+      }
       break;
   }
 }

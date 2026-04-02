@@ -1,5 +1,26 @@
 # Changelog
 
+## v4.2.0 (2026-04-02)
+
+### Added
+- **Expression functions**: `len()`, `max()`, `min()`, `str()` as built-in functions callable in expressions
+  - New `call` Expr kind with name + args
+  - Parser: `parsePrimary` recognizes builtin name + `(` as function call
+  - Evaluator: `evaluateExpr` handles `call` kind with built-in dispatch
+  - Scope checker: validates function names against `BUILTIN_FUNCTIONS` registry
+  - Type checker: validates argument count (arity) per function
+  - 2 new error codes: `SCOPE_UNKNOWN_FUNCTION`, `TYPE_FUNC_ARITY`
+- **Graph call return values**: graph calls now capture the last node's output and store it under the graph call name in parent outputs — enables `let x = Sub().field` patterns
+- **LSP**: builtin function completions in graph flow context, hover documentation for `len`/`max`/`min`/`str`
+
+### Fixed
+- **Equality semantics unification**: `evalCondition` in transforms.ts now uses loose equality (`==`/`!=`) matching `evaluateCondition` in flow-runner.ts — string `"200"` now correctly matches number `200` in filter transforms
+
+### Stats
+- 1,048 tests (47 new), ~290 ratchets
+- 4 rounds (1 MEDIUM, 2 DIRECT, 1 TEST-ONLY), ~10 agent calls
+- First version with expression functions
+
 ## v4.1.0 (2026-04-02)
 
 ### Fixed
