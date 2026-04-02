@@ -29,7 +29,9 @@ export type TypeErrorCode =
 
 export type BudgetErrorCode =
   | 'BUDGET_EXCEEDED'
-  | 'BUDGET_NODE_EXCEEDED';
+  | 'BUDGET_NODE_EXCEEDED'
+  | 'BUDGET_CHAIN_CYCLE'
+  | 'BUDGET_CHAIN_DEPTH';
 
 export type ImportErrorCode =
   | 'IMPORT_CIRCULAR'

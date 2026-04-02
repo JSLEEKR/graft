@@ -115,6 +115,9 @@ export function collectRenameLocations(docText: string, name: string): Range[] {
   // Normalize CRLF to LF
   docText = docText.replace(/\r\n/g, '\n');
 
+  // Parse document to extract import path ranges for AST-based filtering
+  const importPathRanges = getImportPathRanges(docText);
+
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const regex = new RegExp(`\\b${escaped}\\b`, 'g');
   const ranges: Range[] = [];
@@ -147,13 +150,8 @@ export function collectRenameLocations(docText: string, name: string): Range[] {
     const lineText = lines[line];
     if (isInString(lineText, character)) continue;
 
-    // Skip matches inside import path strings (from "...")
-    const fromMatch = lineText.match(/from\s+"([^"]*)"/);
-    if (fromMatch) {
-      const pathStart = lineText.indexOf('"', lineText.indexOf('from'));
-      const pathEnd = lineText.indexOf('"', pathStart + 1);
-      if (character > pathStart && character < pathEnd) continue;
-    }
+    // Skip matches inside import path strings (AST-based)
+    if (isInImportPath(matchOffset, match[0].length, importPathRanges)) continue;
 
     ranges.push({
       start: { line, character },
@@ -162,6 +160,47 @@ export function collectRenameLocations(docText: string, name: string): Range[] {
   }
 
   return ranges;
+}
+
+/**
+ * Parse the document and return offset ranges for all import path strings.
+ * Each range is [start, end) covering the path string content (inside quotes).
+ */
+function getImportPathRanges(docText: string): Array<{ start: number; end: number }> {
+  const ranges: Array<{ start: number; end: number }> = [];
+  try {
+    const tokens = new Lexer(docText).tokenize();
+    const { program } = new Parser(tokens).parse();
+    for (const imp of program.imports) {
+      // Find the import path string in the source text after the import location
+      // The path is a string literal like "path/to/file" in `from "path/to/file"`
+      const searchStart = imp.location.offset;
+      const fromIdx = docText.indexOf('from', searchStart);
+      if (fromIdx === -1) continue;
+      const quoteStart = docText.indexOf('"', fromIdx);
+      if (quoteStart === -1) continue;
+      const quoteEnd = docText.indexOf('"', quoteStart + 1);
+      if (quoteEnd === -1) continue;
+      // Range covers content inside quotes (exclusive of quotes themselves)
+      ranges.push({ start: quoteStart + 1, end: quoteEnd });
+    }
+  } catch {
+    // If parsing fails, return empty ranges (no import filtering)
+  }
+  return ranges;
+}
+
+function isInImportPath(
+  matchOffset: number,
+  matchLength: number,
+  importPathRanges: Array<{ start: number; end: number }>,
+): boolean {
+  for (const range of importPathRanges) {
+    if (matchOffset >= range.start && matchOffset + matchLength <= range.end) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function findFieldCollision(newName: string, index: ProgramIndex): string | null {

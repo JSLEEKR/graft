@@ -158,7 +158,7 @@ describe('TokenEstimator — multi-hop conditional chains', () => {
     expect(report.bestCase).toBe(1000 + 800);
     expect(report.worstCase).toBe(1000 + 800);
     expect(report.warnings.some(w => w.message.includes('cycle'))).toBe(true);
-    expect(report.warnings.some(w => w.code === 'BUDGET_EXCEEDED')).toBe(true);
+    expect(report.warnings.some(w => w.code === 'BUDGET_CHAIN_CYCLE')).toBe(true);
   });
 
   it('6. depth limit emits warning and returns finite result', () => {

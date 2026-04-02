@@ -133,7 +133,7 @@ export class TokenEstimator {
           const cost = this.getNodeCost(step.name, node);
           const retryMul = this.getRetryMultiplier(node);
           best += cost;
-          worst += cost * retryMul;
+          worst += cost * retryMul + this.getFallbackCost(node);
           // Add conditional edge branch costs (multi-hop recursive)
           const branchCosts = this.getConditionalBranchCosts(
             step.name, warnings, new Set([step.name]), 0,
@@ -150,7 +150,7 @@ export class TokenEstimator {
             const cost = this.getNodeCost(branchName, node);
             const retryMul = this.getRetryMultiplier(node);
             best += cost;
-            worst += cost * retryMul;
+            worst += cost * retryMul + this.getFallbackCost(node);
           }
           break;
         }
@@ -182,7 +182,7 @@ export class TokenEstimator {
         `Conditional chain from '${source}' exceeded maximum depth of ${MAX_CONDITIONAL_HOPS}`,
         { line: 0, column: 0, offset: 0 },
         'warning',
-        'BUDGET_EXCEEDED',
+        'BUDGET_CHAIN_DEPTH',
       ));
       return { best: 0, worst: 0 };
     }
@@ -203,7 +203,7 @@ export class TokenEstimator {
           `Conditional estimation cycle detected: ${[...visited, branch.target].join(' -> ')}`,
           { line: 0, column: 0, offset: 0 },
           'warning',
-          'BUDGET_EXCEEDED',
+          'BUDGET_CHAIN_CYCLE',
         ));
         branchBestCosts.push(0);
         branchWorstCosts.push(0);
@@ -301,5 +301,12 @@ export class TokenEstimator {
       default:
         return 1;
     }
+  }
+
+  private getFallbackCost(node: NodeDecl): number {
+    if (!node.onFailure || node.onFailure.type !== 'retry_then_fallback') return 0;
+    const fallbackNode = this.nodeMap.get(node.onFailure.node);
+    if (!fallbackNode) return 0;
+    return this.getNodeCost(node.onFailure.node, fallbackNode);
   }
 }
