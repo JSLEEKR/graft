@@ -1,4 +1,4 @@
-import { FlowNode, FailureStrategy, Condition, ConditionalBranch, Transform, conditionFieldName } from '../parser/ast.js';
+import { FlowNode, FailureStrategy, Condition, ConditionalBranch, Transform, conditionFieldName, Expr, GraphDecl } from '../parser/ast.js';
 import { NodeResult } from './executor.js';
 import { resolveField, RuntimeState } from './prompt-builder.js';
 import { applyTransforms } from './transforms.js';
@@ -15,10 +15,78 @@ export interface FlowContext extends RuntimeState {
   executeNode: (name: string) => Promise<NodeResult>;
   getFailureStrategy?: (name: string) => FailureStrategy | undefined;
   getConditionalEdge?: (sourceName: string) => ConditionalEdgeInfo | null;
+  variables?: Map<string, unknown>;
+  getGraphDecl?: (name: string) => GraphDecl | undefined;
 }
 
-export function evaluateCondition(condition: Condition, output: Record<string, unknown>): boolean {
-  const fieldValue = output[conditionFieldName(condition)];
+export function evaluateExpr(expr: Expr, outputs: Map<string, unknown>, variables?: Map<string, unknown>): unknown {
+  switch (expr.kind) {
+    case 'literal':
+      return expr.value;
+    case 'field_access': {
+      // Single-segment: check variables first (variable-first resolution per R2 ratchet v4.0-R21)
+      if (expr.segments.length === 1) {
+        if (variables?.has(expr.segments[0])) {
+          return variables.get(expr.segments[0]);
+        }
+        // Could be a node name with single output
+        return outputs.get(expr.segments[0]);
+      }
+      // Multi-segment: first segment is source name, rest are nested field access
+      const root = outputs.get(expr.segments[0]);
+      if (root === undefined || root === null) return undefined;
+      let current: unknown = root;
+      for (let i = 1; i < expr.segments.length; i++) {
+        if (current === null || current === undefined || typeof current !== 'object') return undefined;
+        current = (current as Record<string, unknown>)[expr.segments[i]];
+      }
+      return current;
+    }
+    case 'binary': {
+      const left = evaluateExpr(expr.left, outputs, variables);
+      const right = evaluateExpr(expr.right, outputs, variables);
+      switch (expr.op) {
+        case '+':
+          if (typeof left === 'string' || typeof right === 'string') return String(left) + String(right);
+          return Number(left) + Number(right);
+        case '-': return Number(left) - Number(right);
+        case '/': {
+          const divisor = Number(right);
+          if (divisor === 0) return 0;
+          return Number(left) / divisor;
+        }
+      }
+      break;
+    }
+    case 'unary': {
+      const operand = evaluateExpr(expr.operand, outputs, variables);
+      if (expr.op === '-') return -Number(operand);
+      if (expr.op === '!') return !operand;
+      return operand;
+    }
+    case 'group':
+      return evaluateExpr(expr.inner, outputs, variables);
+  }
+}
+
+export function evaluateCondition(
+  condition: Condition,
+  output: Record<string, unknown>,
+  variables?: Map<string, unknown>,
+): boolean {
+  // Variable-first resolution for single-segment field_access
+  let fieldValue: unknown;
+  if (condition.left.kind === 'field_access' && condition.left.segments.length === 1) {
+    const name = condition.left.segments[0];
+    if (variables?.has(name)) {
+      fieldValue = variables.get(name);
+    } else {
+      fieldValue = output[name];
+    }
+  } else {
+    fieldValue = output[conditionFieldName(condition)];
+  }
+
   if (fieldValue === undefined) {
     return condition.op === '!=';
   }
@@ -119,7 +187,7 @@ export async function executeConditionalChain(
     for (const branch of branches) {
       if (!branch.condition) {
         elseBranch = branch.target;
-      } else if (evaluateCondition(branch.condition, output)) {
+      } else if (evaluateCondition(branch.condition, output, ctx.variables)) {
         routedTo = branch.target;
         break;
       }
@@ -232,11 +300,40 @@ export async function executeFlowNodes(
         break;
       }
 
-      case 'let':
+      case 'let': {
+        if (!ctx.variables) ctx.variables = new Map();
+        const value = evaluateExpr(flowNode.value, ctx.outputs, ctx.variables);
+        ctx.variables.set(flowNode.name, value);
         break;
+      }
 
-      case 'graph_call':
+      case 'graph_call': {
+        const graphDecl = ctx.getGraphDecl?.(flowNode.name);
+        if (!graphDecl) {
+          errors.push(`Graph '${flowNode.name}' not found`);
+          break;
+        }
+        // Build child variable map from params
+        const childVars = new Map<string, unknown>();
+        const paramMap = new Map(graphDecl.params.map(p => [p.name, p]));
+        for (const arg of flowNode.args) {
+          const val = evaluateExpr(arg.value, ctx.outputs, ctx.variables);
+          childVars.set(arg.name, val);
+        }
+        // Fill defaults for missing params
+        for (const param of graphDecl.params) {
+          if (!childVars.has(param.name) && param.default !== undefined) {
+            childVars.set(param.name, param.default);
+          }
+        }
+        // Execute child graph with its own variable scope
+        const childCtx: FlowContext = {
+          ...ctx,
+          variables: childVars,
+        };
+        await executeFlowNodes(graphDecl.flow, nodeResults, errors, childCtx);
         break;
+      }
     }
   }
 }

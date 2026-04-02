@@ -1,5 +1,42 @@
 # Changelog
 
+## v4.0.0 (2026-04-02)
+
+### Added
+- **Variables (`let`)**: bind intermediate values in graph flow — `let score = Analyzer.score`
+- **Expressions**: arithmetic (`+`, `-`, `/`), string concatenation, field access, unary (`-`, `!`), grouping
+  - `Expr` AST: 5-kind discriminated union (literal, field_access, binary, unary, group)
+  - Expression parser with additive precedence (flat `+`/`-`/`/`)
+- **Graph parameters**: typed parameters on graph declarations — `graph G(..., count: Int, label: String = "default")`
+  - Int, String, Bool types with default values
+  - Node-type parameters for passing node references
+- **Graph calls**: invoke sub-graphs from flow — `Sub(count: 5) -> done`
+  - LL(1) disambiguation (Identifier + LParen)
+  - Child variable scope isolation
+  - Nested graph calls supported (A calls B calls C)
+- **Scope analysis**: variable collision detection, graph recursion detection (DFS), graph call argument validation
+  - 6 new error codes: `SCOPE_VAR_COLLISION`, `SCOPE_VAR_UNDECLARED`, `SCOPE_VAR_ORDER`, `SCOPE_GRAPH_RECURSION`, `SCOPE_GRAPH_PARAM_MISSING`, `SCOPE_GRAPH_PARAM_TYPE`
+- **Type analysis**: expression type inference (`InferredType`), binary op compatibility checks, variable condition type validation
+  - 2 new error codes: `TYPE_EXPR_MISMATCH`, `TYPE_VAR_CONDITION`
+- **Runtime**: `evaluateExpr()` recursive evaluator, `let`/`graph_call` execution in flow-runner
+  - Variable-first resolution: single-segment field access checks variables before node outputs
+  - Graph call builds child `FlowContext` with isolated variable scope
+- **Estimator**: `let` zero cost, `graph_call` recurses into called graph's flow
+- **Codegen**: `[data binding]` steps for let, `[sub-pipeline]` steps for graph calls, parameters section in orchestration header
+- **LSP**: `let` as Variable symbol, `graph_call` as Function symbol, `let` keyword completion, graph name completions in flow context
+
+### Changed
+- `Condition.left` is now `Expr` (was `{kind: 'field_access', segments, location}`) — `conditionFieldName()` bridge for backward compat
+- `FlowNode` union: 5 kinds (node, parallel, foreach, let, graph_call) — was 3
+- `GraphDecl.params`: `GraphParam[]` required field (defaults to `[]`)
+- `FlowContext`: added `variables?: Map<string, unknown>`, `getGraphDecl?`
+- New tokens: `Plus`, `Minus`, `Bang`, `Equals`, `Let`
+
+### Stats
+- 980 tests (90 new), ~268 ratchets (33 new)
+- 6 rounds (1 HIGH, 1 MEDIUM, 2 DIRECT, 1 TEST-ONLY, 1 integration)
+- First major version bump since v3.0
+
 ## v3.9.0 (2026-04-02)
 
 ### Added

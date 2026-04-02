@@ -1,7 +1,7 @@
 # Common Memory — Graft Compiler
-## Last updated: v3.9-R3 completed (v3.9.0 release — final v3.x)
+## Last updated: v4.0-R6 completed (v4.0 COMPLETE)
 
-## Ratchet-Locked Decisions (~235 total, 5 unlocked)
+## Ratchet-Locked Decisions (~250 total, 5 unlocked)
 
 ### T1-T6 (abbreviated — all LOCKED)
 T1: tsc-only, ESM, NodeNext, explicit vitest, shebang, strict, no barrels, .js extensions
@@ -478,3 +478,69 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v3.9-R2 complete: Estimator polish (BUDGET_CHAIN_CYCLE, BUDGET_CHAIN_DEPTH, fallback cost) + TD-01 AST-based import-path filtering. DIRECT tier.
 - v3.9-R3 complete: Integration + regression tests (10 cross-cutting tests). TEST-ONLY tier.
 - v3.9 COMPLETE: 3 rounds (R1-R3). Conditional edge transforms + estimator polish + TD-01. 890 tests. Final v3.x release. Closes TD-01, resolves SCOPE_TRANSFORM_CONDITIONAL.
+- v4.0 COMPLETE: 6 rounds (R1-R6). Variables (let), expressions, graph params, graph calls. 980 tests. 72 new v4.0 tests across 5 test files.
+
+### v4.0-R1 Ratchets (Lexer + AST + Expression Parser)
+- [v4.0-R01] Expr: 5-kind discriminated union (literal, field_access, binary, unary, group) with mandatory SourceLocation — LOCKED
+- [v4.0-R02] Division at additive precedence (flat with +/-), no multiplicative level — LOCKED
+- [v4.0-R03] Condition.left: Expr replaces Condition.field atomically — LOCKED
+- [v4.0-R04] conditionFieldName() bridge exported from ast.ts for incremental migration — LOCKED
+- [v4.0-R05] Let: arrow-connected FlowNode kind — LOCKED
+- [v4.0-R06] Graph call: LL(1) disambiguation (Identifier + LParen) — LOCKED
+- [v4.0-R07] parsePrimary: permissive first segment (accepts KEYWORD_TYPES) — LOCKED
+- [v4.0-R08] Graph params: after budget, comma-separated, Node checked by Identifier value — LOCKED
+- [v4.0-R09] Foreach body: allows node/let/graph_call, rejects parallel/foreach — LOCKED
+- [v4.0-R10] Graph call zero args: allowed at parser level, validated by analyzer in R2 — LOCKED
+- [v4.0-R11] FlowNode: 5 kinds (node, parallel, foreach, let, graph_call) — LOCKED
+- [v4.0-R12] GraphDecl.params: GraphParam[] required field, defaults to [] — LOCKED
+- [v4.0-R13] New tokens: Plus, Minus, Bang, Equals, Let — LOCKED
+- [v4.0-R14] mkCond() test helper in tests/helpers.ts — LOCKED
+- [v4.0-R15] KIntegerLiteral included in parsePrimary — LOCKED
+
+### v4.0-R2 Ratchets (7 items, all LOCKED)
+- [v4.0-R16] declaredVars: Set<string> tracked in walkFlowNodes, foreach body clones set — LOCKED
+- [v4.0-R17] seenNodes: Set<string> tracks node appearance order; Node-type graph params pre-populated — LOCKED
+- [v4.0-R18] checkVarCollision checks nodeMap, contextMap, memoryMap, graphMap + duplicate vars — LOCKED
+- [v4.0-R19] checkGraphRecursion: DFS with visited+inStack (same pattern as fallback cycle detection) — LOCKED
+- [v4.0-R20] InferredType = 'number' | 'string' | 'boolean' | 'unknown' in types.ts — LOCKED
+- [v4.0-R21] Variable-first resolution: single-segment field_access checks varTypes before producesFieldsMap — LOCKED
+- [v4.0-R22] 6 new ScopeErrorCodes + 2 new TypeErrorCodes added to diagnostics.ts — LOCKED
+
+### v4.0-R3 Ratchets (Runtime — flow-runner.ts)
+- [v4.0-R23] evaluateExpr: recursive evaluator for Expr AST (literal, field_access, binary, unary, group) — LOCKED
+- [v4.0-R24] Variable-first resolution in evaluateExpr: single-segment field_access checks variables map before outputs — LOCKED
+- [v4.0-R25] evaluateCondition: accepts optional variables param, variable-first for single-segment LHS — LOCKED
+- [v4.0-R26] executeFlowNodes case 'let': creates ctx.variables lazily, evaluates expr, stores result — LOCKED
+- [v4.0-R27] executeFlowNodes case 'graph_call': builds child FlowContext with own variables scope — LOCKED
+- [v4.0-R28] FlowContext: added variables?: Map<string, unknown>, getGraphDecl?: (name) => GraphDecl — LOCKED
+
+### v4.0-R4 Ratchets (Estimator + Codegen)
+- [v4.0-R29] TokenEstimator: case 'let' zero cost, case 'graph_call' recurses into called graph flow — LOCKED
+- [v4.0-R30] Orchestration codegen: let → [data binding] step, graph_call → [sub-pipeline] step — LOCKED
+- [v4.0-R31] Graph params section in orchestration header (name: type with optional default) — LOCKED
+
+### v4.0-R5 Ratchets (LSP)
+- [v4.0-R32] Document symbols: let → Variable kind, graph_call → Function kind with args label — LOCKED
+- [v4.0-R33] Completions in graph flow: 'let' keyword + graph names from graphMap as Module kind — LOCKED
+
+### v4.0-R6 Review Summary
+- v4.0-R6 complete: Integration + Regression Tests (TEST-ONLY). 13 new tests, 980 total. All pass.
+  - Cross-feature: variable+conditional, variable+foreach, variable+parallel, nested graph calls, variable+graph param
+  - Regression: existing flow patterns, conditions with field refs, graph without params, LSP on basic programs
+  - Scale: complex pipeline with let+graph call+params compiles end-to-end
+  - Error: undeclared variable in let → SCOPE_VAR_ORDER, self-recursive graph → SCOPE_GRAPH_RECURSION
+
+### v4.0-R2 Review Feedback
+- v4.0-R2 complete: Scope Checker + Type Checker (MEDIUM tier, A2+A3 debate). 18 new tests, 939 total. PASS on first try.
+  - A3 found critical edge case: condition LHS single-segment ambiguity (variable vs field). Variable-first resolution adopted.
+  - A3 found foreach body must clone declaredVars (body vars don't leak to outer scope).
+  - Node-type graph params required special handling: pre-populated in seenNodes, skip flow-order check in graph call args.
+  - conditionFieldName multi-segment bug deferred (pre-existing, out of R2 scope).
+  - Graft field syntax uses newlines not commas (test fix during implementation).
+
+### v4.0-R1 Review Feedback
+- v4.0-R1 complete: Lexer + AST + Expression Parser (HIGH tier, full 4-agent debate). 31 new tests, 921 total. PASS on first try.
+  - Forced dissent (A1): 4 self-rebuttals, 2 accepted (Node not in KEYWORDS, foreach allows graph_call), 2 rejected (flat division is fine, bridge helper is fine)
+  - A3 retracted let-without-arrows (spec example was pseudocode)
+  - A4 withdrew multiplicative precedence level (spec grammar is flat)
+  - Condition.field → Condition.left migration: 4 source files + 142 test occurrences across 15 files, all migrated via conditionFieldName() bridge + mkCond() helper

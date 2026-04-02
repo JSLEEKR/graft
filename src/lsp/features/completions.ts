@@ -112,10 +112,14 @@ export function getCompletions(
   if (isInsideBlock(lines, line, 'graph')) {
     const items: CompletionItem[] = [
       { label: 'done', kind: CompletionItemKind.Keyword, detail: 'Terminal node' },
+      { label: 'let', kind: CompletionItemKind.Keyword, detail: 'Variable binding' },
     ];
     if (cache) {
       for (const name of cache.index.nodeMap.keys()) {
         items.push({ label: name, kind: CompletionItemKind.Class, detail: 'node' });
+      }
+      for (const name of cache.index.graphMap.keys()) {
+        items.push({ label: name, kind: CompletionItemKind.Module, detail: 'graph call' });
       }
     }
     return items;

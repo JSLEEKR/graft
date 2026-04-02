@@ -53,9 +53,10 @@ function makeFlowNodeChildren(flow: FlowNode[], parentLoc: SourceLocation): Docu
       sym.children = makeFlowNodeChildren(node.body, node.location ?? parentLoc);
       children.push(sym);
     } else if (node.kind === 'let') {
-      // let binding symbol deferred to R5
+      children.push(makeSymbol(`let ${node.name}`, SymbolKind.Variable, node.location ?? parentLoc));
     } else if (node.kind === 'graph_call') {
-      // graph call symbol deferred to R5
+      const label = `${node.name}(${node.args.map(a => a.name).join(', ')})`;
+      children.push(makeSymbol(label, SymbolKind.Function, node.location ?? parentLoc));
     }
   }
   return children;

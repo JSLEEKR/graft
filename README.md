@@ -6,7 +6,7 @@
 
 **A graph-native language for AI agent harness engineering.**
 
-Graft compiles `.gft` source files into execution harnesses and runs them. It provides declarative context flow definitions, compile-time token budget analysis, structured inter-agent communication, cross-file imports, persistent memory with field-level writes, and pluggable codegen backends — replacing wasteful natural language token passing in multi-agent systems.
+Graft compiles `.gft` source files into execution harnesses and runs them. It provides declarative context flow definitions, compile-time token budget analysis, structured inter-agent communication, cross-file imports, persistent memory with field-level writes, variables with expressions, parameterized sub-graphs, and pluggable codegen backends — replacing wasteful natural language token passing in multi-agent systems.
 
 ```graft
 import { UserMessage, SystemConfig } from "./shared.gft"
@@ -218,6 +218,17 @@ parallel { A B C } -> Aggregator -> done
 foreach(Splitter.output.tasks as task, max_iterations: 10) {
   Processor -> Validator
 } -> Collector -> done
+
+# Variables and expressions
+A -> let score = A.risk_score -> B -> done
+
+# Graph parameters and calls
+graph Sub(input: TaskSpec, output: Result, budget: 5k, threshold: Int = 50) {
+  Worker -> done
+}
+graph Main(input: TaskSpec, output: FinalReport, budget: 20k) {
+  Classifier -> Sub(threshold: 80) -> Summarizer -> done
+}
 ```
 
 ### Type System
@@ -321,7 +332,7 @@ src/
 ## Development
 
 ```bash
-npm test              # Run all 890 tests
+npm test              # Run all 980 tests
 npm run build         # Compile TypeScript
 npx tsc --noEmit      # Type check only
 ```
@@ -330,6 +341,7 @@ npx tsc --noEmit      # Type check only
 
 | Version | Features |
 |---------|----------|
+| **v4.0** | Variables (`let`), expressions, graph parameters, graph calls, 980 tests |
 | **v3.9** | Conditional edge transforms, estimator polish, TD-01 AST-based filtering, 890 tests |
 | **v3.8** | Flow-runner extraction, multi-hop estimation, foreach error context, 864 tests |
 | **v3.7** | Foreach failure handling, multi-hop conditional routing, server.ts extraction, reference position fix, 832 tests |

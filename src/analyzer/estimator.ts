@@ -118,9 +118,16 @@ export class TokenEstimator {
           this.collectNodeReports(step.body, reports, warnings);
           break;
         case 'let':
+          // Let bindings have no token cost
           break;
-        case 'graph_call':
+        case 'graph_call': {
+          // Recurse into called graph's flow for node reports
+          const calledGraph = this.index.graphMap.get(step.name);
+          if (calledGraph) {
+            this.collectNodeReports(calledGraph.flow, reports, warnings);
+          }
           break;
+        }
       }
     }
   }
@@ -167,9 +174,18 @@ export class TokenEstimator {
           break;
         }
         case 'let':
+          // Let bindings have zero token cost
           break;
-        case 'graph_call':
+        case 'graph_call': {
+          // Graph call cost = called graph's flow cost
+          const calledGraph = this.index.graphMap.get(step.name);
+          if (calledGraph) {
+            const subCosts = this.computeFlowCosts(calledGraph.flow, warnings);
+            best += subCosts.best;
+            worst += subCosts.worst;
+          }
           break;
+        }
       }
     }
 

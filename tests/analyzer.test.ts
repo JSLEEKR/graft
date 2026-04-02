@@ -1133,6 +1133,367 @@ describe('Compiler — warning routing integration', () => {
   });
 });
 
+describe('ScopeChecker — variable collision', () => {
+  it('reports SCOPE_VAR_COLLISION when variable collides with node name', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { query: String }
+      node Analyzer(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out { score: Float }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) {
+        Analyzer -> let Analyzer = 42 -> done
+      }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    const collision = errors.find(e => e.code === 'SCOPE_VAR_COLLISION');
+    expect(collision).toBeDefined();
+    expect(collision!.message).toContain('Analyzer');
+    expect(collision!.message).toContain('collides with declared node');
+  });
+
+  it('reports SCOPE_VAR_COLLISION when variable collides with context name', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { query: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) {
+        A -> let Spec = A.data -> done
+      }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    const collision = errors.find(e => e.code === 'SCOPE_VAR_COLLISION');
+    expect(collision).toBeDefined();
+    expect(collision!.message).toContain('collides with declared context');
+  });
+
+  it('reports SCOPE_VAR_COLLISION when variable collides with memory name', () => {
+    const program = parse(`
+      memory History(max_tokens: 1k, storage: file) { log: String }
+      context Spec(max_tokens: 500) { query: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) {
+        A -> let History = A.data -> done
+      }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    const collision = errors.find(e => e.code === 'SCOPE_VAR_COLLISION');
+    expect(collision).toBeDefined();
+    expect(collision!.message).toContain('collides with declared memory');
+  });
+
+  it('reports SCOPE_VAR_COLLISION when variable collides with graph name', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { query: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) {
+        A -> let G = A.data -> done
+      }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    const collision = errors.find(e => e.code === 'SCOPE_VAR_COLLISION');
+    expect(collision).toBeDefined();
+    expect(collision!.message).toContain('collides with declared graph');
+  });
+
+  it('reports SCOPE_VAR_COLLISION for duplicate variable name', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { query: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out {
+          score: Float
+          label: String
+        }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) {
+        A -> let s = A.score -> let s = A.label -> done
+      }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    const collision = errors.find(e => e.code === 'SCOPE_VAR_COLLISION' && e.message.includes('already declared'));
+    expect(collision).toBeDefined();
+  });
+});
+
+describe('ScopeChecker — variable ordering', () => {
+  it('passes when variable references a preceding node', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { query: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out { score: Float }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) {
+        A -> let s = A.score -> done
+      }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    expect(errors.filter(e => e.severity === 'error')).toEqual([]);
+  });
+
+  it('reports SCOPE_VAR_ORDER when variable references node not yet in flow', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { query: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out { score: Float }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) {
+        let s = A.score -> A -> done
+      }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    const orderErr = errors.find(e => e.code === 'SCOPE_VAR_ORDER');
+    expect(orderErr).toBeDefined();
+  });
+});
+
+describe('ScopeChecker — graph calls', () => {
+  it('passes graph call with all required params provided', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { query: String }
+      node Worker(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out { data: String }
+      }
+      graph Sub(input: Spec, output: Out, budget: 3k, worker: Node) {
+        worker -> done
+      }
+      graph Main(input: Spec, output: Out, budget: 5k) {
+        Sub(worker: Worker) -> done
+      }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    // Filter out GRAPH_MULTIPLE warning (two graphs declared)
+    const realErrors = errors.filter(e => e.severity === 'error');
+    expect(realErrors).toEqual([]);
+  });
+
+  it('reports SCOPE_GRAPH_PARAM_MISSING for missing required param', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { query: String }
+      node Worker(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out { data: String }
+      }
+      graph Sub(input: Spec, output: Out, budget: 3k, worker: Node) {
+        worker -> done
+      }
+      graph Main(input: Spec, output: Out, budget: 5k) {
+        Sub() -> done
+      }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    const missing = errors.find(e => e.code === 'SCOPE_GRAPH_PARAM_MISSING');
+    expect(missing).toBeDefined();
+    expect(missing!.message).toContain('worker');
+  });
+
+  it('reports SCOPE_GRAPH_PARAM_TYPE for wrong literal type', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { query: String }
+      node Worker(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out { data: String }
+      }
+      graph Sub(input: Spec, output: Out, budget: 3k, count: Int) {
+        Worker -> done
+      }
+      graph Main(input: Spec, output: Out, budget: 5k) {
+        Sub(count: "hello") -> done
+      }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    const typeErr = errors.find(e => e.code === 'SCOPE_GRAPH_PARAM_TYPE');
+    expect(typeErr).toBeDefined();
+  });
+
+  it('reports SCOPE_GRAPH_RECURSION for self-recursive graph', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { query: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) {
+        A -> G() -> done
+      }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    const recursion = errors.find(e => e.code === 'SCOPE_GRAPH_RECURSION');
+    expect(recursion).toBeDefined();
+  });
+
+  it('reports SCOPE_GRAPH_RECURSION for mutual recursion', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { query: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out { data: String }
+      }
+      graph Alpha(input: Spec, output: Out, budget: 3k) {
+        A -> Beta() -> done
+      }
+      graph Beta(input: Spec, output: Out, budget: 3k) {
+        A -> Alpha() -> done
+      }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    const recursion = errors.filter(e => e.code === 'SCOPE_GRAPH_RECURSION');
+    expect(recursion.length).toBeGreaterThan(0);
+  });
+
+  it('reports SCOPE_UNDEFINED_REF for call to undeclared graph', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { query: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out { data: String }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) {
+        UnknownGraph() -> done
+      }
+    `);
+    const checker = new ScopeChecker(program);
+    const errors = checker.check();
+    const ref = errors.find(e => e.code === 'SCOPE_UNDEFINED_REF' && e.message.includes('UnknownGraph'));
+    expect(ref).toBeDefined();
+  });
+});
+
+describe('TypeChecker — expressions', () => {
+  it('passes string + string expression', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { query: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out {
+          greeting: String
+          name: String
+        }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) {
+        A -> let msg = A.greeting + A.name -> done
+      }
+    `);
+    const checker = new TypeChecker(program);
+    const errors = checker.check();
+    expect(errors.filter(e => e.code === 'TYPE_EXPR_MISMATCH')).toEqual([]);
+  });
+
+  it('reports TYPE_EXPR_MISMATCH for number + string', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { query: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out {
+          count: Int
+          label: String
+        }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) {
+        A -> let bad = A.count + A.label -> done
+      }
+    `);
+    const checker = new TypeChecker(program);
+    const errors = checker.check();
+    const mismatch = errors.find(e => e.code === 'TYPE_EXPR_MISMATCH');
+    expect(mismatch).toBeDefined();
+    expect(mismatch!.message).toContain("'+'");
+  });
+
+  it('passes numeric arithmetic expressions (- and /)', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { query: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out {
+          x: Int
+          y: Int
+        }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) {
+        A -> let diff = A.x - A.y -> let ratio = A.x / A.y -> done
+      }
+    `);
+    const checker = new TypeChecker(program);
+    const errors = checker.check();
+    expect(errors.filter(e => e.code === 'TYPE_EXPR_MISMATCH')).toEqual([]);
+  });
+
+  it('passes boolean negation', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { query: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out { flag: Bool }
+      }
+      graph G(input: Spec, output: Out, budget: 5k) {
+        A -> let inv = !A.flag -> done
+      }
+    `);
+    const checker = new TypeChecker(program);
+    const errors = checker.check();
+    expect(errors.filter(e => e.code === 'TYPE_EXPR_MISMATCH')).toEqual([]);
+  });
+
+  it('reports TYPE_VAR_CONDITION for string variable in ordered comparison', () => {
+    const loc = { line: 1, column: 1, offset: 0 };
+    const program: Program = {
+      imports: [],
+      memories: [],
+      contexts: [{ name: 'Spec', maxTokens: 500, fields: [{ name: 'query', type: { kind: 'primitive', name: 'String' }, location: loc }], location: loc }],
+      nodes: [
+        { name: 'A', model: 'sonnet', budgetIn: 2000, budgetOut: 1000, reads: [{ context: 'Spec', location: loc }], tools: [], writes: [], produces: { name: 'Out', fields: [{ name: 'label', type: { kind: 'primitive', name: 'String' }, location: loc }], location: loc }, location: loc },
+        { name: 'B', model: 'haiku', budgetIn: 1000, budgetOut: 500, reads: [{ context: 'Out', location: loc }], tools: [], writes: [], produces: { name: 'Final', fields: [{ name: 'result', type: { kind: 'primitive', name: 'String' }, location: loc }], location: loc }, location: loc },
+      ],
+      edges: [{
+        source: 'A',
+        target: { kind: 'conditional', branches: [
+          { condition: { left: { kind: 'field_access', segments: ['label'], location: loc }, op: '>=', value: 'high' }, target: 'B' },
+          { condition: undefined, target: 'B' },
+        ] },
+        transforms: [],
+        location: loc,
+      }],
+      graphs: [{
+        name: 'G', input: 'Spec', output: 'Final', budget: 10000, params: [],
+        flow: [
+          { kind: 'node', name: 'A', location: loc },
+          { kind: 'let', name: 'label', value: { kind: 'field_access', segments: ['A', 'label'], location: loc }, location: loc },
+          { kind: 'node', name: 'B', location: loc },
+        ],
+        location: loc,
+      }],
+    };
+    const checker = new TypeChecker(program);
+    const errors = checker.check();
+    const condErr = errors.find(e => e.code === 'TYPE_VAR_CONDITION');
+    expect(condErr).toBeDefined();
+  });
+});
+
 describe('Compiler — sourceFile tracking', () => {
   it('sets sourceFile on entry file declarations', () => {
     const source = `
