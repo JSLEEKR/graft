@@ -283,7 +283,112 @@ describe('v3.9-R1: edge transforms on conditional edges', () => {
     expect(warning).toBeUndefined();
   });
 
-  // 8. Filter transform on conditional edge
+  // 8. Transform applied before cycle detection
+  it('transforms are applied before cycle error fires', async () => {
+    const ctx = makeCtx({
+      nodeOutputs: {
+        A: { status: 'go', findings: ['a', 'b'], extra: 'noise' },
+        B: { status: 'loop', result: 'partial' },
+      },
+      conditionalEdges: {
+        A: {
+          branches: [
+            { condition: { field: 'status', op: '==', value: 'go' }, target: 'B' },
+          ],
+          transforms: [{ type: 'select', fields: ['findings'] }],
+        },
+        B: {
+          branches: [
+            { condition: { field: 'status', op: '==', value: 'loop' }, target: 'A' },
+          ],
+          transforms: [],
+        },
+      },
+    });
+
+    ctx.outputs.set('A', { status: 'go', findings: ['a', 'b'], extra: 'noise' });
+    const result: NodeResult = {
+      node: 'A',
+      output: { status: 'go', findings: ['a', 'b'], extra: 'noise' },
+      durationMs: 1,
+      success: true,
+    };
+
+    const results: NodeResult[] = [];
+    const errors: string[] = [];
+    await executeConditionalChain('A', result, ctx, results, errors);
+
+    // Transforms on A->B edge applied BEFORE cycle detection
+    expect(ctx.outputs.get('A')).toEqual({ findings: ['a', 'b'] });
+    // Cycle error still fires
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('cycle');
+  });
+
+  // 9. Transform and fallback alias are independent operations
+  it('transforms apply to source output and fallback alias applies to target output independently', async () => {
+    const executedNodes: string[] = [];
+    const outputs = new Map<string, unknown>();
+
+    const ctx: FlowContext & { _executedNodes: string[] } = {
+      outputs,
+      input: {},
+      executeNode: async (name: string): Promise<NodeResult> => {
+        executedNodes.push(name);
+        if (name === 'B') {
+          // B fails, triggering fallback
+          return { node: 'B', output: null, durationMs: 1, success: false, error: 'B failed' };
+        }
+        if (name === 'B_fallback') {
+          const output = { fallbackResult: 'recovered' };
+          outputs.set('B_fallback', output);
+          return { node: 'B_fallback', output, durationMs: 1, success: true };
+        }
+        return { node: name, output: {}, durationMs: 1, success: true };
+      },
+      getConditionalEdge: (sourceName: string) => {
+        if (sourceName === 'A') {
+          return {
+            branches: [
+              { condition: { field: 'status', op: '==', value: 'go' }, target: 'B' },
+            ],
+            transforms: [{ type: 'select', fields: ['data'] }],
+          };
+        }
+        return null;
+      },
+      getFailureStrategy: (name: string) => {
+        if (name === 'B') {
+          return { type: 'fallback' as const, node: 'B_fallback' };
+        }
+        return undefined;
+      },
+      get _executedNodes() { return executedNodes; },
+    } as FlowContext & { _executedNodes: string[] };
+
+    ctx.outputs.set('A', { status: 'go', data: 'important', extra: 'noise' });
+    const result: NodeResult = {
+      node: 'A',
+      output: { status: 'go', data: 'important', extra: 'noise' },
+      durationMs: 1,
+      success: true,
+    };
+
+    const results: NodeResult[] = [];
+    const errors: string[] = [];
+    await executeConditionalChain('A', result, ctx, results, errors);
+
+    expect(errors).toHaveLength(0);
+    // Transforms applied to SOURCE (A) output
+    expect(ctx.outputs.get('A')).toEqual({ data: 'important' });
+    // Fallback alias: B's slot gets the fallback node's output
+    expect(ctx.outputs.get('B')).toEqual({ fallbackResult: 'recovered' });
+    // Both B (failed) and B_fallback (succeeded) were executed
+    expect(executedNodes).toContain('B');
+    expect(executedNodes).toContain('B_fallback');
+  });
+
+  // 10. Filter transform on conditional edge
   it('filter transform on conditional edge filters array field', async () => {
     const ctx = makeCtx({
       nodeOutputs: {
