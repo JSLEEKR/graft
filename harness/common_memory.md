@@ -1,5 +1,5 @@
 # Common Memory — Graft Compiler
-## Last updated: v4.1 COMPLETE
+## Last updated: v4.2 COMPLETE
 
 ## Ratchet-Locked Decisions (~250 total, 5 unlocked)
 
@@ -403,6 +403,10 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v4.1-R2 (DIRECT): 2 agent calls. Output isolation + division warning + 4 exhaustive switches.
 - v4.1-R3 (DIRECT): 2 agent calls. Scope checker extraction (graph-checker.ts). Pure refactor, 0 new tests.
 - v4.1-R4 (TEST-ONLY): 2 agent calls. Integration + regression tests (10 new).
+- v4.2-R1 (MEDIUM): 4 agent calls. Expression functions (call Expr kind, BUILTIN_FUNCTIONS, parser/evaluator/scope/type).
+- v4.2-R2 (DIRECT): 2 agent calls. Graph call return values + equality unification + exhaustive switch test.
+- v4.2-R3 (DIRECT): 2 agent calls. LSP completions + hover for builtin functions.
+- v4.2-R4 (TEST-ONLY): 2 agent calls. Integration + regression tests (10 new).
 
 ## Notes for Future
 - Conditional edge routing: IMPLEMENTED in v3.3-R2
@@ -410,7 +414,7 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - Token budget enforcement (Graft tokens vs Claude CLI dollars): approximation only
 - Memory importability: deferred (v2.0-R13 locked as excluded)
 - entryFile guard in resolver: scopes name merging to entry file only (justified deviation from convergence spec)
-- All 1,001 tests currently passing
+- All 1,048 tests currently passing
 - v2.0 complete: import system + memory across all pipeline stages (lexer → parser → resolver → analyzer → codegen → runtime → integration)
 - v2.1-R1 complete: constants/utils/memory extracted to shared modules, MODEL_MAP deduplication resolved
 - v2.1-R2 complete: writes schema validation, max_tokens > 0, parallel write detection, compiler.ts warning routing
@@ -484,6 +488,7 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v3.9 COMPLETE: 3 rounds (R1-R3). Conditional edge transforms + estimator polish + TD-01. 890 tests. Final v3.x release. Closes TD-01, resolves SCOPE_TRANSFORM_CONDITIONAL.
 - v4.0 COMPLETE: 6 rounds (R1-R6). Variables (let), expressions, graph params, graph calls. 980 tests. 72 new v4.0 tests across 5 test files.
 - v4.1 COMPLETE: 4 rounds (R1-R4). Quality hardening — conditionFieldName fix, output isolation, scope extraction, exhaustive switches. 1,001 tests. 21 new v4.1 tests across 2 test files.
+- v4.2 COMPLETE: 4 rounds (R1-R4). Expression functions (len/max/min/str), graph call return values, equality unification. 1,048 tests. 47 new v4.2 tests across 4 test files.
 
 ### v4.0-R1 Ratchets (Lexer + AST + Expression Parser)
 - [v4.0-R01] Expr: 5-kind discriminated union (literal, field_access, binary, unary, group) with mandatory SourceLocation — LOCKED
@@ -560,6 +565,42 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - [v4.1-R09] graph-checker.ts: extracted from scope.ts — checkVarCollision, checkExprSources, checkGraphCallArgs, checkGraphRecursion, collectGraphCalls, checkLiteralParamType — LOCKED
 - [v4.1-R10] graph-checker.ts functions accept `index: ProgramIndex` as parameter (not `this.index`) — LOCKED
 - [v4.1-R11] scope.ts reduced from ~697 to ~503 lines via extraction — LOCKED
+
+### v4.2-R1 Ratchets (Expression Functions)
+- [v4.2-R01] Expr union gains 'call' kind: { kind: 'call', name: string, args: Expr[], location } — LOCKED
+- [v4.2-R02] BUILTIN_FUNCTIONS registry in ast.ts: Record<string, { arity: number }> with len/max/min/str — LOCKED
+- [v4.2-R03] parsePrimary: Identifier + value in BUILTIN_FUNCTIONS + peekType(1) === LParen → function call — LOCKED
+- [v4.2-R04] evaluateExpr case 'call': dispatches to built-in functions (len→length, max→Math.max, min→Math.min, str→String) — LOCKED
+- [v4.2-R05] checkExprSources case 'call': validates name in BUILTIN_FUNCTIONS, recurses into args — LOCKED
+- [v4.2-R06] inferExprType case 'call': returns type per function (len/max/min→number, str→string) — LOCKED
+- [v4.2-R07] checkExprTypeErrors validates arity: expr.args.length !== builtin.arity → TYPE_FUNC_ARITY — LOCKED
+- [v4.2-R08] SCOPE_UNKNOWN_FUNCTION and TYPE_FUNC_ARITY error codes in diagnostics.ts — LOCKED
+- [v4.2-R09] conditionFieldName handles 'call' kind: returns `${name}(...)` — LOCKED
+
+### v4.2-R2 Ratchets (Graph Call Returns + Equality)
+- [v4.2-R10] Graph call captures last NodeResult output, stores under flowNode.name in parent ctx.outputs — LOCKED
+- [v4.2-R11] evalCondition in transforms.ts uses loose equality (==, !=) matching evaluateCondition — LOCKED
+
+### v4.2-R3 Ratchets (LSP)
+- [v4.2-R12] Builtin function completions in graph flow context: Function kind, arity detail — LOCKED
+- [v4.2-R13] Hover documentation for len/max/min/str with signature and description — LOCKED
+
+### v4.2 Review Feedback
+- v4.2-R1 complete: Expression functions (MEDIUM tier). 21 new tests, 1,022 total. PASS.
+  - New 'call' Expr kind with BUILTIN_FUNCTIONS registry
+  - Parser disambiguation: only builtin names + LParen → call; unknown names remain field_access
+  - Scope checker validates function names, type checker validates arity
+- v4.2-R2 complete: Graph call return values + equality unification (DIRECT tier). 7 new tests, 1,029 total. PASS.
+  - Graph call output capture: track beforeCount, capture last result, store in parent outputs
+  - Equality fix: transforms.ts === → == (one-line change, high impact)
+- v4.2-R3 complete: LSP updates (DIRECT tier). 5 new tests, 1,034 total. PASS.
+  - Builtin function completions with Function kind
+  - Hover docs with signatures and descriptions
+- v4.2-R4 complete: Integration + regression tests (TEST-ONLY tier). 10 new tests, 1,048 total. PASS.
+  - Cross-feature: function+variable, function+graph return, function in binary expr
+  - Regression: existing patterns, unified equality, let bindings
+  - Scale: complex pipeline with functions + graph returns + sub-pipelines
+- v4.2 COMPLETE: 4 rounds (R1-R4). Expression functions, graph call returns, equality unification. 1,048 tests. 13 new ratchets.
 
 ### v4.1 Review Feedback
 - v4.1-R1 complete: conditionFieldName multi-segment fix (MEDIUM tier). 11 new tests, 991 total. PASS.
