@@ -1,5 +1,26 @@
 # Changelog
 
+## v3.8.0 (2026-04-02)
+
+### Added
+- **Multi-hop conditional chain estimation**: estimator now walks conditional edge chains (matching runtime behavior), with cycle/depth warnings
+  - Recursive `getConditionalBranchCosts` with per-branch visited set copies (handles diamond paths)
+  - Cycle detection emits warning, returns finite cost
+  - Depth limit (MAX_CONDITIONAL_HOPS=10) emits warning
+  - Retry multiplier propagates through chain hops
+- **Foreach iteration context in errors**: error messages now include `(foreach iteration N of M)` suffix
+- **Flow-runner extraction**: `applyFallbackAlias()` and `executeConditionalChain()` extracted from 66-line `case 'node'` block (now 9 lines)
+
+### Changed
+- `MAX_CONDITIONAL_HOPS` moved to `src/constants.ts` as single source of truth (re-exported from flow-runner.ts)
+- `conditionalEdges` map in estimator stores `ConditionalBranch[]` instead of `string[]`
+- `computeFlowCosts` accepts `warnings` parameter for chain estimation diagnostics
+
+### Stats
+- 864 tests (32 new), ~225 ratchets
+- 4 rounds (2 DIRECT, 1 MEDIUM, 1 TEST-ONLY), ~10 agent calls
+- Closes TD-02 (flow-runner density), TD-03 (estimator-runtime parity, carried 5 retros), TD-04 (fallback alias duplication)
+
 ## v3.7.0 (2026-04-02)
 
 ### Added

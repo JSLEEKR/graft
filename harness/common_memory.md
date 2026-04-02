@@ -1,7 +1,7 @@
 # Common Memory — Graft Compiler
-## Last updated: v3.7-R4 completed (v3.7.0 release)
+## Last updated: v3.8-R4 completed (v3.8.0 release)
 
-## Ratchet-Locked Decisions (~225 total, 5 unlocked)
+## Ratchet-Locked Decisions (~230 total, 5 unlocked)
 
 ### T1-T6 (abbreviated — all LOCKED)
 T1: tsc-only, ESM, NodeNext, explicit vitest, shebang, strict, no barrels, .js extensions
@@ -469,3 +469,8 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v3.7-R3 complete: Multi-hop conditional edge routing (visited set cycle detection, done-as-target, fallback alias in chain, MAX_CONDITIONAL_HOPS=10, scope.ts done guard). MEDIUM tier. One NEEDS_CHANGES (missing depth-limit error + 2 tests, fixed).
 - v3.7-R4 complete: Integration + regression tests (13 cross-cutting tests). TEST-ONLY tier.
 - v3.7 COMPLETE: 4 rounds (R1-R4). Foreach failure + multi-hop routing + server extraction + reference fix. 832 tests.
+- v3.8-R1 complete: Flow-runner extraction (applyFallbackAlias, executeConditionalChain, case 'node' 66→9 lines). DIRECT tier.
+- v3.8-R2 complete: Multi-hop conditional chain estimation (recursive getConditionalBranchCosts, per-branch visited sets, cycle/depth warnings, ConditionalBranch[] storage). MEDIUM tier. Closes TD-03 (carried 5 retros).
+- v3.8-R3 complete: Foreach iteration context in error messages (annotation suffix). DIRECT tier.
+- v3.8-R4 complete: Integration + regression tests (11 cross-cutting tests). TEST-ONLY tier.
+- v3.8 COMPLETE: 4 rounds (R1-R4). Flow-runner extraction + multi-hop estimation + foreach error context. 864 tests. Closes TD-02, TD-03, TD-04.
