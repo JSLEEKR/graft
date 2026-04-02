@@ -77,6 +77,72 @@ async function executeWithFailureStrategy(
   }
 }
 
+export const MAX_CONDITIONAL_HOPS = 10;
+
+export function applyFallbackAlias(name: string, result: NodeResult, ctx: FlowContext): void {
+  if (result.node !== name) {
+    ctx.outputs.set(name, result.output);
+  }
+}
+
+export async function executeConditionalChain(
+  flowNodeName: string,
+  result: NodeResult,
+  ctx: FlowContext,
+  nodeResults: NodeResult[],
+  errors: string[],
+): Promise<void> {
+  const visited = new Set<string>();
+  visited.add(flowNodeName);
+  let currentNodeName = flowNodeName;
+  let currentOutput = result.output;
+
+  let hop = 0;
+  for (; hop < MAX_CONDITIONAL_HOPS; hop++) {
+    if (errors.length > 0) break;
+
+    const branches = ctx.getConditionalEdge?.(currentNodeName);
+    if (!branches || !currentOutput || typeof currentOutput !== 'object') break;
+
+    const output = currentOutput as Record<string, unknown>;
+    let routedTo: string | null = null;
+    let elseBranch: string | null = null;
+
+    for (const branch of branches) {
+      if (!branch.condition) {
+        elseBranch = branch.target;
+      } else if (evaluateCondition(branch.condition, output)) {
+        routedTo = branch.target;
+        break;
+      }
+    }
+
+    const target = routedTo ?? elseBranch;
+    if (!target || target === 'done') break;
+
+    // Cycle detection
+    if (visited.has(target)) {
+      errors.push(`Conditional edge cycle detected: ${[...visited, target].join(' -> ')}`);
+      break;
+    }
+    visited.add(target);
+
+    const conditionalResult = await executeWithFailureStrategy(target, nodeResults, errors, ctx);
+    if (!conditionalResult) break;
+    nodeResults.push(conditionalResult);
+
+    applyFallbackAlias(target, conditionalResult, ctx);
+
+    currentNodeName = target;
+    currentOutput = conditionalResult.output;
+  }
+
+  // Post-loop depth limit check: if we used all hops without breaking, the chain is too deep
+  if (hop >= MAX_CONDITIONAL_HOPS && errors.length === 0) {
+    errors.push(`Conditional chain from '${flowNodeName}' exceeded maximum depth of ${MAX_CONDITIONAL_HOPS} hops`);
+  }
+}
+
 export async function executeFlowNodes(
   flow: FlowNode[],
   nodeResults: NodeResult[],
@@ -92,65 +158,8 @@ export async function executeFlowNodes(
         const result = await executeWithFailureStrategy(flowNode.name, nodeResults, errors, ctx);
         if (result) {
           nodeResults.push(result);
-          // If result came from a fallback node, alias output under original name
-          if (result.node !== flowNode.name) {
-            ctx.outputs.set(flowNode.name, result.output);
-          }
-
-          // Multi-hop conditional edge routing
-          const MAX_CONDITIONAL_HOPS = 10;
-          const visited = new Set<string>();
-          visited.add(flowNode.name);
-          let currentNodeName = flowNode.name;
-          let currentOutput = result.output;
-
-          let hop = 0;
-          for (; hop < MAX_CONDITIONAL_HOPS; hop++) {
-            if (errors.length > 0) break;
-
-            const branches = ctx.getConditionalEdge?.(currentNodeName);
-            if (!branches || !currentOutput || typeof currentOutput !== 'object') break;
-
-            const output = currentOutput as Record<string, unknown>;
-            let routedTo: string | null = null;
-            let elseBranch: string | null = null;
-
-            for (const branch of branches) {
-              if (!branch.condition) {
-                elseBranch = branch.target;
-              } else if (evaluateCondition(branch.condition, output)) {
-                routedTo = branch.target;
-                break;
-              }
-            }
-
-            const target = routedTo ?? elseBranch;
-            if (!target || target === 'done') break;
-
-            // Cycle detection
-            if (visited.has(target)) {
-              errors.push(`Conditional edge cycle detected: ${[...visited, target].join(' -> ')}`);
-              break;
-            }
-            visited.add(target);
-
-            const conditionalResult = await executeWithFailureStrategy(target, nodeResults, errors, ctx);
-            if (!conditionalResult) break;
-            nodeResults.push(conditionalResult);
-
-            // Apply fallback alias if result came from a different node (v3.7-R2 pattern)
-            if (conditionalResult.node !== target) {
-              ctx.outputs.set(target, conditionalResult.output);
-            }
-
-            currentNodeName = target;
-            currentOutput = conditionalResult.output;
-          }
-
-          // Post-loop depth limit check: if we used all hops without breaking, the chain is too deep
-          if (hop >= MAX_CONDITIONAL_HOPS && errors.length === 0) {
-            errors.push(`Conditional chain from '${flowNode.name}' exceeded maximum depth of ${MAX_CONDITIONAL_HOPS} hops`);
-          }
+          applyFallbackAlias(flowNode.name, result, ctx);
+          await executeConditionalChain(flowNode.name, result, ctx, nodeResults, errors);
         }
         break;
       }
