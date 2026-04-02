@@ -321,7 +321,7 @@ src/
 ## Development
 
 ```bash
-npm test              # Run all 790 tests
+npm test              # Run all 832 tests
 npm run build         # Compile TypeScript
 npx tsc --noEmit      # Type check only
 ```
@@ -330,6 +330,7 @@ npx tsc --noEmit      # Type check only
 
 | Version | Features |
 |---------|----------|
+| **v3.7** | Foreach failure handling, multi-hop conditional routing, server.ts extraction, reference position fix, 832 tests |
 | **v3.6** | Find-all-references, keyword unification, symbol range fix, rename field collision guard, 790 tests |
 | **v3.5** | Rename hardening, cross-file conflict detection, FlowNode locations, parallel/foreach symbols, 739 tests |
 | **v3.4** | LSP rename, conditional edge estimation, hierarchical symbols, features split, 690 tests |

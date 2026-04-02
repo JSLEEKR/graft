@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { executeFlowNodes, FlowContext, evaluateCondition } from '../src/runtime/flow-runner.js';
-import { NodeResult } from '../src/runtime/executor.js';
 import { FlowNode, ConditionalBranch, Program } from '../src/parser/ast.js';
 import { Lexer } from '../src/lexer/lexer.js';
 import { Parser } from '../src/parser/parser.js';
@@ -9,19 +8,6 @@ import { findReferences } from '../src/lsp/features/references.js';
 import { ScopeChecker } from '../src/analyzer/scope.js';
 
 // --- Helpers ---
-
-function storingExecuteNode(
-  outputs: Map<string, unknown>,
-  handler: (name: string) => Promise<NodeResult>,
-): (name: string) => Promise<NodeResult> {
-  return async (name: string) => {
-    const result = await handler(name);
-    if (result.success && result.output) {
-      outputs.set(result.node, result.output);
-    }
-    return result;
-  };
-}
 
 function makeFlowCtx(opts: {
   nodeOutputs?: Record<string, Record<string, unknown>>;

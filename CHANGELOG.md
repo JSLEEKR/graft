@@ -1,5 +1,27 @@
 # Changelog
 
+## v3.7.0 (2026-04-02)
+
+### Added
+- **Foreach source failure handling**: foreach now correctly handles source node failures
+  - Fallback output aliasing: when source uses `fallback(Node)`, output stored under both fallback and original name
+  - Skip strategy guard: foreach body skipped when source data is undefined (removed unsafe `?? ctx.input` fallback)
+- **Multi-hop conditional edge routing**: conditional edges now follow chains up to 10 hops
+  - Visited set cycle detection (catches cycles on first revisit)
+  - `done` as valid conditional target (terminates chain)
+  - Fallback alias propagation through multi-hop chains
+  - MAX_CONDITIONAL_HOPS=10 with clear error on exceeded
+- **Server.ts orchestration extraction**: `ensureWorkspaceScan()` and `collectWorkspaceFileTexts()` helpers extracted from 3 handlers
+
+### Fixed
+- `findDeclNamePosition` in references.ts uses `loc.length` instead of hardcoded KEYWORD_LENGTHS map
+- Scope checker now allows `done` as conditional branch target
+
+### Stats
+- 832 tests (42 new), ~220 ratchets
+- 4 rounds (2 MEDIUM, 1 DIRECT, 1 TEST-ONLY), ~12 agent calls
+- Runtime hardening pivot after 5 consecutive LSP versions (v3.2-v3.6)
+
 ## v3.6.0 (2026-04-02)
 
 ### Added

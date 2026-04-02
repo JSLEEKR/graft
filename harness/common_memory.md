@@ -1,7 +1,7 @@
 # Common Memory — Graft Compiler
-## Last updated: v3.6-R4 completed (v3.6.0 release)
+## Last updated: v3.7-R4 completed (v3.7.0 release)
 
-## Ratchet-Locked Decisions (~220 total, 5 unlocked)
+## Ratchet-Locked Decisions (~225 total, 5 unlocked)
 
 ### T1-T6 (abbreviated — all LOCKED)
 T1: tsc-only, ESM, NodeNext, explicit vitest, shebang, strict, no barrels, .js extensions
@@ -464,3 +464,8 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v3.6-R3 complete: Symbol range fix (range=keyword→name, selectionRange=name) + rename field collision guard. DIRECT tier. One NEEDS_CHANGES (selectionRange bug fixed).
 - v3.6-R4 complete: Integration + regression tests (20 cross-cutting tests). TEST-ONLY tier.
 - v3.6 COMPLETE: 4 rounds (R1-R4). Find-all-references + keyword unification + symbol range + rename polish. 790 tests.
+- v3.7-R1 complete: Server.ts orchestration extraction (ensureWorkspaceScan, collectWorkspaceFileTexts) + findDeclNamePosition fix (loc.length instead of KEYWORD_LENGTHS). DIRECT tier.
+- v3.7-R2 complete: Foreach source failure handling (fallback output aliasing, skip guard, removed ?? ctx.input). MEDIUM tier. Fallback alias pattern: `if (result.node !== flowNode.name) ctx.outputs.set(flowNode.name, result.output)`.
+- v3.7-R3 complete: Multi-hop conditional edge routing (visited set cycle detection, done-as-target, fallback alias in chain, MAX_CONDITIONAL_HOPS=10, scope.ts done guard). MEDIUM tier. One NEEDS_CHANGES (missing depth-limit error + 2 tests, fixed).
+- v3.7-R4 complete: Integration + regression tests (13 cross-cutting tests). TEST-ONLY tier.
+- v3.7 COMPLETE: 4 rounds (R1-R4). Foreach failure + multi-hop routing + server extraction + reference fix. 832 tests.
