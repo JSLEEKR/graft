@@ -1,5 +1,5 @@
 # Common Memory — Graft Compiler
-## Last updated: v4.0-R6 completed (v4.0 COMPLETE)
+## Last updated: v4.1 COMPLETE
 
 ## Ratchet-Locked Decisions (~250 total, 5 unlocked)
 
@@ -399,6 +399,10 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v3.6-R2 (DIRECT): 2 agent calls. 0 bugs. Keyword derivation from lexer + parse-based conflict detection.
 - v3.6-R3 (DIRECT): 3 agent calls (1 impl + 1 review NEEDS_CHANGES + 1 fix). Reviewer caught selectionRange starting at keyword instead of name. Symbol range fix + rename field collision guard.
 - v3.6-R4 (TEST-ONLY): 2 agent calls. 0 bugs. Integration tests.
+- v4.1-R1 (MEDIUM): 4 agent calls. conditionFieldName multi-segment fix. resolveNestedField replaces bridge function.
+- v4.1-R2 (DIRECT): 2 agent calls. Output isolation + division warning + 4 exhaustive switches.
+- v4.1-R3 (DIRECT): 2 agent calls. Scope checker extraction (graph-checker.ts). Pure refactor, 0 new tests.
+- v4.1-R4 (TEST-ONLY): 2 agent calls. Integration + regression tests (10 new).
 
 ## Notes for Future
 - Conditional edge routing: IMPLEMENTED in v3.3-R2
@@ -406,7 +410,7 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - Token budget enforcement (Graft tokens vs Claude CLI dollars): approximation only
 - Memory importability: deferred (v2.0-R13 locked as excluded)
 - entryFile guard in resolver: scopes name merging to entry file only (justified deviation from convergence spec)
-- All 790 tests currently passing
+- All 1,001 tests currently passing
 - v2.0 complete: import system + memory across all pipeline stages (lexer → parser → resolver → analyzer → codegen → runtime → integration)
 - v2.1-R1 complete: constants/utils/memory extracted to shared modules, MODEL_MAP deduplication resolved
 - v2.1-R2 complete: writes schema validation, max_tokens > 0, parallel write detection, compiler.ts warning routing
@@ -479,6 +483,7 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v3.9-R3 complete: Integration + regression tests (10 cross-cutting tests). TEST-ONLY tier.
 - v3.9 COMPLETE: 3 rounds (R1-R3). Conditional edge transforms + estimator polish + TD-01. 890 tests. Final v3.x release. Closes TD-01, resolves SCOPE_TRANSFORM_CONDITIONAL.
 - v4.0 COMPLETE: 6 rounds (R1-R6). Variables (let), expressions, graph params, graph calls. 980 tests. 72 new v4.0 tests across 5 test files.
+- v4.1 COMPLETE: 4 rounds (R1-R4). Quality hardening — conditionFieldName fix, output isolation, scope extraction, exhaustive switches. 1,001 tests. 21 new v4.1 tests across 2 test files.
 
 ### v4.0-R1 Ratchets (Lexer + AST + Expression Parser)
 - [v4.0-R01] Expr: 5-kind discriminated union (literal, field_access, binary, unary, group) with mandatory SourceLocation — LOCKED
@@ -537,6 +542,43 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
   - Node-type graph params required special handling: pre-populated in seenNodes, skip flow-order check in graph call args.
   - conditionFieldName multi-segment bug deferred (pre-existing, out of R2 scope).
   - Graft field syntax uses newlines not commas (test fix during implementation).
+
+### v4.1-R1 Ratchets (conditionFieldName Multi-Segment Fix)
+- [v4.0-R04] conditionFieldName() bridge exported from ast.ts — UNLOCKED (removed; resolveNestedField replaces it)
+- [v4.1-R01] resolveNestedField(segments, obj) exported from flow-runner.ts — traverses nested object properties — LOCKED
+- [v4.1-R02] evaluateCondition unified resolution: single-segment variable-first, multi-segment via resolveNestedField — LOCKED
+- [v4.1-R03] evalCondition in transforms.ts uses resolveNestedField for field_access, undefined for other Expr kinds — LOCKED
+
+### v4.1-R2 Ratchets (Output Isolation + Exhaustive Switches)
+- [v4.1-R04] Graph call child FlowContext gets `outputs: new Map(ctx.outputs)` (shallow clone for isolation) — LOCKED
+- [v4.1-R05] evaluateExpr optional 4th param `warnings?: string[]` for division-by-zero reporting — LOCKED
+- [v4.1-R06] Exhaustive `never` default on executeFlowNodes switch in flow-runner.ts — LOCKED
+- [v4.1-R07] Exhaustive `never` defaults on collectNodeReports and computeFlowCosts switches in estimator.ts — LOCKED
+- [v4.1-R08] Exhaustive `never` default on walkFlowNodes switch in scope.ts — LOCKED
+
+### v4.1-R3 Ratchets (Scope Checker Extraction)
+- [v4.1-R09] graph-checker.ts: extracted from scope.ts — checkVarCollision, checkExprSources, checkGraphCallArgs, checkGraphRecursion, collectGraphCalls, checkLiteralParamType — LOCKED
+- [v4.1-R10] graph-checker.ts functions accept `index: ProgramIndex` as parameter (not `this.index`) — LOCKED
+- [v4.1-R11] scope.ts reduced from ~697 to ~503 lines via extraction — LOCKED
+
+### v4.1 Review Feedback
+- v4.1-R1 complete: conditionFieldName multi-segment fix (MEDIUM tier). 11 new tests, 991 total. PASS.
+  - resolveNestedField replaces conditionFieldName for runtime value lookup
+  - conditionFieldName bridge removed from ast.ts (no longer needed after full migration)
+  - Single-segment backward compatibility preserved (variable-first resolution)
+- v4.1-R2 complete: Output isolation + division warning + exhaustive switches (DIRECT tier). 5 new tests, 996 total. PASS.
+  - Graph call child context isolation via shallow Map clone
+  - Division-by-zero warning via optional warnings array (non-breaking API)
+  - 4 exhaustive never defaults added across 3 files
+- v4.1-R3 complete: Scope checker extraction (DIRECT tier). 0 new tests, 996 total (pure refactor). PASS.
+  - graph-checker.ts extracted 6 functions from scope.ts (~194 lines moved)
+  - No behavioral changes, all existing tests pass unchanged
+- v4.1-R4 complete: Integration + regression tests (TEST-ONLY tier). 10 new tests, 1001 total. PASS.
+  - Cross-feature: multi-segment condition + conditional routing at runtime
+  - Regression: graph call with params, let bindings, transform filter conditions, resolveNestedField edge cases
+  - Scale: complex pipeline with let + graph call + params compiles end-to-end
+  - Error: scope checker extraction didn't break SCOPE_VAR_ORDER detection
+- v4.1 COMPLETE: 4 rounds (R1-R4). Quality hardening — conditionFieldName fix, output isolation, scope extraction, exhaustive switches. 1,001 tests. 11 new ratchets, 1 unlocked.
 
 ### v4.0-R1 Review Feedback
 - v4.0-R1 complete: Lexer + AST + Expression Parser (HIGH tier, full 4-agent debate). 31 new tests, 921 total. PASS on first try.
