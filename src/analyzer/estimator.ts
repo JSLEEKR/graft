@@ -128,6 +128,10 @@ export class TokenEstimator {
           }
           break;
         }
+        default: {
+          const _exhaustive: never = step;
+          throw new Error(`Unhandled FlowNode kind: ${(_exhaustive as FlowNode).kind}`);
+        }
       }
     }
   }
@@ -185,6 +189,10 @@ export class TokenEstimator {
             worst += subCosts.worst;
           }
           break;
+        }
+        default: {
+          const _exhaustive: never = step;
+          throw new Error(`Unhandled FlowNode kind: ${(_exhaustive as FlowNode).kind}`);
         }
       }
     }

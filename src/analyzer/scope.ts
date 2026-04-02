@@ -1,6 +1,12 @@
-import { Program, FlowNode, WriteRef, Expr, GraphArg, GraphDecl } from '../parser/ast.js';
+import { Program, FlowNode, WriteRef } from '../parser/ast.js';
 import { GraftError, SourceLocation } from '../errors/diagnostics.js';
 import { ProgramIndex } from '../program-index.js';
+import {
+  checkVarCollision,
+  checkExprSources,
+  checkGraphCallArgs,
+  checkGraphRecursion,
+} from './graph-checker.js';
 
 export class ScopeChecker {
   private program: Program;
@@ -26,7 +32,7 @@ export class ScopeChecker {
     this.checkEdges(errors);
     this.checkMultipleGraphs(errors);
     this.checkGraphFlow(errors);
-    this.checkGraphRecursion(errors);
+    checkGraphRecursion(this.program.graphs, this.index, errors);
     this.checkFailureStrategies(errors);
     return errors;
   }
@@ -365,9 +371,9 @@ export class ScopeChecker {
             ));
           }
           // Variable vs top-level name collision
-          this.checkVarCollision(step.name, graphName, loc, errors);
+          checkVarCollision(step.name, graphName, loc, this.index, errors);
           // Variable order: validate expression sources are declared
-          this.checkExprSources(step.value, seen, vars, graphName, errors);
+          checkExprSources(step.value, seen, vars, graphName, errors);
           vars.add(step.name);
           break;
         }
@@ -382,203 +388,16 @@ export class ScopeChecker {
               'SCOPE_UNDEFINED_REF',
             ));
           } else {
-            this.checkGraphCallArgs(step.args, graphDecl, seen, vars, graphName, loc, errors);
+            checkGraphCallArgs(step.args, graphDecl, seen, vars, graphName, loc, this.index, errors);
           }
           break;
         }
-      }
-    }
-  }
-
-  private checkVarCollision(
-    name: string,
-    graphName: string,
-    location: SourceLocation,
-    errors: GraftError[],
-  ): void {
-    if (this.index.nodeMap.has(name)) {
-      errors.push(new GraftError(
-        `Variable '${name}' in graph '${graphName}' collides with declared node '${name}'`,
-        location, 'error', 'SCOPE_VAR_COLLISION',
-      ));
-    } else if (this.index.contextMap.has(name)) {
-      errors.push(new GraftError(
-        `Variable '${name}' in graph '${graphName}' collides with declared context '${name}'`,
-        location, 'error', 'SCOPE_VAR_COLLISION',
-      ));
-    } else if (this.index.memoryMap.has(name)) {
-      errors.push(new GraftError(
-        `Variable '${name}' in graph '${graphName}' collides with declared memory '${name}'`,
-        location, 'error', 'SCOPE_VAR_COLLISION',
-      ));
-    } else if (this.index.graphMap.has(name)) {
-      errors.push(new GraftError(
-        `Variable '${name}' in graph '${graphName}' collides with declared graph '${name}'`,
-        location, 'error', 'SCOPE_VAR_COLLISION',
-      ));
-    }
-  }
-
-  private checkExprSources(
-    expr: Expr,
-    seenNodes: Set<string>,
-    declaredVars: Set<string>,
-    graphName: string,
-    errors: GraftError[],
-  ): void {
-    switch (expr.kind) {
-      case 'literal':
-        break;
-      case 'field_access': {
-        const first = expr.segments[0];
-        if (expr.segments.length === 1) {
-          // Single-segment: could be variable or node reference
-          if (!declaredVars.has(first) && !seenNodes.has(first)) {
-            errors.push(new GraftError(
-              `Variable or node '${first}' referenced before declaration in graph '${graphName}'`,
-              expr.location, 'error', 'SCOPE_VAR_ORDER',
-            ));
-          }
-        } else {
-          // Multi-segment: first segment must be a seen node or declared variable
-          if (!seenNodes.has(first) && !declaredVars.has(first)) {
-            errors.push(new GraftError(
-              `Node '${first}' referenced before appearance in graph '${graphName}' flow`,
-              expr.location, 'error', 'SCOPE_VAR_ORDER',
-            ));
-          }
-        }
-        break;
-      }
-      case 'binary':
-        this.checkExprSources(expr.left, seenNodes, declaredVars, graphName, errors);
-        this.checkExprSources(expr.right, seenNodes, declaredVars, graphName, errors);
-        break;
-      case 'unary':
-        this.checkExprSources(expr.operand, seenNodes, declaredVars, graphName, errors);
-        break;
-      case 'group':
-        this.checkExprSources(expr.inner, seenNodes, declaredVars, graphName, errors);
-        break;
-    }
-  }
-
-  private checkGraphCallArgs(
-    args: GraphArg[],
-    graphDecl: GraphDecl,
-    seenNodes: Set<string>,
-    declaredVars: Set<string>,
-    graphName: string,
-    location: SourceLocation,
-    errors: GraftError[],
-  ): void {
-    const paramMap = new Map(graphDecl.params.map(p => [p.name, p]));
-    const providedNames = new Set<string>();
-
-    for (const arg of args) {
-      providedNames.add(arg.name);
-      const param = paramMap.get(arg.name);
-      if (!param) {
-        errors.push(new GraftError(
-          `Unknown parameter '${arg.name}' in call to graph '${graphDecl.name}'`,
-          arg.location, 'error', 'SCOPE_GRAPH_PARAM_TYPE',
-        ));
-        continue;
-      }
-      // Type-specific validation
-      if (param.type === 'Node') {
-        // Node params reference top-level declarations, skip flow-order check
-        if (arg.value.kind !== 'field_access' || arg.value.segments.length !== 1) {
-          errors.push(new GraftError(
-            `Parameter '${arg.name}' of type Node requires a node name, not an expression`,
-            arg.location, 'error', 'SCOPE_GRAPH_PARAM_TYPE',
-          ));
-        } else if (!this.index.nodeMap.has(arg.value.segments[0])) {
-          errors.push(new GraftError(
-            `Parameter '${arg.name}' references undeclared node '${arg.value.segments[0]}'`,
-            arg.location, 'error', 'SCOPE_UNDEFINED_REF',
-          ));
-        }
-      } else {
-        // Non-Node params: validate expression sources are in scope
-        this.checkExprSources(arg.value, seenNodes, declaredVars, graphName, errors);
-        if (arg.value.kind === 'literal') {
-          if (!checkLiteralParamType(arg.value.value, param.type)) {
-            errors.push(new GraftError(
-              `Parameter '${arg.name}' expects type ${param.type}, got ${typeof arg.value.value}`,
-              arg.location, 'error', 'SCOPE_GRAPH_PARAM_TYPE',
-            ));
-          }
+        default: {
+          const _exhaustive: never = step;
+          throw new Error(`Unhandled FlowNode kind: ${(_exhaustive as FlowNode).kind}`);
         }
       }
     }
-
-    // Check for missing required params
-    for (const param of graphDecl.params) {
-      if (!providedNames.has(param.name) && param.default === undefined) {
-        errors.push(new GraftError(
-          `Missing required parameter '${param.name}' in call to graph '${graphDecl.name}'`,
-          location, 'error', 'SCOPE_GRAPH_PARAM_MISSING',
-        ));
-      }
-    }
-  }
-
-  private checkGraphRecursion(errors: GraftError[]): void {
-    const callGraph = new Map<string, Set<string>>();
-    for (const graph of this.program.graphs) {
-      const calls = new Set<string>();
-      this.collectGraphCalls(graph.flow, calls);
-      callGraph.set(graph.name, calls);
-    }
-
-    const visited = new Set<string>();
-    const inStack = new Set<string>();
-
-    for (const graphName of callGraph.keys()) {
-      if (visited.has(graphName)) continue;
-      this.dfsGraphCycles(graphName, callGraph, visited, inStack, errors);
-    }
-  }
-
-  private collectGraphCalls(nodes: FlowNode[], calls: Set<string>): void {
-    for (const step of nodes) {
-      if (step.kind === 'graph_call') {
-        calls.add(step.name);
-      } else if (step.kind === 'foreach') {
-        this.collectGraphCalls(step.body, calls);
-      }
-    }
-  }
-
-  private dfsGraphCycles(
-    current: string,
-    callGraph: Map<string, Set<string>>,
-    visited: Set<string>,
-    inStack: Set<string>,
-    errors: GraftError[],
-  ): void {
-    visited.add(current);
-    inStack.add(current);
-
-    const calls = callGraph.get(current);
-    if (calls) {
-      for (const callee of calls) {
-        if (inStack.has(callee)) {
-          const graph = this.index.graphMap.get(current);
-          errors.push(new GraftError(
-            `Recursive graph call detected: '${current}' calls '${callee}' which creates a cycle`,
-            graph?.location ?? { line: 0, column: 0, offset: 0 },
-            'error',
-            'SCOPE_GRAPH_RECURSION',
-          ));
-        } else if (!visited.has(callee)) {
-          this.dfsGraphCycles(callee, callGraph, visited, inStack, errors);
-        }
-      }
-    }
-
-    inStack.delete(current);
   }
 
   private checkFailureStrategies(errors: GraftError[]): void {
@@ -680,14 +499,5 @@ export class ScopeChecker {
         ));
       }
     }
-  }
-}
-
-function checkLiteralParamType(value: string | number | boolean, type: 'Node' | 'Int' | 'String' | 'Bool'): boolean {
-  switch (type) {
-    case 'Int': return typeof value === 'number';
-    case 'String': return typeof value === 'string';
-    case 'Bool': return typeof value === 'boolean';
-    default: return false;
   }
 }

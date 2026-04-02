@@ -1,4 +1,5 @@
-import { Transform, Condition, conditionFieldName } from '../parser/ast.js';
+import { Transform, Condition } from '../parser/ast.js';
+import { resolveNestedField } from './flow-runner.js';
 
 export function applyTransforms(data: unknown, transforms: Transform[]): unknown {
   let result = data;
@@ -92,7 +93,12 @@ function truncateDeep(data: unknown, ratio: number): unknown {
 
 export function evalCondition(item: unknown, condition: Condition): boolean {
   if (typeof item !== 'object' || item === null) return false;
-  const val = (item as Record<string, unknown>)[conditionFieldName(condition)];
+  let val: unknown;
+  if (condition.left.kind === 'field_access') {
+    val = resolveNestedField(condition.left.segments, item as Record<string, unknown>);
+  } else {
+    val = undefined;
+  }
   const target = condition.value;
   switch (condition.op) {
     case '==': return val === target;

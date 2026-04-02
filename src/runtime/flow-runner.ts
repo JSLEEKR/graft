@@ -1,4 +1,4 @@
-import { FlowNode, FailureStrategy, Condition, ConditionalBranch, Transform, conditionFieldName, Expr, GraphDecl } from '../parser/ast.js';
+import { FlowNode, FailureStrategy, Condition, ConditionalBranch, Transform, Expr, GraphDecl } from '../parser/ast.js';
 import { NodeResult } from './executor.js';
 import { resolveField, RuntimeState } from './prompt-builder.js';
 import { applyTransforms } from './transforms.js';
@@ -19,7 +19,7 @@ export interface FlowContext extends RuntimeState {
   getGraphDecl?: (name: string) => GraphDecl | undefined;
 }
 
-export function evaluateExpr(expr: Expr, outputs: Map<string, unknown>, variables?: Map<string, unknown>): unknown {
+export function evaluateExpr(expr: Expr, outputs: Map<string, unknown>, variables?: Map<string, unknown>, warnings?: string[]): unknown {
   switch (expr.kind) {
     case 'literal':
       return expr.value;
@@ -43,8 +43,8 @@ export function evaluateExpr(expr: Expr, outputs: Map<string, unknown>, variable
       return current;
     }
     case 'binary': {
-      const left = evaluateExpr(expr.left, outputs, variables);
-      const right = evaluateExpr(expr.right, outputs, variables);
+      const left = evaluateExpr(expr.left, outputs, variables, warnings);
+      const right = evaluateExpr(expr.right, outputs, variables, warnings);
       switch (expr.op) {
         case '+':
           if (typeof left === 'string' || typeof right === 'string') return String(left) + String(right);
@@ -52,21 +52,33 @@ export function evaluateExpr(expr: Expr, outputs: Map<string, unknown>, variable
         case '-': return Number(left) - Number(right);
         case '/': {
           const divisor = Number(right);
-          if (divisor === 0) return 0;
+          if (divisor === 0) {
+            warnings?.push('division by zero in expression');
+            return 0;
+          }
           return Number(left) / divisor;
         }
       }
       break;
     }
     case 'unary': {
-      const operand = evaluateExpr(expr.operand, outputs, variables);
+      const operand = evaluateExpr(expr.operand, outputs, variables, warnings);
       if (expr.op === '-') return -Number(operand);
       if (expr.op === '!') return !operand;
       return operand;
     }
     case 'group':
-      return evaluateExpr(expr.inner, outputs, variables);
+      return evaluateExpr(expr.inner, outputs, variables, warnings);
   }
+}
+
+export function resolveNestedField(segments: string[], obj: Record<string, unknown>): unknown {
+  let current: unknown = obj;
+  for (const seg of segments) {
+    if (current === null || current === undefined || typeof current !== 'object') return undefined;
+    current = (current as Record<string, unknown>)[seg];
+  }
+  return current;
 }
 
 export function evaluateCondition(
@@ -74,17 +86,23 @@ export function evaluateCondition(
   output: Record<string, unknown>,
   variables?: Map<string, unknown>,
 ): boolean {
-  // Variable-first resolution for single-segment field_access
   let fieldValue: unknown;
-  if (condition.left.kind === 'field_access' && condition.left.segments.length === 1) {
-    const name = condition.left.segments[0];
-    if (variables?.has(name)) {
-      fieldValue = variables.get(name);
+  if (condition.left.kind === 'field_access') {
+    const { segments } = condition.left;
+    // Single-segment: variable-first resolution
+    if (segments.length === 1) {
+      const name = segments[0];
+      if (variables?.has(name)) {
+        fieldValue = variables.get(name);
+      } else {
+        fieldValue = output[name];
+      }
     } else {
-      fieldValue = output[name];
+      // Multi-segment: traverse nested object properties
+      fieldValue = resolveNestedField(segments, output);
     }
   } else {
-    fieldValue = output[conditionFieldName(condition)];
+    fieldValue = undefined;
   }
 
   if (fieldValue === undefined) {
@@ -326,13 +344,19 @@ export async function executeFlowNodes(
             childVars.set(param.name, param.default);
           }
         }
-        // Execute child graph with its own variable scope
+        // Execute child graph with its own variable scope and isolated outputs
         const childCtx: FlowContext = {
           ...ctx,
           variables: childVars,
+          outputs: new Map(ctx.outputs),
         };
         await executeFlowNodes(graphDecl.flow, nodeResults, errors, childCtx);
         break;
+      }
+
+      default: {
+        const _exhaustive: never = flowNode;
+        throw new Error(`Unhandled FlowNode kind: ${(_exhaustive as FlowNode).kind}`);
       }
     }
   }

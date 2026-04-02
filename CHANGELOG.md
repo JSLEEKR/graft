@@ -1,5 +1,23 @@
 # Changelog
 
+## v4.1.0 (2026-04-02)
+
+### Fixed
+- **Multi-segment condition LHS (TD-NEW-01)**: `evaluateCondition` and `evalCondition` now resolve nested field paths (`result.score`) correctly via `resolveNestedField` helper. Previously produced dotted key for flat lookup — always missed.
+- **Graph call output isolation (TD-NEW-05)**: child graph gets cloned outputs map, preventing child node outputs from overwriting parent same-named outputs
+- **Division by zero warning (TD-NEW-03)**: `evaluateExpr` accepts optional `warnings` array, emits `"division by zero in expression"` instead of silently returning 0
+
+### Changed
+- **Scope checker extraction**: graph-related checking extracted from scope.ts (697→503 lines) to `src/analyzer/graph-checker.ts` (204 lines)
+  - Extracted: `checkVarCollision`, `checkExprSources`, `checkGraphCallArgs`, `checkGraphRecursion`, `collectGraphCalls`, `checkLiteralParamType`
+- **Exhaustive FlowNode switch**: `never` default added to flow-runner.ts, scope.ts, estimator.ts switch statements — new FlowNode kinds now cause compile-time errors
+- Removed `conditionFieldName` import from flow-runner.ts and transforms.ts (still used by hooks.ts and types.ts for string representation)
+
+### Stats
+- 1,001 tests (21 new), ~272 ratchets
+- 4 rounds (1 MEDIUM, 2 DIRECT, 1 TEST-ONLY), ~10 agent calls
+- Closes TD-NEW-01 (conditionFieldName multi-segment), TD-NEW-03 (div-by-zero), TD-NEW-05 (shared outputs)
+
 ## v4.0.0 (2026-04-02)
 
 ### Added

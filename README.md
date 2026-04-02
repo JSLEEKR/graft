@@ -332,7 +332,7 @@ src/
 ## Development
 
 ```bash
-npm test              # Run all 980 tests
+npm test              # Run all 1001 tests
 npm run build         # Compile TypeScript
 npx tsc --noEmit      # Type check only
 ```
@@ -341,6 +341,7 @@ npx tsc --noEmit      # Type check only
 
 | Version | Features |
 |---------|----------|
+| **v4.1** | Quality hardening — multi-segment conditions, output isolation, scope extraction, 1,001 tests |
 | **v4.0** | Variables (`let`), expressions, graph parameters, graph calls, 980 tests |
 | **v3.9** | Conditional edge transforms, estimator polish, TD-01 AST-based filtering, 890 tests |
 | **v3.8** | Flow-runner extraction, multi-hop estimation, foreach error context, 864 tests |
