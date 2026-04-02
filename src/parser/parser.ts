@@ -770,13 +770,25 @@ export class Parser {
   }
 
   private parseAdditive(): Expr {
-    let left = this.parseUnary();
-    while (this.check(TokenType.Plus) || this.check(TokenType.Minus) || this.check(TokenType.Slash)) {
+    let left = this.parseMultiplicative();
+    while (this.check(TokenType.Plus) || this.check(TokenType.Minus)) {
       const opToken = this.current();
-      let op: '+' | '-' | '/';
+      const op: '+' | '-' = opToken.type === TokenType.Plus ? '+' : '-';
+      this.advance();
+      const right = this.parseMultiplicative();
+      left = { kind: 'binary', op, left, right, location: left.location };
+    }
+    return left;
+  }
+
+  private parseMultiplicative(): Expr {
+    let left = this.parseUnary();
+    while (this.check(TokenType.Star) || this.check(TokenType.Percent) || this.check(TokenType.Slash)) {
+      const opToken = this.current();
+      let op: '*' | '%' | '/';
       switch (opToken.type) {
-        case TokenType.Plus: op = '+'; break;
-        case TokenType.Minus: op = '-'; break;
+        case TokenType.Star: op = '*'; break;
+        case TokenType.Percent: op = '%'; break;
         case TokenType.Slash: op = '/'; break;
         default: throw this.error(`Unexpected operator '${opToken.value}'`);
       }

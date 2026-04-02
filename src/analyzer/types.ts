@@ -192,6 +192,9 @@ export class TypeChecker {
           case 'max': return 'number';
           case 'min': return 'number';
           case 'str': return 'string';
+          case 'abs': return 'number';
+          case 'round': return 'number';
+          case 'keys': return 'unknown';
           default: return 'unknown';
         }
       }

@@ -77,6 +77,8 @@ export enum TokenType {
   Arrow = 'Arrow',
   Pipe = 'Pipe',
   Slash = 'Slash',
+  Star = 'Star',
+  Percent = 'Percent',
   Plus = 'Plus',
   Minus = 'Minus',
   Bang = 'Bang',

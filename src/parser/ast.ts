@@ -3,7 +3,7 @@ import { SourceLocation } from '../errors/diagnostics.js';
 export type Expr =
   | { kind: 'literal'; value: string | number | boolean; location: SourceLocation }
   | { kind: 'field_access'; segments: string[]; location: SourceLocation }
-  | { kind: 'binary'; op: '+' | '-' | '/'; left: Expr; right: Expr; location: SourceLocation }
+  | { kind: 'binary'; op: '+' | '-' | '/' | '*' | '%'; left: Expr; right: Expr; location: SourceLocation }
   | { kind: 'unary'; op: '-' | '!'; operand: Expr; location: SourceLocation }
   | { kind: 'group'; inner: Expr; location: SourceLocation }
   | { kind: 'call'; name: string; args: Expr[]; location: SourceLocation };
@@ -14,6 +14,9 @@ export const BUILTIN_FUNCTIONS: Record<string, { arity: number }> = {
   max: { arity: 2 },
   min: { arity: 2 },
   str: { arity: 1 },
+  abs: { arity: 1 },
+  round: { arity: 1 },
+  keys: { arity: 1 },
 };
 
 export interface ImportDecl {

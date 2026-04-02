@@ -230,9 +230,12 @@ graph Main(input: TaskSpec, output: FinalReport, budget: 20k) {
   Classifier -> Sub(threshold: 80) -> Summarizer -> done
 }
 
-# Expression functions
+# Expression functions and operators
 A -> let count = len(A.items)
+   -> let doubled = A.score * 2
    -> let label = str(max(A.score, 50))
+   -> let positive = abs(A.score)
+   -> let nkeys = len(keys(A.metadata))
    -> B -> done
 ```
 
@@ -337,7 +340,7 @@ src/
 ## Development
 
 ```bash
-npm test              # Run all 1048 tests
+npm test              # Run all 1077 tests
 npm run build         # Compile TypeScript
 npx tsc --noEmit      # Type check only
 ```
@@ -346,6 +349,7 @@ npx tsc --noEmit      # Type check only
 
 | Version | Features |
 |---------|----------|
+| **v4.3** | Multiplication/modulo (`*`, `%`), new builtins (`abs`, `round`, `keys`), division precedence fix, `str()` JSON.stringify, 1,077 tests |
 | **v4.2** | Expression functions (`len`, `max`, `min`, `str`), graph call return values, equality unification, 1,048 tests |
 | **v4.1** | Quality hardening — multi-segment conditions, output isolation, scope extraction, 1,001 tests |
 | **v4.0** | Variables (`let`), expressions, graph parameters, graph calls, 980 tests |

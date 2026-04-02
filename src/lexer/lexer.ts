@@ -13,6 +13,8 @@ const SINGLE_CHAR: Record<string, TokenType> = {
   '.': TokenType.Dot,
   '|': TokenType.Pipe,
   '/': TokenType.Slash,
+  '*': TokenType.Star,
+  '%': TokenType.Percent,
   '+': TokenType.Plus,
   '-': TokenType.Minus,
   '!': TokenType.Bang,

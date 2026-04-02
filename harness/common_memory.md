@@ -1,7 +1,7 @@
 # Common Memory — Graft Compiler
-## Last updated: v4.2 COMPLETE
+## Last updated: v4.3 COMPLETE
 
-## Ratchet-Locked Decisions (~250 total, 5 unlocked)
+## Ratchet-Locked Decisions (~260 total, 6 unlocked)
 
 ### T1-T6 (abbreviated — all LOCKED)
 T1: tsc-only, ESM, NodeNext, explicit vitest, shebang, strict, no barrels, .js extensions
@@ -492,7 +492,7 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 
 ### v4.0-R1 Ratchets (Lexer + AST + Expression Parser)
 - [v4.0-R01] Expr: 5-kind discriminated union (literal, field_access, binary, unary, group) with mandatory SourceLocation — LOCKED
-- [v4.0-R02] Division at additive precedence (flat with +/-), no multiplicative level — LOCKED
+- [v4.0-R02] Division at additive precedence (flat with +/-), no multiplicative level — UNLOCKED (v4.3: moved to multiplicative precedence for standard math semantics)
 - [v4.0-R03] Condition.left: Expr replaces Condition.field atomically — LOCKED
 - [v4.0-R04] conditionFieldName() bridge exported from ast.ts for incremental migration — LOCKED
 - [v4.0-R05] Let: arrow-connected FlowNode kind — LOCKED
@@ -584,6 +584,34 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 ### v4.2-R3 Ratchets (LSP)
 - [v4.2-R12] Builtin function completions in graph flow context: Function kind, arity detail — LOCKED
 - [v4.2-R13] Hover documentation for len/max/min/str with signature and description — LOCKED
+
+### v4.3-R1 Ratchets (Multiplication/Modulo + New Builtins)
+- [v4.3-R01] Star and Percent tokens in lexer, SINGLE_CHAR map — LOCKED
+- [v4.3-R02] Binary ops extended: '*' | '%' added to op union in ast.ts — LOCKED
+- [v4.3-R03] parseMultiplicative precedence level: Star, Percent, Slash between additive and unary — LOCKED
+- [v4.3-R04] Division moved to multiplicative level (v4.0-R02 UNLOCKED) for standard math semantics — LOCKED
+- [v4.3-R05] evaluateExpr: * and % with modulo-by-zero warning — LOCKED
+- [v4.3-R06] New builtins: abs(1), round(1), keys(1) added to BUILTIN_FUNCTIONS — LOCKED
+- [v4.3-R07] keys() returns Object.keys() for objects, [] for non-objects — LOCKED
+- [v4.3-R08] str() uses JSON.stringify for objects/arrays, String() for primitives — LOCKED
+- [v4.3-R09] inferExprType: abs→number, round→number, keys→unknown — LOCKED
+- [v4.3-R10] Hover docs for abs, round, keys with signatures — LOCKED
+
+### v4.3 Review Feedback
+- v4.3-R1 complete: Multiplication/modulo + new builtins (MEDIUM tier). 15 new tests, 1,063 total. PASS.
+  - Star/Percent tokens, parseMultiplicative precedence level
+  - Division moved from additive to multiplicative (ratchet unlock)
+  - 3 new builtins: abs, round, keys
+  - str() improved to JSON.stringify for objects
+- v4.3-R2 complete: str() fix + division precedence test (DIRECT tier). 6 new tests, 1,069 total. PASS.
+  - str() on null returns "null" (JSON.stringify null handling)
+  - resolveNestedField exported and tested
+  - Division precedence verified: 2 + 6/3 = 4
+- v4.3-R3 complete: Integration + regression tests (TEST-ONLY tier). 8 new tests, 1,077 total. PASS.
+  - Cross-feature: multiplication in let binding, keys+len composition
+  - Regression: +, -, / operators, existing builtins still work
+  - Scale: pipeline with *, %, abs, round, keys compiles; precedence test
+- v4.3 COMPLETE: 3 rounds (R1-R3). Multiplication/modulo, new builtins (abs/round/keys), str() fix, division precedence fix. 1,077 tests. 10 new ratchets, 1 unlocked.
 
 ### v4.2 Review Feedback
 - v4.2-R1 complete: Expression functions (MEDIUM tier). 21 new tests, 1,022 total. PASS.

@@ -1,5 +1,26 @@
 # Changelog
 
+## v4.3.0 (2026-04-02)
+
+### Added
+- **Multiplication and modulo operators**: `*` and `%` in expressions with proper multiplicative precedence
+  - New `Star` and `Percent` tokens in lexer
+  - New `parseMultiplicative` precedence level between additive and unary
+  - Modulo-by-zero returns 0 with warning (matches division behavior)
+- **New built-in functions**: `abs()`, `round()`, `keys()` added to expression system
+  - `abs(n)` — absolute value
+  - `round(n)` — round to nearest integer
+  - `keys(obj)` — returns object keys as array
+- **LSP hover docs** for `abs`, `round`, `keys` with signatures
+
+### Fixed
+- **Division precedence**: moved from additive to multiplicative level — `2 + 6/3` now correctly evaluates to `4` instead of `2.67` (standard math semantics)
+- **`str()` JSON.stringify**: objects and arrays now stringify via `JSON.stringify()` instead of `String()` — `str({a:1})` returns `'{"a":1}'` not `'[object Object]'`
+
+### Stats
+- 1,077 tests (29 new), ~260 ratchets (1 unlocked: v4.0-R02)
+- 3 rounds (1 MEDIUM, 1 DIRECT, 1 TEST-ONLY), ~6 agent calls
+
 ## v4.2.0 (2026-04-02)
 
 ### Added

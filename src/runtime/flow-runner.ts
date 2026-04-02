@@ -50,6 +50,7 @@ export function evaluateExpr(expr: Expr, outputs: Map<string, unknown>, variable
           if (typeof left === 'string' || typeof right === 'string') return String(left) + String(right);
           return Number(left) + Number(right);
         case '-': return Number(left) - Number(right);
+        case '*': return Number(left) * Number(right);
         case '/': {
           const divisor = Number(right);
           if (divisor === 0) {
@@ -57,6 +58,14 @@ export function evaluateExpr(expr: Expr, outputs: Map<string, unknown>, variable
             return 0;
           }
           return Number(left) / divisor;
+        }
+        case '%': {
+          const divisor = Number(right);
+          if (divisor === 0) {
+            warnings?.push('division by zero in expression');
+            return 0;
+          }
+          return Number(left) % divisor;
         }
       }
       break;
@@ -80,7 +89,16 @@ export function evaluateExpr(expr: Expr, outputs: Map<string, unknown>, variable
         }
         case 'max': return Math.max(Number(args[0]), Number(args[1]));
         case 'min': return Math.min(Number(args[0]), Number(args[1]));
-        case 'str': return String(args[0]);
+        case 'str': return typeof args[0] === 'object' && args[0] !== null ? JSON.stringify(args[0]) : String(args[0]);
+        case 'abs': return Math.abs(Number(args[0]));
+        case 'round': return Math.round(Number(args[0]));
+        case 'keys': {
+          const val = args[0];
+          if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+            return Object.keys(val);
+          }
+          return [];
+        }
         default: return undefined;
       }
     }
