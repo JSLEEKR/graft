@@ -29,7 +29,8 @@ function makeCtx(opts: {
       return { node: name, output, durationMs: 1, success: true };
     },
     getConditionalEdge: (sourceName: string) => {
-      return opts.conditionalEdges[sourceName] ?? null;
+      const branches = opts.conditionalEdges[sourceName];
+      return branches ? { branches, transforms: [] } : null;
     },
     getFailureStrategy: (name: string) => {
       return opts.failureStrategies?.[name] ?? undefined;
@@ -197,7 +198,7 @@ describe('v3.7-R3: multi-hop conditional edge routing', () => {
       },
       getConditionalEdge: (sourceName: string) => {
         if (sourceName === 'A') {
-          return [{ condition: { field: 'status', op: '==', value: 'go' }, target: 'B' }];
+          return { branches: [{ condition: { field: 'status', op: '==', value: 'go' }, target: 'B' }], transforms: [] };
         }
         return null;
       },

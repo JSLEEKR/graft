@@ -1,14 +1,20 @@
-import { FlowNode, FailureStrategy, Condition, ConditionalBranch } from '../parser/ast.js';
+import { FlowNode, FailureStrategy, Condition, ConditionalBranch, Transform } from '../parser/ast.js';
 import { NodeResult } from './executor.js';
 import { resolveField, RuntimeState } from './prompt-builder.js';
+import { applyTransforms } from './transforms.js';
 import { MAX_CONDITIONAL_HOPS } from '../constants.js';
 
 export { MAX_CONDITIONAL_HOPS };
 
+export interface ConditionalEdgeInfo {
+  branches: ConditionalBranch[];
+  transforms: Transform[];
+}
+
 export interface FlowContext extends RuntimeState {
   executeNode: (name: string) => Promise<NodeResult>;
   getFailureStrategy?: (name: string) => FailureStrategy | undefined;
-  getConditionalEdge?: (sourceName: string) => ConditionalBranch[] | null;
+  getConditionalEdge?: (sourceName: string) => ConditionalEdgeInfo | null;
 }
 
 export function evaluateCondition(condition: Condition, output: Record<string, unknown>): boolean {
@@ -102,9 +108,10 @@ export async function executeConditionalChain(
   for (; hop < MAX_CONDITIONAL_HOPS; hop++) {
     if (errors.length > 0) break;
 
-    const branches = ctx.getConditionalEdge?.(currentNodeName);
-    if (!branches || !currentOutput || typeof currentOutput !== 'object') break;
+    const edgeInfo = ctx.getConditionalEdge?.(currentNodeName);
+    if (!edgeInfo || !currentOutput || typeof currentOutput !== 'object') break;
 
+    const { branches, transforms } = edgeInfo;
     const output = currentOutput as Record<string, unknown>;
     let routedTo: string | null = null;
     let elseBranch: string | null = null;
@@ -120,6 +127,12 @@ export async function executeConditionalChain(
 
     const target = routedTo ?? elseBranch;
     if (!target || target === 'done') break;
+
+    // Apply transforms after condition evaluation, before target execution
+    if (transforms.length > 0) {
+      const transformed = applyTransforms(currentOutput, transforms);
+      ctx.outputs.set(currentNodeName, transformed);
+    }
 
     // Cycle detection
     if (visited.has(target)) {

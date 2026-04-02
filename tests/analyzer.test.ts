@@ -1011,7 +1011,7 @@ describe('ScopeChecker — foreach binding collision', () => {
 });
 
 describe('ScopeChecker — conditional edge transforms', () => {
-  it('warns on transforms applied to conditional edge', () => {
+  it('no longer warns on transforms applied to conditional edge (v3.9: now supported)', () => {
     // Build AST manually since the parser may not support transforms on conditional edges
     const loc = { line: 1, column: 1, offset: 0 };
     const program: Program = {
@@ -1032,10 +1032,9 @@ describe('ScopeChecker — conditional edge transforms', () => {
     };
     const checker = new ScopeChecker(program);
     const diagnostics = checker.check();
-    const warning = diagnostics.find(d => d.severity === 'warning' && d.code === 'SCOPE_TRANSFORM_CONDITIONAL');
-    expect(warning).toBeDefined();
-    expect(warning!.message).toContain("Transforms on conditional edge");
-    expect(warning!.message).toContain("may not be applied at runtime");
+    // SCOPE_TRANSFORM_CONDITIONAL warning removed in v3.9 since transforms are now applied at runtime
+    const warning = diagnostics.find(d => d.code === 'SCOPE_TRANSFORM_CONDITIONAL');
+    expect(warning).toBeUndefined();
   });
 
   it('does not warn on direct edge with transforms', () => {

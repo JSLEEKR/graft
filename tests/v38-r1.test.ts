@@ -28,7 +28,8 @@ function makeCtx(opts: {
       return { node: name, output, durationMs: 1, success: true };
     },
     getConditionalEdge: (sourceName: string) => {
-      return opts.conditionalEdges?.[sourceName] ?? null;
+      const branches = opts.conditionalEdges?.[sourceName];
+      return branches ? { branches, transforms: [] } : null;
     },
     getFailureStrategy: () => undefined,
     get _executedNodes() { return executedNodes; },

@@ -73,10 +73,10 @@ describe('v3.0-R6: PARSE_ error codes', () => {
   });
 });
 
-// --- SCOPE_TRANSFORM_CONDITIONAL rename ---
+// --- SCOPE_TRANSFORM_CONDITIONAL removed in v3.9 (transforms now applied at runtime) ---
 
-describe('v3.0-R6: SCOPE_TRANSFORM_CONDITIONAL rename', () => {
-  it('uses SCOPE_TRANSFORM_CONDITIONAL code (manual AST)', () => {
+describe('v3.0-R6: SCOPE_TRANSFORM_CONDITIONAL removed', () => {
+  it('no longer emits SCOPE_TRANSFORM_CONDITIONAL warning (v3.9: transforms on conditional edges supported)', () => {
     const loc = { line: 1, column: 1, offset: 0 };
     const program = {
       imports: [],
@@ -97,7 +97,7 @@ describe('v3.0-R6: SCOPE_TRANSFORM_CONDITIONAL rename', () => {
     const checker = new ScopeChecker(program as any);
     const diagnostics = checker.check();
     const warning = diagnostics.find(d => d.code === 'SCOPE_TRANSFORM_CONDITIONAL');
-    expect(warning).toBeDefined();
+    expect(warning).toBeUndefined();
   });
 });
 

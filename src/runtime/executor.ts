@@ -126,7 +126,7 @@ export class Executor {
         if (!edges) return null;
         for (const edge of edges) {
           if (edge.target.kind === 'conditional') {
-            return edge.target.branches;
+            return { branches: edge.target.branches, transforms: edge.transforms };
           }
         }
         return null;

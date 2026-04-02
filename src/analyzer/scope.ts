@@ -195,15 +195,6 @@ export class ScopeChecker {
         }
       }
 
-      // C-02: Warn on transforms applied to conditional edges
-      if (edge.target.kind === 'conditional' && edge.transforms.length > 0) {
-        errors.push(new GraftError(
-          `Transforms on conditional edge from '${edge.source}' may not be applied at runtime`,
-          edge.location,
-          'warning',
-          'SCOPE_TRANSFORM_CONDITIONAL',
-        ));
-      }
     }
   }
 

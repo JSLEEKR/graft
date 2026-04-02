@@ -54,7 +54,8 @@ function makeFlowCtx(opts: {
       return { node: name, output, durationMs: 1, success: true };
     },
     getConditionalEdge: (sourceName: string) => {
-      return opts.conditionalEdges?.[sourceName] ?? null;
+      const branches = opts.conditionalEdges?.[sourceName];
+      return branches ? { branches, transforms: [] } : null;
     },
     getFailureStrategy: (name: string) => {
       return opts.failureStrategies?.[name] ?? undefined;

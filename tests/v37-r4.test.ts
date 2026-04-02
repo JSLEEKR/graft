@@ -40,7 +40,8 @@ function makeFlowCtx(opts: {
       return result;
     },
     getConditionalEdge: (sourceName: string) => {
-      return opts.conditionalEdges?.[sourceName] ?? null;
+      const branches = opts.conditionalEdges?.[sourceName];
+      return branches ? { branches, transforms: [] } : null;
     },
     getFailureStrategy: (name: string) => {
       return opts.failureStrategies?.[name] ?? undefined;
@@ -268,12 +269,12 @@ describe('v3.7-R4: multi-hop edge cases', () => {
       },
       getConditionalEdge: (sourceName: string) => {
         if (sourceName === 'A') {
-          return [{ condition: { field: 'status', op: '==', value: 'go' }, target: 'B' }];
+          return { branches: [{ condition: { field: 'status', op: '==', value: 'go' }, target: 'B' }], transforms: [] };
         }
         // B's conditional edge should apply even when fallback D handles it
         // since D's output is aliased under B
         if (sourceName === 'B') {
-          return [{ condition: { field: 'status', op: '==', value: 'continue' }, target: 'C' }];
+          return { branches: [{ condition: { field: 'status', op: '==', value: 'continue' }, target: 'C' }], transforms: [] };
         }
         return null;
       },
