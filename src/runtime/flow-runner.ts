@@ -203,7 +203,12 @@ export async function executeFlowNodes(
         for (let i = 0; i < maxIter; i++) {
           if (errors.length > 0) break;
           ctx.outputs.set(flowNode.binding, items[i]);
+          const errorsBefore = errors.length;
           await executeFlowNodes(flowNode.body, nodeResults, errors, ctx);
+          // Annotate any new errors with iteration context
+          for (let e = errorsBefore; e < errors.length; e++) {
+            errors[e] = `${errors[e]} (foreach iteration ${i + 1} of ${maxIter})`;
+          }
         }
         // Restore or clean up binding
         if (hadBinding) {
