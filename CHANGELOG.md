@@ -1,5 +1,29 @@
 # Changelog
 
+## v3.9.0 (2026-04-02)
+
+### Added
+- **Edge transforms on conditional edges**: transforms (select, filter, drop, compact, truncate) now applied on conditional edges after condition evaluation, before target execution
+  - `ConditionalEdgeInfo` interface bundles branches + transforms
+  - Multi-hop chains apply transforms per-hop independently
+  - `done` target and cycle detection skip transform application
+- **Estimator diagnostic code specialization**: `BUDGET_CHAIN_CYCLE` and `BUDGET_CHAIN_DEPTH` replace overloaded `BUDGET_EXCEEDED` for chain-specific warnings
+- **Fallback cost in worst-case estimation**: `retry_then_fallback` worst-case now includes fallback node cost
+
+### Changed
+- `FlowContext.getConditionalEdge` returns `ConditionalEdgeInfo | null` (was `ConditionalBranch[] | null`)
+- `SCOPE_TRANSFORM_CONDITIONAL` warning removed — transforms on conditional edges now fully supported
+
+### Fixed
+- **TD-01**: `collectRenameLocations` import-path regex replaced with AST-based `getImportPathRanges()`/`isInImportPath()` (carried 4 retros, R-PROC-19 mandated inclusion)
+
+### Stats
+- 890 tests (26 new), ~230 ratchets
+- 3 rounds (1 MEDIUM, 1 DIRECT, 1 TEST-ONLY), ~8 agent calls
+- Closes TD-01 (import-path regex, carried 4 retros)
+- Resolves SCOPE_TRANSFORM_CONDITIONAL gap (documented since v3.3-R2)
+- Final v3.x release
+
 ## v3.8.0 (2026-04-02)
 
 ### Added

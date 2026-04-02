@@ -1,7 +1,7 @@
 # Common Memory — Graft Compiler
-## Last updated: v3.8-R4 completed (v3.8.0 release)
+## Last updated: v3.9-R3 completed (v3.9.0 release — final v3.x)
 
-## Ratchet-Locked Decisions (~230 total, 5 unlocked)
+## Ratchet-Locked Decisions (~235 total, 5 unlocked)
 
 ### T1-T6 (abbreviated — all LOCKED)
 T1: tsc-only, ESM, NodeNext, explicit vitest, shebang, strict, no barrels, .js extensions
@@ -474,3 +474,7 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v3.8-R3 complete: Foreach iteration context in error messages (annotation suffix). DIRECT tier.
 - v3.8-R4 complete: Integration + regression tests (11 cross-cutting tests). TEST-ONLY tier.
 - v3.8 COMPLETE: 4 rounds (R1-R4). Flow-runner extraction + multi-hop estimation + foreach error context. 864 tests. Closes TD-02, TD-03, TD-04.
+- v3.9-R1 complete: Edge transforms on conditional edges (ConditionalEdgeInfo, transforms after condition eval, SCOPE_TRANSFORM_CONDITIONAL removed). MEDIUM tier. One NEEDS_CHANGES (2 missing tests, fixed).
+- v3.9-R2 complete: Estimator polish (BUDGET_CHAIN_CYCLE, BUDGET_CHAIN_DEPTH, fallback cost) + TD-01 AST-based import-path filtering. DIRECT tier.
+- v3.9-R3 complete: Integration + regression tests (10 cross-cutting tests). TEST-ONLY tier.
+- v3.9 COMPLETE: 3 rounds (R1-R3). Conditional edge transforms + estimator polish + TD-01. 890 tests. Final v3.x release. Closes TD-01, resolves SCOPE_TRANSFORM_CONDITIONAL.
