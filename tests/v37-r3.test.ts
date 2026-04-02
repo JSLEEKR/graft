@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { executeFlowNodes, FlowContext } from '../src/runtime/flow-runner.js';
 import { NodeResult } from '../src/runtime/executor.js';
-import { FlowNode, ConditionalBranch, Condition } from '../src/parser/ast.js';
+import { FlowNode, ConditionalBranch, Condition, Program } from '../src/parser/ast.js';
+import { ScopeChecker } from '../src/analyzer/scope.js';
 
 /**
  * Create a FlowContext mock for multi-hop conditional edge tests.
@@ -279,5 +280,72 @@ describe('v3.7-R3: multi-hop conditional edge routing', () => {
 
     // A should not even run because errors already exist
     expect(ctx._executedNodes).toEqual([]);
+  });
+
+  // 11. Depth limit: chain exceeding MAX_CONDITIONAL_HOPS (10) produces error
+  it('depth limit: chain exceeding MAX_CONDITIONAL_HOPS produces error', async () => {
+    // Build 12 distinct nodes: N0 -> N1 -> ... -> N11, all chained via conditional edges.
+    // MAX_CONDITIONAL_HOPS is 10, so starting from N0 the loop can do 10 hops (N1..N10).
+    // N10 routes to N11, but that would be hop index 10 (11th hop), exceeding the limit.
+    const nodeNames = Array.from({ length: 12 }, (_, i) => `N${i}`);
+    const nodeOutputs: Record<string, Record<string, unknown>> = {};
+    const conditionalEdges: Record<string, ConditionalBranch[]> = {};
+
+    for (const name of nodeNames) {
+      nodeOutputs[name] = { go: 'yes' };
+    }
+    // Chain: N0 -> N1 -> N2 -> ... -> N11
+    for (let i = 0; i < nodeNames.length - 1; i++) {
+      conditionalEdges[nodeNames[i]] = [
+        { condition: { field: 'go', op: '==', value: 'yes' }, target: nodeNames[i + 1] },
+      ];
+    }
+
+    const ctx = makeCtx({ nodeOutputs, conditionalEdges });
+    const results: NodeResult[] = [];
+    const errors: string[] = [];
+    await executeFlowNodes([{ kind: 'node', name: 'N0' }], results, errors, ctx);
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('exceeded');
+  });
+});
+
+describe('v3.7-R3: ScopeChecker done target validation', () => {
+  // Regression test: 'done' as a conditional branch target must NOT produce SCOPE_UNDEFINED_REF
+  it('done as conditional branch target does not produce SCOPE_UNDEFINED_REF', () => {
+    const loc = { line: 1, column: 1, offset: 0 };
+    const program: Program = {
+      imports: [],
+      memories: [],
+      contexts: [
+        { name: 'Spec', maxTokens: 500, fields: [{ name: 'name', type: { kind: 'primitive', name: 'String' }, location: loc }], location: loc },
+      ],
+      nodes: [
+        {
+          name: 'A', model: 'sonnet', budgetIn: 2000, budgetOut: 1000,
+          reads: [{ context: 'Spec', location: loc }], tools: [], writes: [],
+          produces: { name: 'Out', fields: [{ name: 'status', type: { kind: 'primitive', name: 'String' }, location: loc }], location: loc },
+          location: loc,
+        },
+      ],
+      edges: [{
+        source: 'A',
+        target: {
+          kind: 'conditional',
+          branches: [
+            { condition: { field: 'status', op: '==', value: 'finished' }, target: 'done' },
+          ],
+        },
+        transforms: [],
+        location: loc,
+      }],
+      graphs: [{ name: 'G', input: 'Spec', output: 'Out', budget: 10000, flow: [{ kind: 'node', name: 'A' }], location: loc }],
+    };
+
+    const checker = new ScopeChecker(program);
+    const diagnostics = checker.check();
+    const scopeError = diagnostics.find(d => d.code === 'SCOPE_UNDEFINED_REF' && d.message.includes('done'));
+    expect(scopeError).toBeUndefined();
   });
 });

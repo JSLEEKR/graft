@@ -104,7 +104,8 @@ export async function executeFlowNodes(
           let currentNodeName = flowNode.name;
           let currentOutput = result.output;
 
-          for (let hop = 0; hop < MAX_CONDITIONAL_HOPS; hop++) {
+          let hop = 0;
+          for (; hop < MAX_CONDITIONAL_HOPS; hop++) {
             if (errors.length > 0) break;
 
             const branches = ctx.getConditionalEdge?.(currentNodeName);
@@ -144,6 +145,11 @@ export async function executeFlowNodes(
 
             currentNodeName = target;
             currentOutput = conditionalResult.output;
+          }
+
+          // Post-loop depth limit check: if we used all hops without breaking, the chain is too deep
+          if (hop >= MAX_CONDITIONAL_HOPS && errors.length === 0) {
+            errors.push(`Conditional chain from '${flowNode.name}' exceeded maximum depth of ${MAX_CONDITIONAL_HOPS} hops`);
           }
         }
         break;
