@@ -24,6 +24,15 @@ export function evaluateExpr(expr: Expr, outputs: Map<string, unknown>, variable
       return current;
     }
     case 'binary': {
+      // Short-circuit for logical operators
+      if (expr.op === '&&') {
+        const left = evaluateExpr(expr.left, outputs, variables, warnings);
+        return left ? evaluateExpr(expr.right, outputs, variables, warnings) : left;
+      }
+      if (expr.op === '||') {
+        const left = evaluateExpr(expr.left, outputs, variables, warnings);
+        return left ? left : evaluateExpr(expr.right, outputs, variables, warnings);
+      }
       const left = evaluateExpr(expr.left, outputs, variables, warnings);
       const right = evaluateExpr(expr.right, outputs, variables, warnings);
       switch (expr.op) {

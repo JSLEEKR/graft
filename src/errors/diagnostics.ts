@@ -35,7 +35,8 @@ export type TypeErrorCode =
   | 'TYPE_CONDITION_MISMATCH'
   | 'TYPE_EXPR_MISMATCH'
   | 'TYPE_VAR_CONDITION'
-  | 'TYPE_FUNC_ARITY';
+  | 'TYPE_FUNC_ARITY'
+  | 'TYPE_CONDITIONAL_MISMATCH';
 
 export type BudgetErrorCode =
   | 'BUDGET_EXCEEDED'

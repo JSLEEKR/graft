@@ -173,7 +173,8 @@ export class TypeChecker {
       case 'binary': {
         const leftType = this.inferExprType(expr.left, varTypes);
         const rightType = this.inferExprType(expr.right, varTypes);
-        // Comparison operators return boolean
+        // Logical and comparison operators return boolean
+        if (expr.op === '&&' || expr.op === '||') return 'boolean';
         if (expr.op === '<' || expr.op === '>' || expr.op === '<=' || expr.op === '>=' || expr.op === '==' || expr.op === '!=') {
           return 'boolean';
         }
@@ -215,7 +216,14 @@ export class TypeChecker {
       const rightType = this.inferExprType(expr.right, varTypes);
 
       if (leftType !== 'unknown' && rightType !== 'unknown') {
-        if (expr.op === '==' || expr.op === '!=') {
+        if (expr.op === '&&' || expr.op === '||') {
+          if (leftType !== 'boolean' || rightType !== 'boolean') {
+            errors.push(new GraftError(
+              `Operator '${expr.op}' expects boolean operands, got '${leftType}' and '${rightType}'`,
+              expr.location, 'warning', 'TYPE_EXPR_MISMATCH',
+            ));
+          }
+        } else if (expr.op === '==' || expr.op === '!=') {
           // Equality allows any types
         } else if (expr.op === '<' || expr.op === '>' || expr.op === '<=' || expr.op === '>=') {
           if (leftType !== 'number' || rightType !== 'number') {
@@ -279,6 +287,14 @@ export class TypeChecker {
         }
       }
     } else if (expr.kind === 'conditional') {
+      const consType = this.inferExprType(expr.consequent, varTypes);
+      const altType = this.inferExprType(expr.alternate, varTypes);
+      if (consType !== 'unknown' && altType !== 'unknown' && consType !== altType) {
+        errors.push(new GraftError(
+          `Conditional branches have different types: '${consType}' and '${altType}'`,
+          expr.location, 'warning', 'TYPE_CONDITIONAL_MISMATCH',
+        ));
+      }
       this.checkExprTypeErrors(expr.condition, varTypes, errors);
       this.checkExprTypeErrors(expr.consequent, varTypes, errors);
       this.checkExprTypeErrors(expr.alternate, varTypes, errors);

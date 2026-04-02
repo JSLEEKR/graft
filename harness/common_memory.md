@@ -1,5 +1,5 @@
 # Common Memory — Graft Compiler
-## Last updated: v4.5 COMPLETE
+## Last updated: v4.6 COMPLETE
 
 ## Ratchet-Locked Decisions (~275 total, 6 unlocked)
 
@@ -453,6 +453,33 @@
 ### v4.2-R3 Ratchets (LSP)
 - [v4.2-R12] Builtin function completions in graph flow context: Function kind, arity detail — LOCKED
 - [v4.2-R13] Hover documentation for len/max/min/str with signature and description — LOCKED
+
+### v4.6-R1 Ratchets (Logical Operators)
+- [v4.6-R01] AmpAmp and PipePipe tokens in lexer, two-char matching — LOCKED
+- [v4.6-R02] Binary op union extended: '&&' | '||' added to ast.ts — LOCKED
+- [v4.6-R03] parseLogicalOr and parseLogicalAnd precedence levels: || < && < comparison — LOCKED
+- [v4.6-R04] Short-circuit evaluation: && returns left if falsy, || returns left if truthy — LOCKED
+- [v4.6-R05] inferExprType: && and || return 'boolean' — LOCKED
+- [v4.6-R06] checkExprTypeErrors: logical operators warn on non-boolean operands — LOCKED
+
+### v4.6-R2 Ratchets (Conditional Type Mismatch Warning)
+- [v4.6-R07] TYPE_CONDITIONAL_MISMATCH error code in TypeErrorCode union — LOCKED
+- [v4.6-R08] checkExprTypeErrors: conditional branches with different known types emit warning — LOCKED
+- [v4.6-R09] Warning severity (not error): mismatched conditional branches still compile — LOCKED
+
+### v4.6 Review Feedback
+- v4.6-R1 complete: Logical operators (DIRECT). 17 new tests, 1,183 total. PASS.
+  - AmpAmp/PipePipe tokens, parseLogicalOr/parseLogicalAnd precedence
+  - Short-circuit evaluation in expr-eval.ts
+  - Type checker warns on non-boolean operands
+- v4.6-R2 complete: Conditional type mismatch warning (DIRECT). 7 new tests, 1,190 total. PASS.
+  - TYPE_CONDITIONAL_MISMATCH warning for mismatched branch types
+  - Warnings go to result.warnings (not result.errors)
+- v4.6-R3 complete: Integration + regression (TEST-ONLY). 12 new tests, 1,202 total. PASS.
+  - Cross-feature: logical + conditional + comparison + arithmetic
+  - Regression: all expression features intact
+  - Complex expressions with all operator types compile
+- v4.6 COMPLETE: 3 rounds (R1-R3). Logical operators, conditional warning, integration. 1,202 tests. 9 new ratchets.
 
 ### v4.5-R1 Ratchets (Comparison Operators)
 - [v4.5-R01] Six comparison tokens: Greater, Less, GreaterEqual, LessEqual, EqualEqual, BangEqual — LOCKED

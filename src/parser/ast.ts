@@ -7,7 +7,7 @@ export type TemplatePart =
 export type Expr =
   | { kind: 'literal'; value: string | number | boolean; location: SourceLocation }
   | { kind: 'field_access'; segments: string[]; location: SourceLocation }
-  | { kind: 'binary'; op: '+' | '-' | '/' | '*' | '%' | '<' | '>' | '<=' | '>=' | '==' | '!='; left: Expr; right: Expr; location: SourceLocation }
+  | { kind: 'binary'; op: '+' | '-' | '/' | '*' | '%' | '<' | '>' | '<=' | '>=' | '==' | '!=' | '&&' | '||'; left: Expr; right: Expr; location: SourceLocation }
   | { kind: 'unary'; op: '-' | '!'; operand: Expr; location: SourceLocation }
   | { kind: 'group'; inner: Expr; location: SourceLocation }
   | { kind: 'call'; name: string; args: Expr[]; location: SourceLocation }

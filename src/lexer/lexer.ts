@@ -260,6 +260,8 @@ export class Lexer {
     if (ch === '<' && next === '=') return [TokenType.LessEqual, '<='];
     if (ch === '=' && next === '=') return [TokenType.EqualEqual, '=='];
     if (ch === '!' && next === '=') return [TokenType.BangEqual, '!='];
+    if (ch === '&' && next === '&') return [TokenType.AmpAmp, '&&'];
+    if (ch === '|' && next === '|') return [TokenType.PipePipe, '||'];
     return null;
   }
 

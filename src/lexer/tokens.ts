@@ -93,6 +93,8 @@ export enum TokenType {
   Less = 'Less',
   EqualEqual = 'EqualEqual',
   BangEqual = 'BangEqual',
+  AmpAmp = 'AmpAmp',
+  PipePipe = 'PipePipe',
 
   // Special
   EOF = 'EOF',

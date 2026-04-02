@@ -767,7 +767,27 @@ export class Parser {
   // --- Expressions --------------------------------------------
 
   private parseExpr(): Expr {
-    return this.parseComparison();
+    return this.parseLogicalOr();
+  }
+
+  private parseLogicalOr(): Expr {
+    let left = this.parseLogicalAnd();
+    while (this.check(TokenType.PipePipe)) {
+      this.advance();
+      const right = this.parseLogicalAnd();
+      left = { kind: 'binary', op: '||', left, right, location: left.location };
+    }
+    return left;
+  }
+
+  private parseLogicalAnd(): Expr {
+    let left = this.parseComparison();
+    while (this.check(TokenType.AmpAmp)) {
+      this.advance();
+      const right = this.parseComparison();
+      left = { kind: 'binary', op: '&&', left, right, location: left.location };
+    }
+    return left;
   }
 
   private parseComparison(): Expr {

@@ -1,5 +1,23 @@
 # Changelog
 
+## v4.6.0 (2026-04-02)
+
+### Added
+- **Logical operators**: `&&` (AND) and `||` (OR) with short-circuit evaluation
+  - New `AmpAmp` and `PipePipe` tokens in lexer
+  - New `parseLogicalOr` and `parseLogicalAnd` precedence levels
+  - Short-circuit: `&&` returns left if falsy, `||` returns left if truthy
+  - Type inference: logical operators return `boolean`
+  - Type checker warns on non-boolean operands
+- **Conditional branch type mismatch warning**: `TYPE_CONDITIONAL_MISMATCH`
+  - Warns when `if-then-else` branches have different known types
+  - Severity: warning (code still compiles)
+- **TextMate grammar**: `&&` and `||` added to operator pattern
+
+### Stats
+- 1,202 tests (36 new), ~301 ratchets
+- 3 rounds (R1 logical ops, R2 type mismatch warning, R3 integration)
+
 ## v4.5.0 (2026-04-02)
 
 ### Added
