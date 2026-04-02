@@ -92,6 +92,10 @@ export async function executeFlowNodes(
         const result = await executeWithFailureStrategy(flowNode.name, nodeResults, errors, ctx);
         if (result) {
           nodeResults.push(result);
+          // If result came from a fallback node, alias output under original name
+          if (result.node !== flowNode.name) {
+            ctx.outputs.set(flowNode.name, result.output);
+          }
 
           // Check for conditional edge routing
           const branches = ctx.getConditionalEdge?.(flowNode.name);
@@ -141,7 +145,11 @@ export async function executeFlowNodes(
       }
 
       case 'foreach': {
-        const sourceData = ctx.outputs.get(flowNode.source) ?? ctx.input;
+        const sourceData = ctx.outputs.get(flowNode.source);
+        if (sourceData === undefined) {
+          // Source node produced no output (skipped or not executed)
+          break;
+        }
         const items = resolveField(sourceData, flowNode.field);
         if (!Array.isArray(items)) {
           errors.push(`foreach: ${flowNode.source}.${flowNode.field} is not an array`);
