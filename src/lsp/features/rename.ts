@@ -2,15 +2,20 @@ import type { Range, TextEdit } from 'vscode-languageserver/node';
 import { Lexer } from '../../lexer/lexer.js';
 import { Parser } from '../../parser/parser.js';
 import { ProgramIndex } from '../../program-index.js';
+import { KEYWORDS } from '../../lexer/tokens.js';
 import { isInComment, isInString } from './utils.js';
 
-export const GRAFT_KEYWORDS = new Set([
-  'context', 'node', 'memory', 'graph', 'edge', 'import', 'from',
-  'reads', 'writes', 'produces', 'budget', 'model', 'max_tokens',
-  'on_failure', 'retry', 'fallback', 'skip', 'abort', 'done',
-  'foreach', 'as', 'max_iterations', 'parallel', 'when', 'else',
-  'storage', 'tools', 'in',
+const TYPE_KEYWORDS = new Set([
+  'String', 'Int', 'Float', 'Bool', 'List', 'Map', 'Optional',
+  'TokenBounded', 'FilePath', 'FileDiff', 'TestFile', 'IssueRef',
 ]);
+
+const CONTEXTUAL_KEYWORDS = new Set(['output']);
+
+// Derived from lexer KEYWORDS, excluding type keywords and contextual keywords
+export const GRAFT_KEYWORDS = new Set(
+  Object.keys(KEYWORDS).filter(k => !TYPE_KEYWORDS.has(k) && !CONTEXTUAL_KEYWORDS.has(k))
+);
 
 /**
  * Pure function that builds rename edits for a Graft identifier.
@@ -57,11 +62,18 @@ export function buildRenameEdits(
     return { error: `'${newName}' already exists in the current file` };
   }
 
-  // Check for conflicts in importing files
-  const declPattern = new RegExp(`\\b(context|node|memory|graph)\\s+${newName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
-  for (const [, fileInfo] of workspaceFiles) {
-    if (declPattern.test(fileInfo.text)) {
-      return { error: `'${newName}' conflicts with a declaration in an importing file` };
+  // Check for conflicts in importing files (parse-based)
+  for (const [filePath, fileInfo] of workspaceFiles) {
+    try {
+      const wsTokens = new Lexer(fileInfo.text).tokenize();
+      const { program: wsProgram } = new Parser(wsTokens).parse();
+      const wsIndex = new ProgramIndex(wsProgram);
+      if (wsIndex.contextMap.has(newName) || wsIndex.nodeMap.has(newName) ||
+          wsIndex.memoryMap.has(newName) || wsIndex.graphMap.has(newName)) {
+        return { error: `Name "${newName}" conflicts with declaration in ${filePath}` };
+      }
+    } catch {
+      // Parse failure -- skip conflict check for this file
     }
   }
 
