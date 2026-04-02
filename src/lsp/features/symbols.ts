@@ -60,9 +60,15 @@ function makeFlowNodeChildren(flow: FlowNode[], parentLoc: SourceLocation): Docu
 export function makeSymbol(name: string, kind: SymbolKind, loc: SourceLocation): DocumentSymbol {
   const line = Math.max(0, loc.line - 1);
   const character = Math.max(0, loc.column - 1);
+  // range spans from keyword start to past the name (keyword + space + name)
+  const rangeEnd = loc.length != null ? loc.length + 1 + name.length : name.length;
   const range = {
+    start: { line, character },
+    end: { line, character: character + rangeEnd },
+  };
+  const selectionRange = {
     start: { line, character },
     end: { line, character: character + name.length },
   };
-  return { name, kind, range, selectionRange: range };
+  return { name, kind, range, selectionRange };
 }

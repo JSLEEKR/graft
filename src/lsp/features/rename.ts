@@ -62,6 +62,12 @@ export function buildRenameEdits(
     return { error: `'${newName}' already exists in the current file` };
   }
 
+  // Check for field name collisions
+  const fieldCollision = findFieldCollision(newName, index);
+  if (fieldCollision) {
+    return { error: fieldCollision };
+  }
+
   // Check for conflicts in importing files (parse-based)
   for (const [filePath, fileInfo] of workspaceFiles) {
     try {
@@ -156,4 +162,35 @@ export function collectRenameLocations(docText: string, name: string): Range[] {
   }
 
   return ranges;
+}
+
+function findFieldCollision(newName: string, index: ProgramIndex): string | null {
+  // Check context fields
+  for (const [ctxName, ctx] of index.contextMap) {
+    for (const field of ctx.fields) {
+      if (field.name === newName) {
+        return `'${newName}' collides with field '${newName}' in context '${ctxName}'`;
+      }
+    }
+  }
+
+  // Check memory fields
+  for (const [memName, mem] of index.memoryMap) {
+    for (const field of mem.fields) {
+      if (field.name === newName) {
+        return `'${newName}' collides with field '${newName}' in memory '${memName}'`;
+      }
+    }
+  }
+
+  // Check produces fields (node output fields)
+  for (const [nodeName, node] of index.nodeMap) {
+    for (const field of node.produces.fields) {
+      if (field.name === newName) {
+        return `'${newName}' collides with field '${newName}' in node '${nodeName}'`;
+      }
+    }
+  }
+
+  return null;
 }
