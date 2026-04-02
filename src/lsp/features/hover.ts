@@ -61,16 +61,7 @@ export function getHoverInfo(word: string, index: ProgramIndex): Hover | null {
   // Built-in functions
   if (word in BUILTIN_FUNCTIONS) {
     const info = BUILTIN_FUNCTIONS[word];
-    const FUNC_DOCS: Record<string, string> = {
-      len: '**len**(value) → number\n\nReturns the length of an array or string.',
-      max: '**max**(a, b) → number\n\nReturns the larger of two numbers.',
-      min: '**min**(a, b) → number\n\nReturns the smaller of two numbers.',
-      str: '**str**(value) → string\n\nConverts a value to its string representation. Objects are JSON-stringified.',
-      abs: '**abs**(n) → number\n\nReturns the absolute value of a number.',
-      round: '**round**(n) → number\n\nRounds a number to the nearest integer.',
-      keys: '**keys**(obj) → array\n\nReturns the keys of an object as an array.',
-    };
-    return mkHover(FUNC_DOCS[word] ?? `**${word}**(${info.arity} args)`);
+    return mkHover(`**${info.signature}**\n\n${info.description}`);
   }
 
   const producerNode = index.producesNodeMap.get(word);

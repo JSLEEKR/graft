@@ -187,17 +187,11 @@ export class TypeChecker {
       case 'group':
         return this.inferExprType(expr.inner, varTypes);
       case 'call': {
-        switch (expr.name) {
-          case 'len': return 'number';
-          case 'max': return 'number';
-          case 'min': return 'number';
-          case 'str': return 'string';
-          case 'abs': return 'number';
-          case 'round': return 'number';
-          case 'keys': return 'unknown';
-          default: return 'unknown';
-        }
+        const builtin = BUILTIN_FUNCTIONS[expr.name];
+        return (builtin?.returnType as InferredType) ?? 'unknown';
       }
+      case 'template':
+        return 'string';
     }
   }
 
@@ -258,6 +252,12 @@ export class TypeChecker {
       }
       for (const arg of expr.args) {
         this.checkExprTypeErrors(arg, varTypes, errors);
+      }
+    } else if (expr.kind === 'template') {
+      for (const part of expr.parts) {
+        if (part.kind === 'expr') {
+          this.checkExprTypeErrors(part.value, varTypes, errors);
+        }
       }
     }
   }

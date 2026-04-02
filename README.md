@@ -236,6 +236,7 @@ A -> let count = len(A.items)
    -> let label = str(max(A.score, 50))
    -> let positive = abs(A.score)
    -> let nkeys = len(keys(A.metadata))
+   -> let msg = "Found ${count} items, score: ${A.score * 2}"
    -> B -> done
 ```
 
@@ -331,6 +332,7 @@ src/
     ├── executor.ts       # Pipeline execution engine
     ├── prompt-builder.ts # Prompt construction (pure functions)
     ├── flow-runner.ts    # Sequential/parallel/foreach flow execution
+    ├── expr-eval.ts      # Expression evaluation (evaluateExpr, resolveNestedField)
     ├── memory.ts         # Memory load/save functions
     ├── subprocess.ts     # Claude CLI spawning + token usage parsing
     ├── token-tracker.ts  # Token budget tracking per node
@@ -340,7 +342,7 @@ src/
 ## Development
 
 ```bash
-npm test              # Run all 1077 tests
+npm test              # Run all 1123 tests
 npm run build         # Compile TypeScript
 npx tsc --noEmit      # Type check only
 ```
@@ -349,6 +351,7 @@ npx tsc --noEmit      # Type check only
 
 | Version | Features |
 |---------|----------|
+| **v4.4** | String interpolation (`"Score: ${A.score}"`), evaluateExpr extraction, BUILTIN_FUNCTIONS enrichment, memory archival, 1,123 tests |
 | **v4.3** | Multiplication/modulo (`*`, `%`), new builtins (`abs`, `round`, `keys`), division precedence fix, `str()` JSON.stringify, 1,077 tests |
 | **v4.2** | Expression functions (`len`, `max`, `min`, `str`), graph call return values, equality unification, 1,048 tests |
 | **v4.1** | Quality hardening — multi-segment conditions, output isolation, scope extraction, 1,001 tests |

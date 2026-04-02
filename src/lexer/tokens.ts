@@ -60,6 +60,7 @@ export enum TokenType {
   KIntegerLiteral = 'KIntegerLiteral',
   FloatLiteral = 'FloatLiteral',
   StringLiteral = 'StringLiteral',
+  TemplateString = 'TemplateString',
 
   // Identifiers
   Identifier = 'Identifier',

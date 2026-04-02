@@ -82,6 +82,13 @@ export function checkExprSources(
         checkExprSources(arg, seenNodes, declaredVars, graphName, errors);
       }
       break;
+    case 'template':
+      for (const part of expr.parts) {
+        if (part.kind === 'expr') {
+          checkExprSources(part.value, seenNodes, declaredVars, graphName, errors);
+        }
+      }
+      break;
   }
 }
 

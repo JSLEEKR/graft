@@ -142,9 +142,21 @@ export class Lexer {
     this.pos++;
     this.column++;
     let value = '';
+    let hasInterpolation = false;
     while (this.pos < this.source.length && this.source[this.pos] !== '"') {
       if (this.source[this.pos] === '\n') {
         throw new GraftError('Unterminated string literal', loc);
+      }
+      // Check for escape: \${ produces literal ${
+      if (this.source[this.pos] === '\\' && this.pos + 1 < this.source.length && this.source[this.pos + 1] === '$' && this.pos + 2 < this.source.length && this.source[this.pos + 2] === '{') {
+        value += '${';
+        this.pos += 3;
+        this.column += 3;
+        continue;
+      }
+      // Check for interpolation: ${ marks this as a template string
+      if (this.source[this.pos] === '$' && this.pos + 1 < this.source.length && this.source[this.pos + 1] === '{') {
+        hasInterpolation = true;
       }
       value += this.source[this.pos];
       this.pos++;
@@ -155,7 +167,8 @@ export class Lexer {
     }
     this.pos++;
     this.column++;
-    this.tokens.push({ type: TokenType.StringLiteral, value, location: { ...loc, length: value.length + 2 } });
+    const type = hasInterpolation ? TokenType.TemplateString : TokenType.StringLiteral;
+    this.tokens.push({ type, value, location: { ...loc, length: value.length + 2 } });
   }
 
   private readNumber(): void {

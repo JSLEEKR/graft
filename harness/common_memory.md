@@ -1,141 +1,10 @@
 # Common Memory — Graft Compiler
-## Last updated: v4.3 COMPLETE
+## Last updated: v4.4 COMPLETE
 
-## Ratchet-Locked Decisions (~260 total, 6 unlocked)
+## Ratchet-Locked Decisions (~275 total, 6 unlocked)
 
-### T1-T6 (abbreviated — all LOCKED)
-T1: tsc-only, ESM, NodeNext, explicit vitest, shebang, strict, no barrels, .js extensions
-T2: GraftError extends Error, throw-on-first, separate tokens/lexer, diagnostics leaf, float guard, ASCII errors
-T3: single ast.ts, SourceLocation import, interfaces+unions, narrowed names, mutable, no visitor
-T4: Parser(Token[]), expectIdentifierOrKeyword, parseProduces consumes keyword, done required, LL(1)+LL(2)
-T5: error accumulation, estimator.ts, graph input/output in ScopeChecker, per-node warning, 3-class
-T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hooks Windows deferred
-
-### T7 Ratchets
-- [T7-R01] compiler.ts import from ./analyzer/estimator.js — LOCKED
-- [T7-R02] Parser constructor: new Parser(tokens) only — LOCKED
-- [T7-R03] compile() catches GraftError from lexer/parser, accumulates from analyzer — LOCKED
-- [T7-R04] CLI: toLocaleString('en-US') for all number formatting — LOCKED
-- [T7-R05] Graph-existence guard: program.graphs.length === 0 → error — LOCKED
-- [T7-R06] writeFiles wrapped in try-catch in CLI — LOCKED
-
-### v1.2 Ratchets
-- [v1.2-R01] Walk FlowNode[] from AST, never parse markdown — LOCKED
-- [v1.2-R02] Do NOT reuse generateAgent(); separate runtime prompt builder — LOCKED
-- [v1.2-R03] Promise.allSettled for parallel execution — LOCKED
-- [v1.2-R04] Edge transforms as pure TS functions, no jq dependency — LOCKED
-- [v1.2-R05] File-based data passing via .graft/session/node_outputs/ — LOCKED
-- [v1.2-R06] MODEL_MAP duplicated in executor.ts (T6 ratchet) — LOCKED
-- [v1.2-R07] Abort-on-failure MVP; retry/fallback/skip deferred — LOCKED
-- [v1.2-R08] SpawnerFn function type for mock injection — LOCKED
-- [v1.2-R09] stdin.end() immediately after spawn — LOCKED
-- [v1.2-R10] Session cleanup before run (preserve .gitkeep) — LOCKED
-- [v1.2-R11] nodeMap from Program.nodes (not FlowNode[]) — LOCKED
-- [v1.2-R12] Windows: shell: process.platform === 'win32' — LOCKED
-
-### v2.0-R1 Ratchets (Lexer + AST + Parser)
-- [v2.0-R01] 5 new keywords: Import, From, Memory, Writes, Storage — LOCKED
-- [v2.0-R02] writes: string[] required on NodeDecl, defaults to [] — LOCKED
-- [v2.0-R03] Flag-based import ordering (seenNonImport) inside existing switch — LOCKED
-- [v2.0-R04] storage param optional, defaults to 'file'; file parsed as identifier — LOCKED
-- [v2.0-R05] ImportDecl.resolvedPath?: string, set by resolver, undefined after parse — LOCKED
-- [v2.0-R06] No trailing commas in import lists — LOCKED
-- [v2.0-R07] Program field order: imports, memories, contexts, nodes, edges, graphs — LOCKED
-- [v2.0-R08] Duplicate writes clause detection via hasWrites boolean guard — LOCKED
-- [v2.0-R09] Empty import list and empty import path produce parser errors — LOCKED
-- [v2.0-R10] max_tokens > 0 validation deferred to analyzer, not parser — LOCKED
-
-### v2.0-R2 Ratchets (Import Resolver)
-- [v2.0-R11] ExportableNames snapshot extracted BEFORE recursion into target imports — LOCKED
-- [v2.0-R12] resolve() is pure function; FileReader injection via parameter — LOCKED
-- [v2.0-R13] Only ContextDecl and NodeDecl importable; edges, graphs, memories excluded — LOCKED
-- [v2.0-R14] DFS ancestor set (add/delete) for circular detection — LOCKED
-- [v2.0-R15] Error accumulation, never throw for recoverable import errors — LOCKED
-- [v2.0-R16] No auto-extension, no Levenshtein, no normalizePath — LOCKED
-- [v2.0-R17] Import path must end with .gft — LOCKED
-- [v2.0-R18] Targeted graph/memory rejection deferred; generic "not found" sufficient — LOCKED
-
-### v2.0-R3 Ratchets (Analyzer Updates)
-- [v2.0-R19] Memory-vs-context and memory-vs-produces name collisions detected by ScopeChecker — LOCKED
-- [v2.0-R20] checkNodeWrites validates writes entries against declared memories — LOCKED
-- [v2.0-R21] Memory in reads treated as valid source with field validation — LOCKED
-- [v2.0-R22] TokenEstimator includes memory.maxTokens (0.3 partial factor) — LOCKED
-- [v2.0-R23] TypeChecker unchanged for v2.0 (writes schema check deferred) — LOCKED
-
-### v2.0-R4 Ratchets (CodeGen + Runtime Memory)
-- [v2.0-R24] generateAgent gets memoryNames with default param for backward compat — LOCKED
-- [v2.0-R25] formatReads distinguishes memory (`.graft/memory/`) from session — LOCKED
-- [v2.0-R26] Memory writes use field-matching merge (schema-aware, preserves unrelated fields) — LOCKED
-- [v2.0-R27] Always reload memory from disk in executeNode (no outputs.has() guard) — LOCKED
-- [v2.0-R28] Dry run skips memory saves — LOCKED
-- [v2.0-R29] loadMemory returns null on missing/corrupt file (try-catch) — LOCKED
-- [v2.0-R30] Memory scaffold: conditional .gitkeep (no per-file scaffolding) — LOCKED
-- [v2.0-R31] cleanSession and buildContextSection unchanged (memory in separate dir tree) — LOCKED
-
-### v2.0-R5 Ratchets (Integration Tests + Examples)
-- [v2.0-R32] examples/shared.gft is a library (no graph) — LOCKED
-- [v2.0-R33] examples/chatbot.gft uses import + memory + writes — LOCKED
-- [v2.0-R34] Integration tests use temp files for import tests — LOCKED
-
-### v2.1-R1 Ratchets (Cleanup and Refactoring)
-- [T6] MODEL_MAP duplicated — UNLOCKED (extracted to src/constants.ts)
-- [v1.2-R06] MODEL_MAP duplicated in executor.ts — UNLOCKED (extracted to src/constants.ts)
-- [v2.1-R01] MODEL_MAP, PARTIAL_FIELD_FACTOR, BUDGET_WARNING_THRESHOLD, BUDGET_CRITICAL_THRESHOLD in src/constants.ts — single source of truth — LOCKED
-- [v2.1-R02] fieldsToJsonExample and typeToExample in src/utils.ts — single source of truth — LOCKED
-- [v2.1-R03] loadMemory and saveMemory as standalone functions in src/runtime/memory.ts — LOCKED
-- [v2.1-R04] saveMemory always saves; dryRun guard is caller's responsibility — LOCKED
-- [v2.1-R05] PARTIAL_FIELD_FACTOR applies to all per-field fraction estimates (partial reads AND select transforms) — LOCKED
-- [v2.1-R06] TOOL_MAP stays in src/codegen/agents.ts (not extracted) — LOCKED
-
-### v2.1-R2 Ratchets (Correctness Fixes)
-- [v2.1-R07] Writes schema overlap: warning in TypeChecker, not error — LOCKED
-- [v2.1-R08] max_tokens > 0 validation in ScopeChecker for both ContextDecl and MemoryDecl — LOCKED
-- [v2.1-R09] Parallel memory write detection via nodeWritesMap in ScopeChecker.walkFlowNodes — LOCKED
-- [v2.1-R10] compiler.ts filters diagnostics by severity; warnings don't block compilation — LOCKED
-
-### v2.1-R3 Ratchets (Token Tracking Core)
-- [v2.1-R11] TokenUsage and parseCLIOutput in subprocess.ts with heuristic envelope detection — LOCKED
-- [v2.1-R12] TokenTracker as standalone class in src/runtime/token-tracker.ts — LOCKED
-- [v2.1-R13] Token log cleared on session start, appended per node — LOCKED
-- [v2.1-R14] RunResult.tokenUsage with budget/consumed/fraction/perNode — LOCKED
-- [v2.1-R15] Budget enforcement advisory only; no hard abort — LOCKED
-- [v2.1-R16] Estimates from nodeDecl.budgetIn/budgetOut, not TokenEstimator — LOCKED
-- [v2.1-R17] Switch from --print to --output-format json in executor — LOCKED
-
-### v2.2-R1 Ratchets (Tech Debt)
-- [v2.2-R01] resolve() accepts Program, not source string — LOCKED
-- [v2.2-R02] VERSION from package.json via createRequire with try-catch fallback — LOCKED
-- [v2.2-R03] ProgramIndex: 5 maps (contextMap, nodeMap, memoryMap, edgesBySource, producesNodeMap) — LOCKED
-- [v2.2-R04] ProgramIndex: no getter methods, direct map access — LOCKED
-- [v2.2-R05] TypeChecker NOT migrated to ProgramIndex (zero .find() calls) — LOCKED
-
-### v2.2-R2 Ratchets (Executor Decomposition + Error Codes)
-- [v2.2-R06] prompt-builder.ts: pure functions (buildPrompt, buildContextSection, resolveField, generateMockOutput) with PromptContext interface — LOCKED
-- [v2.2-R07] flow-runner.ts: executeFlowNodes with FlowContext interface; executor delegates flow execution — LOCKED
-- [v2.2-R08] GraftErrorCode: 18-member union type, optional 4th param on GraftError — LOCKED
-- [v2.2-R09] Error codes on all 34 GraftError call sites (20 scope + 4 type + 3 estimator + 6 resolver + 1 compiler) — LOCKED
-- [v2.2-R10] Parser/lexer remain throw-based; error codes only on analyzer/resolver/compiler — LOCKED
-
-### v2.2-R3 Ratchets (Correctness Fixes)
-- [v2.2-R11] Foreach binding collision: else-if chain against nodeNames/producesMap/contextNames/memoryNames — LOCKED
-- [v2.2-R12] C-02 in ScopeChecker.checkEdges(), not TypeChecker — LOCKED
-- [v2.2-R13] Multiple graph warning in ScopeChecker, uses graphs[1].location — LOCKED
-- [v2.2-R14] loadMemory options param: `options?: { verbose?: boolean }` — LOCKED
-- [v2.2-R15] sourceFile set in compiler.ts (all decls) + resolver.ts (imported decls only) — LOCKED
-
-### v2.2-R4 Ratchets (LSP Server)
-- [v2.2-R16] LSP: 2-file structure (server.ts + features.ts), pure functions for all handlers — LOCKED
-- [v2.2-R17] LSP: Node stdlib URI conversion (fileURLToPath/pathToFileURL), no vscode-uri — LOCKED
-- [v2.2-R18] LSP: GRAPH_MISSING filtered from LSP diagnostics; compile() returns program on no-graph — LOCKED
-- [v2.2-R19] LSP: Full document sync (TextDocumentSyncKind.Full), compile-on-change — LOCKED
-- [v2.2-R20] LSP: Per-URI cache of { program, index }, stale data for hover/definition on error — LOCKED
-- [v2.2-R21] LSP: formatType exhaustive switch over TypeExpr, distinct from typeToExample — LOCKED
-
-### v2.2-R5 Ratchets (npm Distribution + VS Code Extension)
-- [v2.2-R22] npm: @graft-lang/graft scoped name, exports with ./ast sub-path — LOCKED
-- [v2.2-R23] npm: files array (dist/, README.md, LICENSE) + .npmignore defense-in-depth — LOCKED
-- [v2.2-R24] VS Code: command-based ServerOptions (graft-lsp on PATH), CJS output — LOCKED
-- [v2.2-R25] TextMate: // and /* */ comments only, no escape sequences, k-integer before integer — LOCKED
+### T1-v2.2 Ratchets (archived)
+> See `harness/archived_ratchets.md` for ~100 ratchets from T1 through v2.2. All LOCKED except 2 MODEL_MAP unlocks (extracted to constants.ts).
 
 ### v3.0-R1 Ratchets (Pipeline Split + ProgramIndex Threading)
 - [v3.0-R01] compileToProgram() does NOT check GRAPH_MISSING (codegen prerequisite only) — LOCKED
@@ -584,6 +453,51 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 ### v4.2-R3 Ratchets (LSP)
 - [v4.2-R12] Builtin function completions in graph flow context: Function kind, arity detail — LOCKED
 - [v4.2-R13] Hover documentation for len/max/min/str with signature and description — LOCKED
+
+### v4.4-R1 Ratchets (evaluateExpr Extraction)
+- [v4.4-R01] src/runtime/expr-eval.ts: evaluateExpr + resolveNestedField extracted from flow-runner.ts — LOCKED
+- [v4.4-R02] flow-runner.ts re-exports evaluateExpr and resolveNestedField for backward compatibility — LOCKED
+
+### v4.4-R2 Ratchets (String Interpolation)
+- [v4.4-R03] TemplateString token type in lexer, detected by ${ inside string — LOCKED
+- [v4.4-R04] Escaped \${ in strings produces literal ${ and remains StringLiteral — LOCKED
+- [v4.4-R05] TemplatePart type: { kind: 'text'; value: string } | { kind: 'expr'; value: Expr } — LOCKED
+- [v4.4-R06] Template Expr kind: { kind: 'template'; parts: TemplatePart[]; location } — LOCKED
+- [v4.4-R07] parseTemplateParts: splits raw string on ${...} with brace depth counting — LOCKED
+- [v4.4-R08] Inner expressions parsed via new Lexer + new Parser on substring — LOCKED
+- [v4.4-R09] evaluateExpr template case: map parts, String() auto-conversion, join('') — LOCKED
+- [v4.4-R10] inferExprType: template always returns 'string' — LOCKED
+- [v4.4-R11] checkExprSources and checkExprTypeErrors: recurse into template expr parts — LOCKED
+
+### v4.4-R3 Ratchets (BUILTIN_FUNCTIONS Enrichment + Memory Archival)
+- [v4.4-R12] BUILTIN_FUNCTIONS extended with returnType, signature, description fields — LOCKED
+- [v4.4-R13] inferExprType reads BUILTIN_FUNCTIONS[name].returnType instead of hardcoded switch — LOCKED
+- [v4.4-R14] Hover docs generated from BUILTIN_FUNCTIONS.signature + .description, FUNC_DOCS removed — LOCKED
+- [v4.4-R15] T1-v2.2 ratchets archived to harness/archived_ratchets.md (~100 items) — LOCKED
+
+### v4.4 Review Feedback
+- v4.4-R1 complete: evaluateExpr extraction (DIRECT). 11 new tests, 1,088 total. PASS.
+  - New file: src/runtime/expr-eval.ts (96 lines)
+  - flow-runner.ts dropped from 404 to 311 lines
+  - Re-export for backward compatibility confirmed by identity test
+- v4.4-R2 complete: String interpolation (MEDIUM). 15 new tests, 1,103 total. PASS.
+  - TemplateString token in lexer with ${ detection and \${ escape
+  - Template Expr kind with TemplatePart[] (text + expr)
+  - Parser: parseTemplateParts with brace depth counting, inner Lexer+Parser
+  - Runtime: template evaluation via map+join
+  - Type checker: template -> 'string', recurse into parts
+  - Scope checker: recurse into template expr parts
+- v4.4-R3 complete: BUILTIN_FUNCTIONS enrichment + memory archival (DIRECT). 12 new tests, 1,115 total. PASS.
+  - Registry extended with returnType, signature, description
+  - inferExprType reads from registry (2 lines replace 10-line switch)
+  - Hover docs from registry (3 lines replace 10-line FUNC_DOCS record)
+  - T1-v2.2 ratchets archived to harness/archived_ratchets.md
+  - common_memory.md reduced from ~650 to ~530 lines
+- v4.4-R4 complete: Integration + regression tests (TEST-ONLY). 8 new tests, 1,123 total. PASS.
+  - Cross-feature: template with function call, template with multiplication, template in let binding
+  - Regression: flow-runner imports, all 7 expression types
+  - Scale: pipeline with templates + operators + builtins compiles
+- v4.4 COMPLETE: 4 rounds (R1-R4). Expression extraction, string interpolation, registry enrichment, memory archival. 1,123 tests. 15 new ratchets.
 
 ### v4.3-R1 Ratchets (Multiplication/Modulo + New Builtins)
 - [v4.3-R01] Star and Percent tokens in lexer, SINGLE_CHAR map — LOCKED

@@ -1,13 +1,14 @@
 // src/parser/parser.ts
 import { Token, TokenType, KEYWORDS } from '../lexer/tokens.js';
-import { GraftError, GraftErrorCode } from '../errors/diagnostics.js';
+import { Lexer } from '../lexer/lexer.js';
+import { GraftError, GraftErrorCode, SourceLocation } from '../errors/diagnostics.js';
 import {
   Program, ContextDecl, NodeDecl, EdgeDecl, GraphDecl,
   ImportDecl, MemoryDecl,
   Field, TypeExpr, ContextRef, WriteRef, ProducesDecl,
   Transform, Condition, FailureStrategy,
   EdgeTarget, ConditionalBranch,
-  FlowNode, Expr, GraphParam, GraphArg, BUILTIN_FUNCTIONS,
+  FlowNode, Expr, TemplatePart, GraphParam, GraphArg, BUILTIN_FUNCTIONS,
 } from './ast.js';
 
 // Build a Set of all keyword token types for O(1) lookup.
@@ -815,6 +816,49 @@ export class Parser {
     return this.parsePrimary();
   }
 
+  private parseTemplateParts(raw: string, loc: SourceLocation): TemplatePart[] {
+    const parts: TemplatePart[] = [];
+    let i = 0;
+    while (i < raw.length) {
+      const dollarIdx = raw.indexOf('${', i);
+      if (dollarIdx === -1) {
+        // Rest is plain text
+        if (i < raw.length) {
+          parts.push({ kind: 'text', value: raw.slice(i) });
+        }
+        break;
+      }
+      // Text before ${
+      if (dollarIdx > i) {
+        parts.push({ kind: 'text', value: raw.slice(i, dollarIdx) });
+      }
+      // Find matching } by counting brace depth
+      let depth = 1;
+      let j = dollarIdx + 2;
+      while (j < raw.length && depth > 0) {
+        if (raw[j] === '{') depth++;
+        else if (raw[j] === '}') depth--;
+        if (depth > 0) j++;
+      }
+      if (depth !== 0) {
+        throw new GraftError('Unterminated template interpolation', loc);
+      }
+      // Parse the expression inside ${ ... }
+      const exprSource = raw.slice(dollarIdx + 2, j);
+      const innerLexer = new (Lexer)(exprSource, 'template');
+      const innerTokens = innerLexer.tokenize();
+      // Remove EOF token for parsing
+      const exprTokens = innerTokens.filter(t => t.type !== TokenType.EOF);
+      // Re-add EOF
+      exprTokens.push({ type: TokenType.EOF, value: '', location: loc });
+      const innerParser = new Parser(exprTokens);
+      const expr = innerParser.parseExpr();
+      parts.push({ kind: 'expr', value: expr });
+      i = j + 1; // skip past }
+    }
+    return parts;
+  }
+
   private parsePrimary(): Expr {
     const token = this.current();
     const loc = token.location;
@@ -841,6 +885,13 @@ export class Parser {
     if (token.type === TokenType.StringLiteral) {
       this.advance();
       return { kind: 'literal', value: token.value, location: loc };
+    }
+
+    // Template string: "text ${expr} text"
+    if (token.type === TokenType.TemplateString) {
+      this.advance();
+      const parts = this.parseTemplateParts(token.value, loc);
+      return { kind: 'template', parts, location: loc };
     }
 
     // Boolean literals

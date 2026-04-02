@@ -1,22 +1,32 @@
 import { SourceLocation } from '../errors/diagnostics.js';
 
+export type TemplatePart =
+  | { kind: 'text'; value: string }
+  | { kind: 'expr'; value: Expr };
+
 export type Expr =
   | { kind: 'literal'; value: string | number | boolean; location: SourceLocation }
   | { kind: 'field_access'; segments: string[]; location: SourceLocation }
   | { kind: 'binary'; op: '+' | '-' | '/' | '*' | '%'; left: Expr; right: Expr; location: SourceLocation }
   | { kind: 'unary'; op: '-' | '!'; operand: Expr; location: SourceLocation }
   | { kind: 'group'; inner: Expr; location: SourceLocation }
-  | { kind: 'call'; name: string; args: Expr[]; location: SourceLocation };
+  | { kind: 'call'; name: string; args: Expr[]; location: SourceLocation }
+  | { kind: 'template'; parts: TemplatePart[]; location: SourceLocation };
 
-/** Built-in expression functions. Arity is fixed count or [min, max] range. */
-export const BUILTIN_FUNCTIONS: Record<string, { arity: number }> = {
-  len: { arity: 1 },
-  max: { arity: 2 },
-  min: { arity: 2 },
-  str: { arity: 1 },
-  abs: { arity: 1 },
-  round: { arity: 1 },
-  keys: { arity: 1 },
+/** Built-in expression functions with metadata for type checking and LSP. */
+export const BUILTIN_FUNCTIONS: Record<string, {
+  arity: number;
+  returnType: 'number' | 'string' | 'unknown';
+  signature: string;
+  description: string;
+}> = {
+  len: { arity: 1, returnType: 'number', signature: 'len(value) -> number', description: 'Returns the length of an array or string.' },
+  max: { arity: 2, returnType: 'number', signature: 'max(a, b) -> number', description: 'Returns the larger of two numbers.' },
+  min: { arity: 2, returnType: 'number', signature: 'min(a, b) -> number', description: 'Returns the smaller of two numbers.' },
+  str: { arity: 1, returnType: 'string', signature: 'str(value) -> string', description: 'Converts a value to its string representation. Objects are JSON-stringified.' },
+  abs: { arity: 1, returnType: 'number', signature: 'abs(n) -> number', description: 'Returns the absolute value of a number.' },
+  round: { arity: 1, returnType: 'number', signature: 'round(n) -> number', description: 'Rounds a number to the nearest integer.' },
+  keys: { arity: 1, returnType: 'unknown', signature: 'keys(obj) -> array', description: 'Returns the keys of an object as an array.' },
 };
 
 export interface ImportDecl {

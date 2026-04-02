@@ -1,5 +1,28 @@
 # Changelog
 
+## v4.4.0 (2026-04-02)
+
+### Added
+- **String interpolation**: template expressions in let bindings — `let msg = "Score: ${A.score}"`
+  - New `TemplateString` token in lexer (detects `${` inside strings)
+  - New `template` Expr kind with `TemplatePart[]` (text + expression parts)
+  - Escaped `\${` produces literal `${` (no interpolation)
+  - Inner expressions support full expression syntax (operators, function calls, field access)
+  - Type inference: templates always infer to `string`
+- **BUILTIN_FUNCTIONS enrichment**: registry extended with `returnType`, `signature`, `description` fields
+  - `inferExprType` reads from registry (eliminates hardcoded switch)
+  - Hover docs generated from registry (eliminates duplicate FUNC_DOCS)
+
+### Changed
+- **evaluateExpr extraction**: moved from `flow-runner.ts` to `src/runtime/expr-eval.ts`
+  - flow-runner.ts: 404 → 311 lines
+  - Backward-compatible re-exports from flow-runner.ts
+- **Common memory archival**: T1-v2.2 ratchets moved to `harness/archived_ratchets.md`
+
+### Stats
+- 1,123 tests (46 new), ~275 ratchets
+- 4 rounds (1 DIRECT, 1 MEDIUM, 1 DIRECT, 1 TEST-ONLY), ~6 agent calls
+
 ## v4.3.0 (2026-04-02)
 
 ### Added
