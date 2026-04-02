@@ -192,7 +192,7 @@ describe('findReferences', () => {
       contexts: [{
         name: 'TaskSpec', maxTokens: 1000,
         fields: [{ name: 'title', type: { kind: 'primitive', name: 'String' }, location: loc }],
-        location: { line: 1, column: 1, offset: 0 },
+        location: { line: 1, column: 1, offset: 0, length: 7 },
       }],
     });
     const results = findReferences('TaskSpec', text, docUri, idx, false, new Map());

@@ -236,6 +236,43 @@ function parseAndCacheExports(filePath: string): void {
   } catch { /* skip unparseable files */ }
 }
 
+// --- Workspace Helpers ---
+
+function ensureWorkspaceScan(currentFilePath: string): void {
+  if (workspaceRoot && !workspaceScanDone) {
+    scanWorkspaceExports(workspaceRoot, currentFilePath);
+    workspaceScanDone = true;
+  }
+}
+
+function collectWorkspaceFileTexts(
+  currentUri: string,
+  currentFilePath: string,
+  filter?: (fileText: string, filePath: string) => boolean,
+): Map<string, { text: string; uri: string }> {
+  ensureWorkspaceScan(currentFilePath);
+
+  const files = new Map<string, { text: string; uri: string }>();
+  if (!workspaceRoot) return files;
+
+  for (const [filePath] of workspaceExports) {
+    const fileUri = pathToFileURL(filePath).toString();
+    if (fileUri === currentUri) continue;
+
+    const openDoc = documents.get(fileUri);
+    let fileText: string;
+    try {
+      fileText = openDoc ? openDoc.getText() : fs.readFileSync(filePath, 'utf-8');
+    } catch { continue; }
+
+    if (filter && !filter(fileText, filePath)) continue;
+
+    files.set(filePath, { text: fileText, uri: fileUri });
+  }
+
+  return files;
+}
+
 // --- Code Actions ---
 
 connection.onCodeAction((params) => {
@@ -244,11 +281,7 @@ connection.onCodeAction((params) => {
 
   const currentFilePath = fileURLToPath(params.textDocument.uri);
 
-  // Lazy workspace scan
-  if (!workspaceScanDone && workspaceRoot) {
-    scanWorkspaceExports(workspaceRoot, currentFilePath);
-    workspaceScanDone = true;
-  }
+  ensureWorkspaceScan(currentFilePath);
 
   if (!workspaceRoot) return [];
 
@@ -299,35 +332,12 @@ connection.onRenameRequest((params) => {
 
   const currentFilePath = fileURLToPath(params.textDocument.uri);
 
-  // Lazy workspace scan
-  if (workspaceRoot && !workspaceScanDone) {
-    scanWorkspaceExports(workspaceRoot, currentFilePath);
-    workspaceScanDone = true;
-  }
-
-  // Collect workspace files that import the renamed name
-  const importingFiles = new Map<string, { text: string; uri: string }>();
-  if (workspaceRoot) {
-    const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const importPattern = new RegExp(`import\\s*\\{[^}]*\\b${escaped}\\b[^}]*\\}`);
-
-    for (const [filePath] of workspaceExports) {
-      const fileUri = pathToFileURL(filePath).toString();
-      if (fileUri === params.textDocument.uri) continue;
-
-      const openDoc = documents.get(fileUri);
-      let fileText: string;
-      try {
-        fileText = openDoc ? openDoc.getText() : fs.readFileSync(filePath, 'utf-8');
-      } catch {
-        continue;
-      }
-
-      if (importPattern.test(fileText)) {
-        importingFiles.set(filePath, { text: fileText, uri: fileUri });
-      }
-    }
-  }
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const importPattern = new RegExp(`import\\s*\\{[^}]*\\b${escaped}\\b[^}]*\\}`);
+  const importingFiles = collectWorkspaceFileTexts(
+    params.textDocument.uri, currentFilePath,
+    (text) => importPattern.test(text),
+  );
 
   const result = buildRenameEdits(
     word,
@@ -352,31 +362,10 @@ connection.onReferences((params) => {
 
   const currentFilePath = fileURLToPath(params.textDocument.uri);
 
-  // Lazy workspace scan
-  if (workspaceRoot && !workspaceScanDone) {
-    scanWorkspaceExports(workspaceRoot, currentFilePath);
-    workspaceScanDone = true;
-  }
-
-  // Collect ALL workspace files that contain the name (not just importers)
-  const wsFiles = new Map<string, { text: string; uri: string }>();
-  if (workspaceRoot) {
-    for (const [filePath] of workspaceExports) {
-      const fileUri = pathToFileURL(filePath).toString();
-      if (fileUri === params.textDocument.uri) continue;
-
-      const openDoc = documents.get(fileUri);
-      let fileText: string;
-      try {
-        fileText = openDoc ? openDoc.getText() : fs.readFileSync(filePath, 'utf-8');
-      } catch { continue; }
-
-      // Fast pre-filter
-      if (!fileText.includes(word)) continue;
-
-      wsFiles.set(filePath, { text: fileText, uri: fileUri });
-    }
-  }
+  const wsFiles = collectWorkspaceFileTexts(
+    params.textDocument.uri, currentFilePath,
+    (text) => text.includes(word),
+  );
 
   const results = findReferences(
     word,

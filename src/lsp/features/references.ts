@@ -12,61 +12,30 @@ export function isReferable(word: string, index: ProgramIndex): boolean {
   );
 }
 
-/** Keyword lengths for computing name position from declaration location. */
-const KEYWORD_LENGTHS: Record<string, number> = {
-  context: 7,
-  node: 4,
-  memory: 6,
-  graph: 5,
-};
-
 /**
  * Find the declaration name's 0-based position from ProgramIndex.
  * Declaration locations point to the keyword token (e.g., "context" in "context Foo").
  * The name starts at keyword column + keyword length + 1 (for the space).
+ * Uses location.length from SourceLocation rather than hardcoded keyword lengths.
  */
 function findDeclNamePosition(
   name: string,
   index: ProgramIndex,
 ): { line: number; character: number } | null {
-  const ctx = index.contextMap.get(name);
-  if (ctx) {
+  const decl = index.contextMap.get(name) ?? index.nodeMap.get(name) ??
+    index.memoryMap.get(name) ?? index.graphMap.get(name);
+  if (decl && decl.location.length != null) {
     return {
-      line: ctx.location.line - 1,
-      character: ctx.location.column - 1 + KEYWORD_LENGTHS.context + 1,
+      line: decl.location.line - 1,
+      character: decl.location.column - 1 + decl.location.length + 1,
     };
   }
 
-  const node = index.nodeMap.get(name);
-  if (node) {
-    return {
-      line: node.location.line - 1,
-      character: node.location.column - 1 + KEYWORD_LENGTHS.node + 1,
-    };
-  }
-
-  const mem = index.memoryMap.get(name);
-  if (mem) {
-    return {
-      line: mem.location.line - 1,
-      character: mem.location.column - 1 + KEYWORD_LENGTHS.memory + 1,
-    };
-  }
-
-  const graph = index.graphMap.get(name);
-  if (graph) {
-    return {
-      line: graph.location.line - 1,
-      character: graph.location.column - 1 + KEYWORD_LENGTHS.graph + 1,
-    };
-  }
-
-  // produces names: "produces Analysis {" — keyword is "produces" (8 chars)
   const prodNode = index.producesNodeMap.get(name);
-  if (prodNode) {
+  if (prodNode && prodNode.produces.location.length != null) {
     return {
       line: prodNode.produces.location.line - 1,
-      character: prodNode.produces.location.column - 1 + 8 + 1, // "produces" = 8
+      character: prodNode.produces.location.column - 1 + prodNode.produces.location.length + 1,
     };
   }
 
