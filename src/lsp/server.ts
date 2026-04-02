@@ -16,7 +16,7 @@ import { Lexer } from '../lexer/lexer.js';
 import { Parser } from '../parser/parser.js';
 import type { Program } from '../parser/ast.js';
 import type { ProgramIndex } from '../program-index.js';
-import { toDiagnostics, getHoverInfo, getDefinitionLocation, getWordAtPosition, getCompletions, extractUndefinedName, buildAutoImportActions, buildAutoImportEdit, computeRelativeImportPath, getDocumentSymbols, isRenameable, collectRenameLocations, buildRenameEdits } from './features/index.js';
+import { toDiagnostics, getHoverInfo, getDefinitionLocation, getWordAtPosition, getCompletions, extractUndefinedName, buildAutoImportActions, buildAutoImportEdit, computeRelativeImportPath, getDocumentSymbols, isRenameable, collectRenameLocations, buildRenameEdits, isReferable, findReferences } from './features/index.js';
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
@@ -73,6 +73,7 @@ connection.onInitialize((params) => {
       codeActionProvider: {
         codeActionKinds: [CodeActionKind.QuickFix],
       },
+      referencesProvider: true,
       renameProvider: {
         prepareProvider: true,
       },
@@ -339,6 +340,54 @@ connection.onRenameRequest((params) => {
 
   if (!result || 'error' in result) return null;
   return result;
+});
+
+connection.onReferences((params) => {
+  const doc = documents.get(params.textDocument.uri);
+  const state = touchCache(params.textDocument.uri);
+  if (!doc || !state) return null;
+
+  const word = getWordAtPosition(doc.getText(), params.position.line, params.position.character);
+  if (!word || !isReferable(word, state.index)) return null;
+
+  const currentFilePath = fileURLToPath(params.textDocument.uri);
+
+  // Lazy workspace scan
+  if (workspaceRoot && !workspaceScanDone) {
+    scanWorkspaceExports(workspaceRoot, currentFilePath);
+    workspaceScanDone = true;
+  }
+
+  // Collect ALL workspace files that contain the name (not just importers)
+  const wsFiles = new Map<string, { text: string; uri: string }>();
+  if (workspaceRoot) {
+    for (const [filePath] of workspaceExports) {
+      const fileUri = pathToFileURL(filePath).toString();
+      if (fileUri === params.textDocument.uri) continue;
+
+      const openDoc = documents.get(fileUri);
+      let fileText: string;
+      try {
+        fileText = openDoc ? openDoc.getText() : fs.readFileSync(filePath, 'utf-8');
+      } catch { continue; }
+
+      // Fast pre-filter
+      if (!fileText.includes(word)) continue;
+
+      wsFiles.set(filePath, { text: fileText, uri: fileUri });
+    }
+  }
+
+  const results = findReferences(
+    word,
+    doc.getText(),
+    params.textDocument.uri,
+    state.index,
+    params.context.includeDeclaration,
+    wsFiles,
+  );
+
+  return results.length > 0 ? results : null;
 });
 
 documents.listen(connection);
