@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { mkCond } from './helpers.js';
 import { Lexer } from '../src/lexer/lexer.js';
 import { Parser } from '../src/parser/parser.js';
 import { TokenEstimator } from '../src/analyzer/estimator.js';
@@ -43,8 +44,8 @@ describe('v3.9-R2: estimator polish + TD-01', () => {
           target: {
             kind: 'conditional',
             branches: [
-              { condition: { field: 'status', op: '==', value: 'go' }, target: 'B' },
-              { condition: { field: 'status', op: '==', value: 'stop' }, target: 'done' },
+              { condition: mkCond('status', '==', 'go'), target: 'B' },
+              { condition: mkCond('status', '==', 'stop'), target: 'done' },
             ],
           },
           transforms: [],
@@ -55,8 +56,8 @@ describe('v3.9-R2: estimator polish + TD-01', () => {
           target: {
             kind: 'conditional',
             branches: [
-              { condition: { field: 'result', op: '==', value: 'retry' }, target: 'A' },
-              { condition: { field: 'result', op: '==', value: 'ok' }, target: 'done' },
+              { condition: mkCond('result', '==', 'retry'), target: 'A' },
+              { condition: mkCond('result', '==', 'ok'), target: 'done' },
             ],
           },
           transforms: [],
@@ -64,7 +65,7 @@ describe('v3.9-R2: estimator polish + TD-01', () => {
         },
       ],
       graphs: [
-        { name: 'G', input: 'Input', output: 'BOut', budget: 50000, flow: [{ kind: 'node', name: 'A' }], location: loc },
+        { name: 'G', input: 'Input', output: 'BOut', budget: 50000, params: [], flow: [{ kind: 'node', name: 'A' }], location: loc },
       ],
     };
     const estimator = new TokenEstimator(program);
@@ -114,7 +115,7 @@ describe('v3.9-R2: estimator polish + TD-01', () => {
       nodes,
       edges,
       graphs: [
-        { name: 'G', input: 'Input', output: 'N11Out', budget: 500000, flow: [{ kind: 'node', name: 'N0' }], location: loc },
+        { name: 'G', input: 'Input', output: 'N11Out', budget: 500000, params: [], flow: [{ kind: 'node', name: 'N0' }], location: loc },
       ],
     };
     const estimator = new TokenEstimator(program);

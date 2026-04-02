@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { mkCond } from './helpers.js';
 
 // --- Transform tests ---
 describe('transforms', () => {
@@ -31,7 +32,7 @@ describe('transforms', () => {
     const data = { items: [{ score: 5 }, { score: 8 }, { score: 3 }] };
     const result = applyTransforms(data, [{
       type: 'filter', field: 'items',
-      condition: { field: 'score', op: '>=', value: 5 },
+      condition: mkCond('score', '>=', 5),
     }]);
     expect(result).toEqual({ items: [{ score: 5 }, { score: 8 }] });
   });
@@ -40,7 +41,7 @@ describe('transforms', () => {
     const data = { items: 'not an array' };
     const result = applyTransforms(data, [{
       type: 'filter', field: 'items',
-      condition: { field: 'score', op: '>=', value: 5 },
+      condition: mkCond('score', '>=', 5),
     }]);
     expect(result).toEqual({ items: 'not an array' });
   });
@@ -106,34 +107,34 @@ describe('evalCondition', () => {
   });
 
   it('== operator', () => {
-    expect(evalCondition({ status: 'ok' }, { field: 'status', op: '==', value: 'ok' })).toBe(true);
-    expect(evalCondition({ status: 'fail' }, { field: 'status', op: '==', value: 'ok' })).toBe(false);
+    expect(evalCondition({ status: 'ok' }, mkCond('status', '==', 'ok'))).toBe(true);
+    expect(evalCondition({ status: 'fail' }, mkCond('status', '==', 'ok'))).toBe(false);
   });
 
   it('!= operator', () => {
-    expect(evalCondition({ status: 'fail' }, { field: 'status', op: '!=', value: 'ok' })).toBe(true);
+    expect(evalCondition({ status: 'fail' }, mkCond('status', '!=', 'ok'))).toBe(true);
   });
 
   it('> operator', () => {
-    expect(evalCondition({ score: 8 }, { field: 'score', op: '>', value: 5 })).toBe(true);
-    expect(evalCondition({ score: 5 }, { field: 'score', op: '>', value: 5 })).toBe(false);
+    expect(evalCondition({ score: 8 }, mkCond('score', '>', 5))).toBe(true);
+    expect(evalCondition({ score: 5 }, mkCond('score', '>', 5))).toBe(false);
   });
 
   it('>= operator', () => {
-    expect(evalCondition({ score: 5 }, { field: 'score', op: '>=', value: 5 })).toBe(true);
+    expect(evalCondition({ score: 5 }, mkCond('score', '>=', 5))).toBe(true);
   });
 
   it('< operator', () => {
-    expect(evalCondition({ score: 3 }, { field: 'score', op: '<', value: 5 })).toBe(true);
+    expect(evalCondition({ score: 3 }, mkCond('score', '<', 5))).toBe(true);
   });
 
   it('<= operator', () => {
-    expect(evalCondition({ score: 5 }, { field: 'score', op: '<=', value: 5 })).toBe(true);
+    expect(evalCondition({ score: 5 }, mkCond('score', '<=', 5))).toBe(true);
   });
 
   it('returns false for non-object items', () => {
-    expect(evalCondition('not-object', { field: 'x', op: '==', value: 1 })).toBe(false);
-    expect(evalCondition(null, { field: 'x', op: '==', value: 1 })).toBe(false);
+    expect(evalCondition('not-object', mkCond('x', '==', 1))).toBe(false);
+    expect(evalCondition(null, mkCond('x', '==', 1))).toBe(false);
   });
 });
 

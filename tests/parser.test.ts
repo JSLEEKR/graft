@@ -1,5 +1,6 @@
 // tests/parser.test.ts
 import { describe, it, expect } from 'vitest';
+import { mkCond } from './helpers.js';
 import { Lexer } from '../src/lexer/lexer.js';
 import { Parser } from '../src/parser/parser.js';
 
@@ -248,9 +249,13 @@ describe('Parser', () => {
           | filter(issues, severity >= medium)
       `);
       const edge = program.edges[0];
-      expect(edge.transforms).toEqual([
-        { type: 'filter', field: 'issues', condition: { field: 'severity', op: '>=', value: 'medium' } },
-      ]);
+      expect(edge.transforms.length).toBe(1);
+      expect(edge.transforms[0].type).toBe('filter');
+      const filter = edge.transforms[0] as Extract<typeof edge.transforms[0], { type: 'filter' }>;
+      expect(filter.field).toBe('issues');
+      expect(filter.condition.left).toMatchObject({ kind: 'field_access', segments: ['severity'] });
+      expect(filter.condition.op).toBe('>=');
+      expect(filter.condition.value).toBe('medium');
     });
 
     it('parses edge with truncate', () => {
@@ -272,14 +277,19 @@ describe('Parser', () => {
         }
       `);
       const edge = program.edges[0];
-      expect(edge.target).toEqual({
-        kind: 'conditional',
-        branches: [
-          { condition: { field: 'risk_score', op: '>', value: 0.7 }, target: 'DetailedReviewer' },
-          { condition: { field: 'risk_score', op: '>', value: 0.3 }, target: 'StandardReviewer' },
-          { condition: undefined, target: 'AutoApprove' },
-        ],
-      });
+      expect(edge.target.kind).toBe('conditional');
+      const branches = (edge.target as { kind: 'conditional'; branches: { condition?: { left: unknown; op: string; value: unknown }; target: string }[] }).branches;
+      expect(branches.length).toBe(3);
+      expect(branches[0].condition?.left).toMatchObject({ kind: 'field_access', segments: ['risk_score'] });
+      expect(branches[0].condition?.op).toBe('>');
+      expect(branches[0].condition?.value).toBe(0.7);
+      expect(branches[0].target).toBe('DetailedReviewer');
+      expect(branches[1].condition?.left).toMatchObject({ kind: 'field_access', segments: ['risk_score'] });
+      expect(branches[1].condition?.op).toBe('>');
+      expect(branches[1].condition?.value).toBe(0.3);
+      expect(branches[1].target).toBe('StandardReviewer');
+      expect(branches[2].condition).toBeUndefined();
+      expect(branches[2].target).toBe('AutoApprove');
     });
 
     it('parses multi-field select', () => {
@@ -587,11 +597,12 @@ describe('Parser', () => {
         edge A -> B
           | filter(items, budget >= 100)
       `);
-      expect(program.edges[0].transforms[0]).toEqual({
-        type: 'filter',
-        field: 'items',
-        condition: { field: 'budget', op: '>=', value: 100 },
-      });
+      const filter = program.edges[0].transforms[0] as Extract<typeof program.edges[0].transforms[0], { type: 'filter' }>;
+      expect(filter.type).toBe('filter');
+      expect(filter.field).toBe('items');
+      expect(filter.condition.left).toMatchObject({ kind: 'field_access', segments: ['budget'] });
+      expect(filter.condition.op).toBe('>=');
+      expect(filter.condition.value).toBe(100);
     });
   });
 

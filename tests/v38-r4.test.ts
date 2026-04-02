@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { mkCond } from './helpers.js';
 import { Lexer } from '../src/lexer/lexer.js';
 import { Parser } from '../src/parser/parser.js';
 import { TokenEstimator } from '../src/analyzer/estimator.js';
@@ -95,13 +96,13 @@ describe('v3.8-R4: cross-feature integration and regression tests', () => {
       graph G(input: Spec, output: OutA, budget: 50k) { A -> done }
     `);
     addConditionalEdge(program, 'A', [
-      { condition: { field: 'status', op: '==', value: 'go' }, target: 'B' },
+      { condition: mkCond('status', '==', 'go'), target: 'B' },
     ]);
     addConditionalEdge(program, 'B', [
-      { condition: { field: 'status', op: '==', value: 'go' }, target: 'C' },
+      { condition: mkCond('status', '==', 'go'), target: 'C' },
     ]);
     addConditionalEdge(program, 'C', [
-      { condition: { field: 'status', op: '==', value: 'go' }, target: 'D' },
+      { condition: mkCond('status', '==', 'go'), target: 'D' },
     ]);
 
     // Estimator
@@ -117,9 +118,9 @@ describe('v3.8-R4: cross-feature integration and regression tests', () => {
         D: { result: 'done' },
       },
       conditionalEdges: {
-        A: [{ condition: { field: 'status', op: '==', value: 'go' }, target: 'B' }],
-        B: [{ condition: { field: 'status', op: '==', value: 'go' }, target: 'C' }],
-        C: [{ condition: { field: 'status', op: '==', value: 'go' }, target: 'D' }],
+        A: [{ condition: mkCond('status', '==', 'go'), target: 'B' }],
+        B: [{ condition: mkCond('status', '==', 'go'), target: 'C' }],
+        C: [{ condition: mkCond('status', '==', 'go'), target: 'D' }],
       },
     });
     const flow: FlowNode[] = [{ kind: 'node', name: 'A' }];
@@ -155,10 +156,10 @@ describe('v3.8-R4: cross-feature integration and regression tests', () => {
       graph G(input: Spec, output: OutA, budget: 50k) { A -> done }
     `);
     addConditionalEdge(program, 'A', [
-      { condition: { field: 'status', op: '==', value: 'loop' }, target: 'B' },
+      { condition: mkCond('status', '==', 'loop'), target: 'B' },
     ]);
     addConditionalEdge(program, 'B', [
-      { condition: { field: 'status', op: '==', value: 'loop' }, target: 'A' },
+      { condition: mkCond('status', '==', 'loop'), target: 'A' },
     ]);
 
     const estimator = new TokenEstimator(program);
@@ -172,8 +173,8 @@ describe('v3.8-R4: cross-feature integration and regression tests', () => {
         B: { status: 'loop' },
       },
       conditionalEdges: {
-        A: [{ condition: { field: 'status', op: '==', value: 'loop' }, target: 'B' }],
-        B: [{ condition: { field: 'status', op: '==', value: 'loop' }, target: 'A' }],
+        A: [{ condition: mkCond('status', '==', 'loop'), target: 'B' }],
+        B: [{ condition: mkCond('status', '==', 'loop'), target: 'A' }],
       },
     });
     const results: NodeResult[] = [];
@@ -200,7 +201,7 @@ describe('v3.8-R4: cross-feature integration and regression tests', () => {
       graph G(input: Spec, output: OutA, budget: 50k) { A -> done }
     `);
     addConditionalEdge(program, 'A', [
-      { condition: { field: 'status', op: '==', value: 'done' }, target: 'done' },
+      { condition: mkCond('status', '==', 'done'), target: 'done' },
       { condition: undefined, target: 'B' },
     ]);
 
@@ -215,7 +216,7 @@ describe('v3.8-R4: cross-feature integration and regression tests', () => {
       nodeOutputs: { A: { status: 'done' } },
       conditionalEdges: {
         A: [
-          { condition: { field: 'status', op: '==', value: 'done' }, target: 'done' },
+          { condition: mkCond('status', '==', 'done'), target: 'done' },
           { condition: undefined, target: 'B' },
         ],
       },
@@ -239,7 +240,7 @@ describe('v3.8-R4: cross-feature integration and regression tests', () => {
         FollowUp: { result: 'ok' },
       },
       conditionalEdges: {
-        Worker: [{ condition: { field: 'route', op: '==', value: 'yes' }, target: 'FollowUp' }],
+        Worker: [{ condition: mkCond('route', '==', 'yes'), target: 'FollowUp' }],
       },
     });
     // Pre-populate source
@@ -274,7 +275,7 @@ describe('v3.8-R4: cross-feature integration and regression tests', () => {
       },
       failNodes: ['ChainTarget'],
       conditionalEdges: {
-        Worker: [{ condition: { field: 'route', op: '==', value: 'yes' }, target: 'ChainTarget' }],
+        Worker: [{ condition: mkCond('route', '==', 'yes'), target: 'ChainTarget' }],
       },
     });
     ctx.outputs.set('Source', { items: ['a', 'b', 'c'] });
@@ -352,7 +353,7 @@ describe('v3.8-R4: cross-feature integration and regression tests', () => {
       conditionalEdges: {
         // The chain looks up 'OriginalNode' because that is the flow node name
         // after alias, but the routing is based on the fallback output
-        OriginalNode: [{ condition: { field: 'status', op: '==', value: 'route' }, target: 'ChainNext' }],
+        OriginalNode: [{ condition: mkCond('status', '==', 'route'), target: 'ChainNext' }],
       },
     });
 
@@ -439,7 +440,7 @@ describe('v3.8-R4: cross-feature integration and regression tests', () => {
     ];
     // Add conditional edge: Worker -> Escalate
     addConditionalEdge(program, 'Worker', [
-      { condition: { field: 'status', op: '==', value: 'needs_review' }, target: 'Escalate' },
+      { condition: mkCond('status', '==', 'needs_review'), target: 'Escalate' },
     ]);
 
     const estimator = new TokenEstimator(program);
@@ -489,7 +490,7 @@ describe('v3.8-R4: cross-feature integration and regression tests', () => {
       },
     ];
     addConditionalEdge(program, 'Worker', [
-      { condition: { field: 'status', op: '==', value: 'ok' }, target: 'done' },
+      { condition: mkCond('status', '==', 'ok'), target: 'done' },
       { condition: undefined, target: 'Extra' },
     ]);
 

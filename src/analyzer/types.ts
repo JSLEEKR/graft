@@ -1,4 +1,4 @@
-import { Program, TypeExpr } from '../parser/ast.js';
+import { Program, TypeExpr, conditionFieldName } from '../parser/ast.js';
 import { GraftError } from '../errors/diagnostics.js';
 import { ProgramIndex } from '../program-index.js';
 
@@ -95,7 +95,8 @@ export class TypeChecker {
 
       for (const branch of edge.target.branches) {
         if (!branch.condition) continue; // else branch
-        const { op, field } = branch.condition;
+        const { op } = branch.condition;
+        const field = conditionFieldName(branch.condition);
 
         // Only ordered comparisons need numeric types
         if (op === '==' || op === '!=') continue;

@@ -328,6 +328,10 @@ export class ScopeChecker {
           this.walkFlowNodes(step.body, location, errors);
           break;
         }
+        case 'let':
+          break;
+        case 'graph_call':
+          break;
       }
     }
   }

@@ -158,6 +158,12 @@ function generateSteps(
         stepNum++;
         break;
       }
+
+      case 'let':
+        break;
+
+      case 'graph_call':
+        break;
     }
   }
 

@@ -166,8 +166,7 @@ describe('Hierarchical Document Symbols', () => {
         name: 'G',
         input: 'Ctx',
         output: 'Out',
-        budget: 1000,
-        flow: [{ kind: 'node', name: 'N1' }],
+        budget: 1000, params: [], flow: [{ kind: 'node', name: 'N1' }],
         location: loc,
       }],
     });

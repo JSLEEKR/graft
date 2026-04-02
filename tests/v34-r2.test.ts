@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { mkCond } from './helpers.js';
 import { Lexer } from '../src/lexer/lexer.js';
 import { Parser } from '../src/parser/parser.js';
 import { TokenEstimator } from '../src/analyzer/estimator.js';
@@ -94,7 +95,7 @@ describe('TokenEstimator — conditional edges', () => {
       target: {
         kind: 'conditional',
         branches: [
-          { condition: { field: 'score', op: '>', value: 0.5 }, target: 'B' },
+          { condition: mkCond('score', '>', 0.5), target: 'B' },
           { condition: undefined, target: 'done' },
         ],
       },
@@ -191,7 +192,7 @@ describe('TokenEstimator — conditional edges', () => {
       target: {
         kind: 'conditional',
         branches: [
-          { condition: { field: 'score', op: '>', value: 0.5 }, target: 'done' },
+          { condition: mkCond('score', '>', 0.5), target: 'done' },
           { condition: undefined, target: 'done' },
         ],
       },

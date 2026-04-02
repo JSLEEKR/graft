@@ -7,7 +7,7 @@ import {
   Field, TypeExpr, ContextRef, WriteRef, ProducesDecl,
   Transform, Condition, FailureStrategy,
   EdgeTarget, ConditionalBranch,
-  FlowNode,
+  FlowNode, Expr, GraphParam, GraphArg,
 } from './ast.js';
 
 // Build a Set of all keyword token types for O(1) lookup.
@@ -467,7 +467,9 @@ export class Parser {
   }
 
   private parseCondition(): Condition {
+    const loc = this.current().location;
     const field = this.expectIdentifierOrKeyword();
+    const left: Expr = { kind: 'field_access', segments: [field], location: loc };
     const opToken = this.current();
     let op: Condition['op'];
     switch (opToken.type) {
@@ -483,7 +485,7 @@ export class Parser {
     this.advance();
 
     const value = this.parseConditionValue();
-    return { field, op, value };
+    return { left, op, value };
   }
 
   private parseConditionValue(): string | number | boolean {
@@ -528,7 +530,7 @@ export class Parser {
     this.expect(TokenType.Graph);
     const name = this.expectIdentifier();
 
-    // Parameters: (input: X, output: Y, budget: Nk)
+    // Parameters: (input: X, output: Y, budget: Nk [, param: Type]*)
     this.expect(TokenType.LParen);
     this.expect(TokenType.Input);
     this.expect(TokenType.Colon);
@@ -541,6 +543,15 @@ export class Parser {
     this.expect(TokenType.Budget);
     this.expect(TokenType.Colon);
     const budget = this.parseTokenValue();
+
+    // Optional params after budget
+    const params: GraphParam[] = [];
+    while (this.check(TokenType.Comma)) {
+      this.advance(); // consume comma
+      if (this.check(TokenType.RParen)) break; // trailing comma
+      params.push(this.parseGraphParam());
+    }
+
     this.expect(TokenType.RParen);
 
     // Body: { FlowNodes -> done }
@@ -548,7 +559,41 @@ export class Parser {
     const flow = this.parseFlowNodes(/* insideBlock */ false);
     this.expect(TokenType.RBrace);
 
-    return { name, input, output, budget, flow, location: loc };
+    return { name, input, output, budget, params, flow, location: loc };
+  }
+
+  private parseGraphParam(): GraphParam {
+    const loc = this.current().location;
+    const name = this.expectIdentifierOrKeyword();
+    this.expect(TokenType.Colon);
+
+    // Type: Node (identifier), Int, String, Bool (keywords)
+    const typeToken = this.current();
+    let type: GraphParam['type'];
+    if (typeToken.type === TokenType.Identifier && typeToken.value === 'Node') {
+      type = 'Node';
+      this.advance();
+    } else if (typeToken.type === TokenType.Int) {
+      type = 'Int';
+      this.advance();
+    } else if (typeToken.type === TokenType.String) {
+      type = 'String';
+      this.advance();
+    } else if (typeToken.type === TokenType.Bool) {
+      type = 'Bool';
+      this.advance();
+    } else {
+      throw this.error(`Expected param type (Node, Int, String, Bool), got '${typeToken.value}'`);
+    }
+
+    // Optional default value
+    let defaultVal: string | number | boolean | undefined;
+    if (this.check(TokenType.Equals)) {
+      this.advance();
+      defaultVal = this.parseConditionValue();
+    }
+
+    return { name, type, default: defaultVal, location: loc };
   }
 
   /**
@@ -592,7 +637,8 @@ export class Parser {
   }
 
   /**
-   * Parse a single flow node: identifier, parallel block, or foreach block.
+   * Parse a single flow node: identifier, parallel block, foreach block,
+   * let binding, or graph call.
    */
   private parseFlowNode(): FlowNode {
     if (this.check(TokenType.Parallel)) {
@@ -601,10 +647,41 @@ export class Parser {
     if (this.check(TokenType.Foreach)) {
       return this.parseForeachStep();
     }
-    // Regular node reference
+    if (this.check(TokenType.Let)) {
+      return this.parseLetStep();
+    }
+    // Identifier: could be a node reference or a graph call
+    // Disambiguate: Identifier followed by LParen is a graph call
     const loc = this.current().location;
     const name = this.expectIdentifier();
+    if (this.check(TokenType.LParen)) {
+      return this.parseGraphCall(name, loc);
+    }
     return { kind: 'node', name, location: loc };
+  }
+
+  private parseLetStep(): FlowNode {
+    const loc = this.current().location;
+    this.expect(TokenType.Let);
+    const name = this.expectIdentifierOrKeyword();
+    this.expect(TokenType.Equals);
+    const value = this.parseExpr();
+    return { kind: 'let', name, value, location: loc };
+  }
+
+  private parseGraphCall(name: string, location: import('../errors/diagnostics.js').SourceLocation): FlowNode {
+    this.expect(TokenType.LParen);
+    const args: GraphArg[] = [];
+    while (!this.check(TokenType.RParen)) {
+      if (args.length > 0) this.expect(TokenType.Comma);
+      const argLoc = this.current().location;
+      const argName = this.expectIdentifierOrKeyword();
+      this.expect(TokenType.Colon);
+      const value = this.parseExpr();
+      args.push({ name: argName, value, location: argLoc });
+    }
+    this.expect(TokenType.RParen);
+    return { kind: 'graph_call', name, args, location };
   }
 
   /**
@@ -676,14 +753,115 @@ export class Parser {
       throw this.error('foreach body must contain at least one step');
     }
 
-    // v1.1: enforce no nesting (body must contain only 'node' kind entries)
+    // v1.1+: enforce no nesting (body must contain only 'node', 'let', or 'graph_call' entries)
     for (const step of body) {
-      if (step.kind !== 'node') {
+      if (step.kind === 'parallel' || step.kind === 'foreach') {
         throw this.error('Nested parallel or foreach inside foreach is not supported');
       }
     }
 
     return { kind: 'foreach', source, field, binding, maxIterations, body, location: loc };
+  }
+
+  // --- Expressions --------------------------------------------
+
+  private parseExpr(): Expr {
+    return this.parseAdditive();
+  }
+
+  private parseAdditive(): Expr {
+    let left = this.parseUnary();
+    while (this.check(TokenType.Plus) || this.check(TokenType.Minus) || this.check(TokenType.Slash)) {
+      const opToken = this.current();
+      let op: '+' | '-' | '/';
+      switch (opToken.type) {
+        case TokenType.Plus: op = '+'; break;
+        case TokenType.Minus: op = '-'; break;
+        case TokenType.Slash: op = '/'; break;
+        default: throw this.error(`Unexpected operator '${opToken.value}'`);
+      }
+      this.advance();
+      const right = this.parseUnary();
+      left = { kind: 'binary', op, left, right, location: left.location };
+    }
+    return left;
+  }
+
+  private parseUnary(): Expr {
+    if (this.check(TokenType.Minus)) {
+      const loc = this.current().location;
+      this.advance();
+      const operand = this.parseUnary();
+      return { kind: 'unary', op: '-', operand, location: loc };
+    }
+    if (this.check(TokenType.Bang)) {
+      const loc = this.current().location;
+      this.advance();
+      const operand = this.parseUnary();
+      return { kind: 'unary', op: '!', operand, location: loc };
+    }
+    return this.parsePrimary();
+  }
+
+  private parsePrimary(): Expr {
+    const token = this.current();
+    const loc = token.location;
+
+    // Integer literal
+    if (token.type === TokenType.IntegerLiteral) {
+      this.advance();
+      return { kind: 'literal', value: parseInt(token.value, 10), location: loc };
+    }
+
+    // K-integer literal
+    if (token.type === TokenType.KIntegerLiteral) {
+      this.advance();
+      return { kind: 'literal', value: parseInt(token.value, 10) * 1000, location: loc };
+    }
+
+    // Float literal
+    if (token.type === TokenType.FloatLiteral) {
+      this.advance();
+      return { kind: 'literal', value: parseFloat(token.value), location: loc };
+    }
+
+    // String literal
+    if (token.type === TokenType.StringLiteral) {
+      this.advance();
+      return { kind: 'literal', value: token.value, location: loc };
+    }
+
+    // Boolean literals
+    if (token.type === TokenType.True) {
+      this.advance();
+      return { kind: 'literal', value: true, location: loc };
+    }
+    if (token.type === TokenType.False) {
+      this.advance();
+      return { kind: 'literal', value: false, location: loc };
+    }
+
+    // Grouped expression
+    if (token.type === TokenType.LParen) {
+      this.advance();
+      const inner = this.parseExpr();
+      this.expect(TokenType.RParen);
+      return { kind: 'group', inner, location: loc };
+    }
+
+    // Field access: identifier (or keyword) followed by optional dots
+    if (token.type === TokenType.Identifier || KEYWORD_TYPES.has(token.type)) {
+      this.advance();
+      const segments: string[] = [token.value];
+      while (this.check(TokenType.Dot)) {
+        this.advance();
+        const seg = this.expectIdentifierOrKeyword();
+        segments.push(seg);
+      }
+      return { kind: 'field_access', segments, location: loc };
+    }
+
+    throw this.error(`Expected expression, got '${token.value}' (${token.type})`);
   }
 
   // --- Types --------------------------------------------------

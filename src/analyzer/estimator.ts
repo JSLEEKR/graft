@@ -117,6 +117,10 @@ export class TokenEstimator {
         case 'foreach':
           this.collectNodeReports(step.body, reports, warnings);
           break;
+        case 'let':
+          break;
+        case 'graph_call':
+          break;
       }
     }
   }
@@ -162,6 +166,10 @@ export class TokenEstimator {
           worst += bodyCosts.worst * step.maxIterations;
           break;
         }
+        case 'let':
+          break;
+        case 'graph_call':
+          break;
       }
     }
 

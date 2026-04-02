@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { mkCond } from './helpers.js';
 import * as path from 'node:path';
 import { Lexer } from '../src/lexer/lexer.js';
 import { Parser } from '../src/parser/parser.js';
@@ -1024,11 +1025,11 @@ describe('ScopeChecker — conditional edge transforms', () => {
       ],
       edges: [{
         source: 'A',
-        target: { kind: 'conditional', branches: [{ condition: { field: 'score', op: '>=', value: 0.5 }, target: 'B' }, { condition: undefined, target: 'B' }] },
+        target: { kind: 'conditional', branches: [{ condition: mkCond('score', '>=', 0.5), target: 'B' }, { condition: undefined, target: 'B' }] },
         transforms: [{ type: 'select', fields: ['findings'] }],
         location: loc,
       }],
-      graphs: [{ name: 'G', input: 'Spec', output: 'Final', budget: 10000, flow: [{ kind: 'node', name: 'A' }, { kind: 'node', name: 'B' }], location: loc }],
+      graphs: [{ name: 'G', input: 'Spec', output: 'Final', budget: 10000, params: [], flow: [{ kind: 'node', name: 'A' }, { kind: 'node', name: 'B' }], location: loc }],
     };
     const checker = new ScopeChecker(program);
     const diagnostics = checker.check();

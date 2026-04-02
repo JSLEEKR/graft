@@ -1,4 +1,4 @@
-import { Transform, Condition } from '../parser/ast.js';
+import { Transform, Condition, conditionFieldName } from '../parser/ast.js';
 
 export function applyTransforms(data: unknown, transforms: Transform[]): unknown {
   let result = data;
@@ -92,7 +92,7 @@ function truncateDeep(data: unknown, ratio: number): unknown {
 
 export function evalCondition(item: unknown, condition: Condition): boolean {
   if (typeof item !== 'object' || item === null) return false;
-  const val = (item as Record<string, unknown>)[condition.field];
+  const val = (item as Record<string, unknown>)[conditionFieldName(condition)];
   const target = condition.value;
   switch (condition.op) {
     case '==': return val === target;

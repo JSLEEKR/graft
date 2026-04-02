@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { mkCond } from './helpers.js';
 import { Lexer } from '../src/lexer/lexer.js';
 import { Parser } from '../src/parser/parser.js';
 import { TokenEstimator } from '../src/analyzer/estimator.js';
@@ -91,10 +92,10 @@ describe('TokenEstimator — multi-hop conditional chains', () => {
     // A -> B -> C (conditional chain)
     const program = parse(BASE_SRC);
     addConditionalEdge(program, 'A', [
-      { condition: { field: 'x', op: '>', value: 0 }, target: 'B' },
+      { condition: mkCond('x', '>', 0), target: 'B' },
     ]);
     addConditionalEdge(program, 'B', [
-      { condition: { field: 'x', op: '>', value: 0 }, target: 'C' },
+      { condition: mkCond('x', '>', 0), target: 'C' },
     ]);
     const estimator = new TokenEstimator(program);
     const report = estimator.estimate();
@@ -109,13 +110,13 @@ describe('TokenEstimator — multi-hop conditional chains', () => {
     // A -> B -> C -> D (conditional chain)
     const program = parse(BASE_SRC);
     addConditionalEdge(program, 'A', [
-      { condition: { field: 'x', op: '>', value: 0 }, target: 'B' },
+      { condition: mkCond('x', '>', 0), target: 'B' },
     ]);
     addConditionalEdge(program, 'B', [
-      { condition: { field: 'x', op: '>', value: 0 }, target: 'C' },
+      { condition: mkCond('x', '>', 0), target: 'C' },
     ]);
     addConditionalEdge(program, 'C', [
-      { condition: { field: 'x', op: '>', value: 0 }, target: 'D' },
+      { condition: mkCond('x', '>', 0), target: 'D' },
     ]);
     const estimator = new TokenEstimator(program);
     const report = estimator.estimate();
@@ -129,11 +130,11 @@ describe('TokenEstimator — multi-hop conditional chains', () => {
     // A -> { B, done }, B -> C (but done branch stops)
     const program = parse(BASE_SRC);
     addConditionalEdge(program, 'A', [
-      { condition: { field: 'x', op: '>', value: 0 }, target: 'B' },
+      { condition: mkCond('x', '>', 0), target: 'B' },
       { condition: undefined, target: 'done' },
     ]);
     addConditionalEdge(program, 'B', [
-      { condition: { field: 'x', op: '>', value: 0 }, target: 'C' },
+      { condition: mkCond('x', '>', 0), target: 'C' },
     ]);
     const estimator = new TokenEstimator(program);
     const report = estimator.estimate();
@@ -147,10 +148,10 @@ describe('TokenEstimator — multi-hop conditional chains', () => {
     // A -> B -> A (cycle)
     const program = parse(BASE_SRC);
     addConditionalEdge(program, 'A', [
-      { condition: { field: 'x', op: '>', value: 0 }, target: 'B' },
+      { condition: mkCond('x', '>', 0), target: 'B' },
     ]);
     addConditionalEdge(program, 'B', [
-      { condition: { field: 'x', op: '>', value: 0 }, target: 'A' },
+      { condition: mkCond('x', '>', 0), target: 'A' },
     ]);
     const estimator = new TokenEstimator(program);
     const report = estimator.estimate();
@@ -180,7 +181,7 @@ describe('TokenEstimator — multi-hop conditional chains', () => {
     // Chain: N0 -> N1 -> N2 -> ... -> N11
     for (let i = 0; i < 11; i++) {
       addConditionalEdge(program, nodes[i], [
-        { condition: { field: 'r', op: '>', value: 0 }, target: nodes[i + 1] },
+        { condition: mkCond('r', '>', 0), target: nodes[i + 1] },
       ]);
     }
     const estimator = new TokenEstimator(program);
@@ -236,14 +237,14 @@ describe('TokenEstimator — multi-hop conditional chains', () => {
       graph G(input: Spec, output: OutA, budget: 100k) { A -> done }
     `);
     addConditionalEdge(program, 'A', [
-      { condition: { field: 'x', op: '>', value: 0 }, target: 'Cheap' },
+      { condition: mkCond('x', '>', 0), target: 'Cheap' },
       { condition: undefined, target: 'Expensive' },
     ]);
     addConditionalEdge(program, 'Cheap', [
-      { condition: { field: 'x', op: '>', value: 0 }, target: 'SmallFollow' },
+      { condition: mkCond('x', '>', 0), target: 'SmallFollow' },
     ]);
     addConditionalEdge(program, 'Expensive', [
-      { condition: { field: 'x', op: '>', value: 0 }, target: 'BigFollow' },
+      { condition: mkCond('x', '>', 0), target: 'BigFollow' },
     ]);
     const estimator = new TokenEstimator(program);
     const report = estimator.estimate();
@@ -271,7 +272,7 @@ describe('TokenEstimator — multi-hop conditional chains', () => {
       graph G(input: Spec, output: OutA, budget: 50k) { A -> done }
     `);
     addConditionalEdge(program, 'A', [
-      { condition: { field: 'x', op: '>', value: 0 }, target: 'B' },
+      { condition: mkCond('x', '>', 0), target: 'B' },
     ]);
     const estimator = new TokenEstimator(program);
     const report = estimator.estimate();
@@ -285,7 +286,7 @@ describe('TokenEstimator — multi-hop conditional chains', () => {
   it('10. all branches target done results in zero chain cost', () => {
     const program = parse(BASE_SRC);
     addConditionalEdge(program, 'A', [
-      { condition: { field: 'x', op: '>', value: 0 }, target: 'done' },
+      { condition: mkCond('x', '>', 0), target: 'done' },
       { condition: undefined, target: 'done' },
     ]);
     const estimator = new TokenEstimator(program);
@@ -300,14 +301,14 @@ describe('TokenEstimator — multi-hop conditional chains', () => {
     // D should be counted in both paths independently
     const program = parse(BASE_SRC);
     addConditionalEdge(program, 'A', [
-      { condition: { field: 'x', op: '>', value: 0 }, target: 'B' },
+      { condition: mkCond('x', '>', 0), target: 'B' },
       { condition: undefined, target: 'C' },
     ]);
     addConditionalEdge(program, 'B', [
-      { condition: { field: 'x', op: '>', value: 0 }, target: 'D' },
+      { condition: mkCond('x', '>', 0), target: 'D' },
     ]);
     addConditionalEdge(program, 'C', [
-      { condition: { field: 'x', op: '>', value: 0 }, target: 'D' },
+      { condition: mkCond('x', '>', 0), target: 'D' },
     ]);
     const estimator = new TokenEstimator(program);
     const report = estimator.estimate();
@@ -322,7 +323,7 @@ describe('TokenEstimator — multi-hop conditional chains', () => {
   it('12. unknown target is skipped gracefully', () => {
     const program = parse(BASE_SRC);
     addConditionalEdge(program, 'A', [
-      { condition: { field: 'x', op: '>', value: 0 }, target: 'NonExistent' },
+      { condition: mkCond('x', '>', 0), target: 'NonExistent' },
       { condition: undefined, target: 'B' },
     ]);
     const estimator = new TokenEstimator(program);

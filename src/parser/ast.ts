@@ -1,5 +1,12 @@
 import { SourceLocation } from '../errors/diagnostics.js';
 
+export type Expr =
+  | { kind: 'literal'; value: string | number | boolean; location: SourceLocation }
+  | { kind: 'field_access'; segments: string[]; location: SourceLocation }
+  | { kind: 'binary'; op: '+' | '-' | '/'; left: Expr; right: Expr; location: SourceLocation }
+  | { kind: 'unary'; op: '-' | '!'; operand: Expr; location: SourceLocation }
+  | { kind: 'group'; inner: Expr; location: SourceLocation };
+
 export interface ImportDecl {
   names: string[];
   path: string;
@@ -74,12 +81,14 @@ export interface ConditionalBranch {
   target: string;
 }
 
-// Flow control nodes (v1.1)
+// Flow control nodes (v1.1+)
 export type FlowNode =
   | { kind: 'node'; name: string; location?: SourceLocation }
   | { kind: 'parallel'; branches: string[]; location?: SourceLocation }
   | { kind: 'foreach'; source: string; field: string; binding: string;
-      maxIterations: number; body: FlowNode[]; location?: SourceLocation };
+      maxIterations: number; body: FlowNode[]; location?: SourceLocation }
+  | { kind: 'let'; name: string; value: Expr; location?: SourceLocation }
+  | { kind: 'graph_call'; name: string; args: GraphArg[]; location?: SourceLocation };
 
 // graph SimpleQA(...) { Researcher -> Writer -> done }
 export interface GraphDecl {
@@ -87,7 +96,21 @@ export interface GraphDecl {
   input: string;
   output: string;
   budget: number;
+  params: GraphParam[];
   flow: FlowNode[];
+  location: SourceLocation;
+}
+
+export interface GraphParam {
+  name: string;
+  type: 'Node' | 'Int' | 'String' | 'Bool';
+  default?: string | number | boolean;
+  location: SourceLocation;
+}
+
+export interface GraphArg {
+  name: string;
+  value: Expr;
   location: SourceLocation;
 }
 
@@ -126,9 +149,16 @@ export interface WriteRef {
 
 // Conditions (edge routing, filter)
 export interface Condition {
-  field: string;
+  left: Expr;
   op: '>=' | '>' | '<' | '<=' | '==' | '!=';
   value: string | number | boolean;
+}
+
+export function conditionFieldName(condition: Condition): string {
+  if (condition.left.kind === 'field_access') {
+    return condition.left.segments.join('.');
+  }
+  return '<expr>';
 }
 
 // Transform operations on edges

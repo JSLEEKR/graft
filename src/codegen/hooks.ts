@@ -1,4 +1,4 @@
-import { EdgeDecl, Transform } from '../parser/ast.js';
+import { EdgeDecl, Transform, conditionFieldName } from '../parser/ast.js';
 
 // Note: Generated scripts require bash (Git Bash on Windows).
 // If hook execution fails on Windows, prefix commands with `bash` in settings.ts.
@@ -96,5 +96,5 @@ function filterToJq(t: Extract<Transform, { type: 'filter' }>): string {
   const valueStr = typeof condition.value === 'string'
     ? `"${condition.value}"`
     : String(condition.value);
-  return `{${field}: [.${field}[] | select(.${condition.field} ${condition.op} ${valueStr})]}`;
+  return `{${field}: [.${field}[] | select(.${conditionFieldName(condition)} ${condition.op} ${valueStr})]}`;
 }

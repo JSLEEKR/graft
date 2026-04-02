@@ -13,6 +13,10 @@ const SINGLE_CHAR: Record<string, TokenType> = {
   '.': TokenType.Dot,
   '|': TokenType.Pipe,
   '/': TokenType.Slash,
+  '+': TokenType.Plus,
+  '-': TokenType.Minus,
+  '!': TokenType.Bang,
+  '=': TokenType.Equals,
   '>': TokenType.Greater,
   '<': TokenType.Less,
 };

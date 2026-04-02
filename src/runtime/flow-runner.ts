@@ -1,4 +1,4 @@
-import { FlowNode, FailureStrategy, Condition, ConditionalBranch, Transform } from '../parser/ast.js';
+import { FlowNode, FailureStrategy, Condition, ConditionalBranch, Transform, conditionFieldName } from '../parser/ast.js';
 import { NodeResult } from './executor.js';
 import { resolveField, RuntimeState } from './prompt-builder.js';
 import { applyTransforms } from './transforms.js';
@@ -18,7 +18,7 @@ export interface FlowContext extends RuntimeState {
 }
 
 export function evaluateCondition(condition: Condition, output: Record<string, unknown>): boolean {
-  const fieldValue = output[condition.field];
+  const fieldValue = output[conditionFieldName(condition)];
   if (fieldValue === undefined) {
     return condition.op === '!=';
   }
@@ -231,6 +231,12 @@ export async function executeFlowNodes(
         }
         break;
       }
+
+      case 'let':
+        break;
+
+      case 'graph_call':
+        break;
     }
   }
 }

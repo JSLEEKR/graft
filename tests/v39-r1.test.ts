@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { mkCond } from './helpers.js';
 import { executeFlowNodes, executeConditionalChain, FlowContext, ConditionalEdgeInfo } from '../src/runtime/flow-runner.js';
 import { NodeResult } from '../src/runtime/executor.js';
 import { ConditionalBranch, Transform } from '../src/parser/ast.js';
@@ -49,7 +50,7 @@ describe('v3.9-R1: edge transforms on conditional edges', () => {
       conditionalEdges: {
         A: {
           branches: [
-            { condition: { field: 'status', op: '==', value: 'go' }, target: 'B' },
+            { condition: mkCond('status', '==', 'go'), target: 'B' },
           ],
           transforms: [{ type: 'select', fields: ['findings'] }],
         },
@@ -85,7 +86,7 @@ describe('v3.9-R1: edge transforms on conditional edges', () => {
       conditionalEdges: {
         A: {
           branches: [
-            { condition: { field: 'status', op: '==', value: 'go' }, target: 'Next' },
+            { condition: mkCond('status', '==', 'go'), target: 'Next' },
             { target: 'Fallback' }, // else branch
           ],
           transforms: [{ type: 'select', fields: ['data'] }],
@@ -120,7 +121,7 @@ describe('v3.9-R1: edge transforms on conditional edges', () => {
       conditionalEdges: {
         A: {
           branches: [
-            { condition: { field: 'status', op: '==', value: 'finished' }, target: 'done' },
+            { condition: mkCond('status', '==', 'finished'), target: 'done' },
           ],
           transforms: [{ type: 'select', fields: ['data'] }],
         },
@@ -155,13 +156,13 @@ describe('v3.9-R1: edge transforms on conditional edges', () => {
       conditionalEdges: {
         A: {
           branches: [
-            { condition: { field: 'status', op: '==', value: 'go' }, target: 'B' },
+            { condition: mkCond('status', '==', 'go'), target: 'B' },
           ],
           transforms: [{ type: 'select', fields: ['findings'] }],
         },
         B: {
           branches: [
-            { condition: { field: 'status', op: '==', value: 'continue' }, target: 'C' },
+            { condition: mkCond('status', '==', 'continue'), target: 'C' },
           ],
           transforms: [{ type: 'select', fields: ['result'] }],
         },
@@ -198,7 +199,7 @@ describe('v3.9-R1: edge transforms on conditional edges', () => {
       conditionalEdges: {
         A: {
           branches: [
-            { condition: { field: 'status', op: '==', value: 'go' }, target: 'B' },
+            { condition: mkCond('status', '==', 'go'), target: 'B' },
           ],
           transforms: [],
         },
@@ -233,7 +234,7 @@ describe('v3.9-R1: edge transforms on conditional edges', () => {
       conditionalEdges: {
         A: {
           branches: [
-            { condition: { field: 'status', op: '==', value: 'go' }, target: 'B' },
+            { condition: mkCond('status', '==', 'go'), target: 'B' },
           ],
           transforms: [{ type: 'compact' }],
         },
@@ -270,11 +271,11 @@ describe('v3.9-R1: edge transforms on conditional edges', () => {
       ],
       edges: [{
         source: 'A',
-        target: { kind: 'conditional', branches: [{ condition: { field: 'score', op: '>=', value: 0.5 }, target: 'B' }, { target: 'B' }] },
+        target: { kind: 'conditional', branches: [{ condition: mkCond('score', '>=', 0.5), target: 'B' }, { target: 'B' }] },
         transforms: [{ type: 'select', fields: ['findings'] }],
         location: loc,
       }],
-      graphs: [{ name: 'G', input: 'Spec', output: 'Final', budget: 10000, flow: [{ kind: 'node', name: 'A' }, { kind: 'node', name: 'B' }], location: loc }],
+      graphs: [{ name: 'G', input: 'Spec', output: 'Final', budget: 10000, params: [], flow: [{ kind: 'node', name: 'A' }, { kind: 'node', name: 'B' }], location: loc }],
     };
     const checker = new ScopeChecker(program);
     const diagnostics = checker.check();
@@ -293,13 +294,13 @@ describe('v3.9-R1: edge transforms on conditional edges', () => {
       conditionalEdges: {
         A: {
           branches: [
-            { condition: { field: 'status', op: '==', value: 'go' }, target: 'B' },
+            { condition: mkCond('status', '==', 'go'), target: 'B' },
           ],
           transforms: [{ type: 'select', fields: ['findings'] }],
         },
         B: {
           branches: [
-            { condition: { field: 'status', op: '==', value: 'loop' }, target: 'A' },
+            { condition: mkCond('status', '==', 'loop'), target: 'A' },
           ],
           transforms: [],
         },
@@ -350,7 +351,7 @@ describe('v3.9-R1: edge transforms on conditional edges', () => {
         if (sourceName === 'A') {
           return {
             branches: [
-              { condition: { field: 'status', op: '==', value: 'go' }, target: 'B' },
+              { condition: mkCond('status', '==', 'go'), target: 'B' },
             ],
             transforms: [{ type: 'select', fields: ['data'] }],
           };
@@ -405,9 +406,9 @@ describe('v3.9-R1: edge transforms on conditional edges', () => {
       conditionalEdges: {
         A: {
           branches: [
-            { condition: { field: 'status', op: '==', value: 'go' }, target: 'B' },
+            { condition: mkCond('status', '==', 'go'), target: 'B' },
           ],
-          transforms: [{ type: 'filter', field: 'items', condition: { field: 'priority', op: '>=', value: 3 } }],
+          transforms: [{ type: 'filter', field: 'items', condition: mkCond('priority', '>=', 3) }],
         },
       },
     });

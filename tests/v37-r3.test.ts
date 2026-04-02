@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { mkCond } from './helpers.js';
 import { executeFlowNodes, FlowContext } from '../src/runtime/flow-runner.js';
 import { NodeResult } from '../src/runtime/executor.js';
 import { FlowNode, ConditionalBranch, Condition, Program } from '../src/parser/ast.js';
@@ -49,8 +50,8 @@ describe('v3.7-R3: multi-hop conditional edge routing', () => {
         C: { result: 'done' },
       },
       conditionalEdges: {
-        A: [{ condition: { field: 'status', op: '==', value: 'go' }, target: 'B' }],
-        B: [{ condition: { field: 'status', op: '==', value: 'continue' }, target: 'C' }],
+        A: [{ condition: mkCond('status', '==', 'go'), target: 'B' }],
+        B: [{ condition: mkCond('status', '==', 'continue'), target: 'C' }],
       },
     });
 
@@ -72,9 +73,9 @@ describe('v3.7-R3: multi-hop conditional edge routing', () => {
         D: { result: 'final' },
       },
       conditionalEdges: {
-        A: [{ condition: { field: 'next', op: '==', value: 'yes' }, target: 'B' }],
-        B: [{ condition: { field: 'next', op: '==', value: 'yes' }, target: 'C' }],
-        C: [{ condition: { field: 'next', op: '==', value: 'yes' }, target: 'D' }],
+        A: [{ condition: mkCond('next', '==', 'yes'), target: 'B' }],
+        B: [{ condition: mkCond('next', '==', 'yes'), target: 'C' }],
+        C: [{ condition: mkCond('next', '==', 'yes'), target: 'D' }],
       },
     });
 
@@ -94,7 +95,7 @@ describe('v3.7-R3: multi-hop conditional edge routing', () => {
         B: { result: 'end' },
       },
       conditionalEdges: {
-        A: [{ condition: { field: 'status', op: '==', value: 'go' }, target: 'B' }],
+        A: [{ condition: mkCond('status', '==', 'go'), target: 'B' }],
         // B has no conditional edge
       },
     });
@@ -114,7 +115,7 @@ describe('v3.7-R3: multi-hop conditional edge routing', () => {
         A: { status: 'finished' },
       },
       conditionalEdges: {
-        A: [{ condition: { field: 'status', op: '==', value: 'finished' }, target: 'done' }],
+        A: [{ condition: mkCond('status', '==', 'finished'), target: 'done' }],
       },
     });
 
@@ -134,8 +135,8 @@ describe('v3.7-R3: multi-hop conditional edge routing', () => {
         B: { route: 'go' },
       },
       conditionalEdges: {
-        A: [{ condition: { field: 'route', op: '==', value: 'go' }, target: 'B' }],
-        B: [{ condition: { field: 'route', op: '==', value: 'go' }, target: 'A' }],
+        A: [{ condition: mkCond('route', '==', 'go'), target: 'B' }],
+        B: [{ condition: mkCond('route', '==', 'go'), target: 'A' }],
       },
     });
 
@@ -158,8 +159,8 @@ describe('v3.7-R3: multi-hop conditional edge routing', () => {
         C: { result: 'ok' },
       },
       conditionalEdges: {
-        A: [{ condition: { field: 'status', op: '==', value: 'go' }, target: 'B' }],
-        B: [{ condition: { field: 'status', op: '==', value: 'go' }, target: 'C' }],
+        A: [{ condition: mkCond('status', '==', 'go'), target: 'B' }],
+        B: [{ condition: mkCond('status', '==', 'go'), target: 'C' }],
       },
       failNodes: ['B'],
     });
@@ -198,7 +199,7 @@ describe('v3.7-R3: multi-hop conditional edge routing', () => {
       },
       getConditionalEdge: (sourceName: string) => {
         if (sourceName === 'A') {
-          return { branches: [{ condition: { field: 'status', op: '==', value: 'go' }, target: 'B' }], transforms: [] };
+          return { branches: [{ condition: mkCond('status', '==', 'go'), target: 'B' }], transforms: [] };
         }
         return null;
       },
@@ -226,7 +227,7 @@ describe('v3.7-R3: multi-hop conditional edge routing', () => {
         A: { status: 'nope' },
       },
       conditionalEdges: {
-        A: [{ condition: { field: 'status', op: '==', value: 'go' }, target: 'B' }],
+        A: [{ condition: mkCond('status', '==', 'go'), target: 'B' }],
       },
     });
 
@@ -248,10 +249,10 @@ describe('v3.7-R3: multi-hop conditional edge routing', () => {
       },
       conditionalEdges: {
         A: [
-          { condition: { field: 'status', op: '==', value: 'go' }, target: 'X' },
+          { condition: mkCond('status', '==', 'go'), target: 'X' },
           { target: 'B' }, // else branch
         ],
-        B: [{ condition: { field: 'status', op: '==', value: 'continue' }, target: 'C' }],
+        B: [{ condition: mkCond('status', '==', 'continue'), target: 'C' }],
       },
     });
 
@@ -271,7 +272,7 @@ describe('v3.7-R3: multi-hop conditional edge routing', () => {
         B: { result: 'ok' },
       },
       conditionalEdges: {
-        A: [{ condition: { field: 'status', op: '==', value: 'go' }, target: 'B' }],
+        A: [{ condition: mkCond('status', '==', 'go'), target: 'B' }],
       },
     });
 
@@ -298,7 +299,7 @@ describe('v3.7-R3: multi-hop conditional edge routing', () => {
     // Chain: N0 -> N1 -> N2 -> ... -> N11
     for (let i = 0; i < nodeNames.length - 1; i++) {
       conditionalEdges[nodeNames[i]] = [
-        { condition: { field: 'go', op: '==', value: 'yes' }, target: nodeNames[i + 1] },
+        { condition: mkCond('go', '==', 'yes'), target: nodeNames[i + 1] },
       ];
     }
 
@@ -335,13 +336,13 @@ describe('v3.7-R3: ScopeChecker done target validation', () => {
         target: {
           kind: 'conditional',
           branches: [
-            { condition: { field: 'status', op: '==', value: 'finished' }, target: 'done' },
+            { condition: mkCond('status', '==', 'finished'), target: 'done' },
           ],
         },
         transforms: [],
         location: loc,
       }],
-      graphs: [{ name: 'G', input: 'Spec', output: 'Out', budget: 10000, flow: [{ kind: 'node', name: 'A' }], location: loc }],
+      graphs: [{ name: 'G', input: 'Spec', output: 'Out', budget: 10000, params: [], flow: [{ kind: 'node', name: 'A' }], location: loc }],
     };
 
     const checker = new ScopeChecker(program);

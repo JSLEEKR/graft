@@ -60,8 +60,7 @@ describe('isRenameable', () => {
       name: 'MainFlow',
       input: 'TaskSpec',
       output: 'Analysis',
-      budget: 10000,
-      flow: [{ kind: 'node', name: 'Analyzer' }],
+      budget: 10000, params: [], flow: [{ kind: 'node', name: 'Analyzer' }],
       location: loc,
     }],
   });

@@ -45,7 +45,7 @@
     },
     "keywords": {
       "name": "keyword.control.graft",
-      "match": "\\b(node|edge|graph|context|reads|produces|tools|budget|model|select|filter|drop|compact|truncate|when|else|done|on_failure|retry|fallback|skip|abort|input|output|max_tokens|enum|parallel|foreach|as|max_iterations|import|from|memory|writes|storage)\\b"
+      "match": "\\b(node|edge|graph|context|reads|produces|tools|budget|model|select|filter|drop|compact|truncate|when|else|done|on_failure|retry|fallback|skip|abort|input|output|max_tokens|enum|parallel|foreach|as|max_iterations|import|from|memory|writes|storage|let)\\b"
     },
     "type-keywords": {
       "name": "support.type.graft",

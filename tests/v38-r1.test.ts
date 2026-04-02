@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { mkCond } from './helpers.js';
 import { applyFallbackAlias, executeConditionalChain, MAX_CONDITIONAL_HOPS } from '../src/runtime/flow-runner.js';
 import { FlowContext } from '../src/runtime/flow-runner.js';
 import { NodeResult } from '../src/runtime/executor.js';
@@ -73,7 +74,7 @@ describe('v3.8-R1: flow-runner extraction', () => {
           B: { result: 'done' },
         },
         conditionalEdges: {
-          A: [{ target: 'B', condition: { field: 'status', op: '==', value: 'go' } }],
+          A: [{ target: 'B', condition: mkCond('status', '==', 'go') }],
         },
       });
       const initialResult: NodeResult = {

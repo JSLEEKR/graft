@@ -39,6 +39,7 @@ export enum TokenType {
   Memory = 'Memory',
   Writes = 'Writes',
   Storage = 'Storage',
+  Let = 'Let',
 
   // Type keywords
   String = 'String',
@@ -76,6 +77,10 @@ export enum TokenType {
   Arrow = 'Arrow',
   Pipe = 'Pipe',
   Slash = 'Slash',
+  Plus = 'Plus',
+  Minus = 'Minus',
+  Bang = 'Bang',
+  Equals = 'Equals',
   DotDot = 'DotDot',
   GreaterEqual = 'GreaterEqual',
   Greater = 'Greater',
@@ -132,6 +137,7 @@ export const KEYWORDS: Record<string, TokenType> = {
   memory: TokenType.Memory,
   writes: TokenType.Writes,
   storage: TokenType.Storage,
+  let: TokenType.Let,
   String: TokenType.String,
   Int: TokenType.Int,
   Float: TokenType.Float,

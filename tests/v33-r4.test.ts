@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { mkCond } from './helpers.js';
 import { SymbolKind } from 'vscode-languageserver/node';
 import { compileToProgram } from '../src/compiler.js';
 import {
@@ -98,7 +99,7 @@ describe('v3.3-R4: Code actions integration', () => {
 // ========================================
 describe('v3.3-R4: Conditional edge runtime integration', () => {
   it('evaluateCondition with string equality works through the runtime path', () => {
-    const condition: Condition = { field: 'status', op: '==', value: 'approved' };
+    const condition: Condition = mkCond('status', '==', 'approved');
     expect(evaluateCondition(condition, { status: 'approved' })).toBe(true);
     expect(evaluateCondition(condition, { status: 'rejected' })).toBe(false);
   });
@@ -271,7 +272,7 @@ describe('v3.3-R4: Cross-feature interactions', () => {
     expect(condMismatch).toBeUndefined();
 
     // Runtime: evaluateCondition routes correctly
-    const condition: Condition = { field: 'score', op: '>=', value: 8 };
+    const condition: Condition = mkCond('score', '>=', 8);
     expect(evaluateCondition(condition, { score: 10, label: 'good' })).toBe(true);
     expect(evaluateCondition(condition, { score: 3, label: 'low' })).toBe(false);
   });

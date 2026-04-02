@@ -52,6 +52,10 @@ function makeFlowNodeChildren(flow: FlowNode[], parentLoc: SourceLocation): Docu
       const sym = makeSymbol(label, SymbolKind.Function, node.location ?? parentLoc);
       sym.children = makeFlowNodeChildren(node.body, node.location ?? parentLoc);
       children.push(sym);
+    } else if (node.kind === 'let') {
+      // let binding symbol deferred to R5
+    } else if (node.kind === 'graph_call') {
+      // graph call symbol deferred to R5
     }
   }
   return children;

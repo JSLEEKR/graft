@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { mkCond } from './helpers.js';
 import { executeFlowNodes, executeConditionalChain, FlowContext, ConditionalEdgeInfo } from '../src/runtime/flow-runner.js';
 import { NodeResult } from '../src/runtime/executor.js';
 import { TokenEstimator } from '../src/analyzer/estimator.js';
@@ -64,13 +65,13 @@ describe('v3.9-R3: integration and regression tests', () => {
       conditionalEdges: {
         A: {
           branches: [
-            { condition: { field: 'status', op: '==', value: 'go' }, target: 'B' },
+            { condition: mkCond('status', '==', 'go'), target: 'B' },
           ],
           transforms: [{ type: 'select', fields: ['findings'] }],
         },
         B: {
           branches: [
-            { condition: { field: 'status', op: '==', value: 'continue' }, target: 'C' },
+            { condition: mkCond('status', '==', 'continue'), target: 'C' },
           ],
           transforms: [{ type: 'select', fields: ['summary'] }],
         },
@@ -114,7 +115,7 @@ describe('v3.9-R3: integration and regression tests', () => {
       conditionalEdges: {
         Producer: {
           branches: [
-            { condition: { field: 'status', op: '==', value: 'ready' }, target: 'Processor' },
+            { condition: mkCond('status', '==', 'ready'), target: 'Processor' },
           ],
           transforms: [{ type: 'select', fields: ['items'] }],
         },
@@ -174,19 +175,19 @@ describe('v3.9-R3: integration and regression tests', () => {
       edges: [
         {
           source: 'Alpha',
-          target: { kind: 'conditional', branches: [{ condition: { field: 'status', op: '==', value: 'go' }, target: 'Beta' }] },
+          target: { kind: 'conditional', branches: [{ condition: mkCond('status', '==', 'go'), target: 'Beta' }] },
           transforms: [{ type: 'select', fields: ['status'] }],
           location: loc,
         },
         {
           source: 'Beta',
-          target: { kind: 'conditional', branches: [{ condition: { field: 'result', op: '==', value: 'retry' }, target: 'Alpha' }] },
+          target: { kind: 'conditional', branches: [{ condition: mkCond('result', '==', 'retry'), target: 'Alpha' }] },
           transforms: [],
           location: loc,
         },
       ],
       graphs: [
-        { name: 'G', input: 'Input', output: 'BetaOut', budget: 100000, flow: [{ kind: 'node', name: 'Alpha' }], location: loc },
+        { name: 'G', input: 'Input', output: 'BetaOut', budget: 100000, params: [], flow: [{ kind: 'node', name: 'Alpha' }], location: loc },
       ],
     };
 
@@ -209,7 +210,7 @@ describe('v3.9-R3: integration and regression tests', () => {
       conditionalEdges: {
         A: {
           branches: [
-            { condition: { field: 'status', op: '==', value: 'go' }, target: 'B' },
+            { condition: mkCond('status', '==', 'go'), target: 'B' },
           ],
           transforms: [], // No transforms declared
         },
@@ -320,8 +321,8 @@ describe('v3.9-R3: integration and regression tests', () => {
           target: {
             kind: 'conditional',
             branches: [
-              { condition: { field: 'status', op: '==', value: 'go' }, target: 'B' },
-              { condition: { field: 'status', op: '==', value: 'stop' }, target: 'done' },
+              { condition: mkCond('status', '==', 'go'), target: 'B' },
+              { condition: mkCond('status', '==', 'stop'), target: 'done' },
             ],
           },
           transforms: [],
@@ -329,7 +330,7 @@ describe('v3.9-R3: integration and regression tests', () => {
         },
       ],
       graphs: [
-        { name: 'G', input: 'Input', output: 'BOut', budget: 50000, flow: [{ kind: 'node', name: 'A' }], location: loc },
+        { name: 'G', input: 'Input', output: 'BOut', budget: 50000, params: [], flow: [{ kind: 'node', name: 'A' }], location: loc },
       ],
     };
 
@@ -362,13 +363,13 @@ describe('v3.9-R3: integration and regression tests', () => {
       conditionalEdges: {
         P1: {
           branches: [
-            { condition: { field: 'status', op: '==', value: 'go' }, target: 'P1Next' },
+            { condition: mkCond('status', '==', 'go'), target: 'P1Next' },
           ],
           transforms: [{ type: 'select', fields: ['result'] }],
         },
         P2: {
           branches: [
-            { condition: { field: 'status', op: '==', value: 'pass' }, target: 'P2Next' },
+            { condition: mkCond('status', '==', 'pass'), target: 'P2Next' },
           ],
           transforms: [{ type: 'compact' }],
         },
@@ -430,7 +431,7 @@ describe('v3.9-R3: integration and regression tests', () => {
         },
       ],
       graphs: [
-        { name: 'G', input: 'Input', output: 'BOut', budget: 50000, flow: [{ kind: 'node', name: 'A' }, { kind: 'node', name: 'B' }], location: loc },
+        { name: 'G', input: 'Input', output: 'BOut', budget: 50000, params: [], flow: [{ kind: 'node', name: 'A' }, { kind: 'node', name: 'B' }], location: loc },
       ],
     };
 

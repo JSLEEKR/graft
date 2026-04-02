@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { mkCond } from './helpers.js';
 import { executeFlowNodes, FlowContext, evaluateCondition } from '../src/runtime/flow-runner.js';
 import { FlowNode, ConditionalBranch, Program } from '../src/parser/ast.js';
 import { Lexer } from '../src/lexer/lexer.js';
@@ -71,8 +72,8 @@ describe('v3.7-R4: cross-feature integration (foreach + conditional routing)', (
         C: { result: 'final' },
       },
       conditionalEdges: {
-        A: [{ condition: { field: 'status', op: '==', value: 'go' }, target: 'B' }],
-        B: [{ condition: { field: 'status', op: '==', value: 'continue' }, target: 'C' }],
+        A: [{ condition: mkCond('status', '==', 'go'), target: 'B' }],
+        B: [{ condition: mkCond('status', '==', 'continue'), target: 'C' }],
       },
     });
 
@@ -112,7 +113,7 @@ describe('v3.7-R4: cross-feature integration (foreach + conditional routing)', (
         Worker: { result: 'ok' },
       },
       conditionalEdges: {
-        Source: [{ condition: { field: 'status', op: '==', value: 'redirect' }, target: 'Backup' }],
+        Source: [{ condition: mkCond('status', '==', 'redirect'), target: 'Backup' }],
       },
       failNodes: ['Source'],
       failureStrategies: { Source: { type: 'skip' } },
@@ -209,7 +210,7 @@ describe('v3.7-R4: foreach failure + multi-hop interaction', () => {
         Worker: { result: 'ok' },
       },
       conditionalEdges: {
-        Source: [{ condition: { field: 'status', op: '==', value: 'ready' }, target: 'AltSource' }],
+        Source: [{ condition: mkCond('status', '==', 'ready'), target: 'AltSource' }],
       },
       failNodes: ['Source'],
       failureStrategies: { Source: { type: 'retry', max: 2 } },
@@ -269,12 +270,12 @@ describe('v3.7-R4: multi-hop edge cases', () => {
       },
       getConditionalEdge: (sourceName: string) => {
         if (sourceName === 'A') {
-          return { branches: [{ condition: { field: 'status', op: '==', value: 'go' }, target: 'B' }], transforms: [] };
+          return { branches: [{ condition: mkCond('status', '==', 'go'), target: 'B' }], transforms: [] };
         }
         // B's conditional edge should apply even when fallback D handles it
         // since D's output is aliased under B
         if (sourceName === 'B') {
-          return { branches: [{ condition: { field: 'status', op: '==', value: 'continue' }, target: 'C' }], transforms: [] };
+          return { branches: [{ condition: mkCond('status', '==', 'continue'), target: 'C' }], transforms: [] };
         }
         return null;
       },
@@ -307,8 +308,8 @@ describe('v3.7-R4: multi-hop edge cases', () => {
         C: { result: 'should not run' },
       },
       conditionalEdges: {
-        A: [{ condition: { field: 'status', op: '==', value: 'go' }, target: 'B' }],
-        B: [{ condition: { field: 'status', op: '==', value: 'finished' }, target: 'done' }],
+        A: [{ condition: mkCond('status', '==', 'go'), target: 'B' }],
+        B: [{ condition: mkCond('status', '==', 'finished'), target: 'done' }],
       },
     });
 
@@ -430,7 +431,7 @@ graph Pipeline(input: Spec, output: Output, budget: 5000) {
         B: { result: 'done' },
       },
       conditionalEdges: {
-        A: [{ condition: { field: 'status', op: '==', value: 'go' }, target: 'B' }],
+        A: [{ condition: mkCond('status', '==', 'go'), target: 'B' }],
       },
     });
 
@@ -464,15 +465,15 @@ graph Pipeline(input: Spec, output: Output, budget: 5000) {
           target: {
             kind: 'conditional',
             branches: [
-              { condition: { field: 'status', op: '==', value: 'ok' }, target: 'done' },
-              { condition: { field: 'status', op: '==', value: 'error' }, target: 'NonExistent' },
+              { condition: mkCond('status', '==', 'ok'), target: 'done' },
+              { condition: mkCond('status', '==', 'error'), target: 'NonExistent' },
             ],
           },
           transforms: [],
           location: loc,
         },
       ],
-      graphs: [{ name: 'G', input: 'Input', output: 'Out', budget: 10000, flow: [{ kind: 'node', name: 'A' }], location: loc }],
+      graphs: [{ name: 'G', input: 'Input', output: 'Out', budget: 10000, params: [], flow: [{ kind: 'node', name: 'A' }], location: loc }],
     };
 
     const checker = new ScopeChecker(program);
@@ -487,18 +488,18 @@ graph Pipeline(input: Spec, output: Output, budget: 5000) {
 
   it('evaluateCondition handles all comparison operators correctly', () => {
     // Verify the condition evaluation used in multi-hop routing
-    expect(evaluateCondition({ field: 'x', op: '==', value: 'a' }, { x: 'a' })).toBe(true);
-    expect(evaluateCondition({ field: 'x', op: '==', value: 'a' }, { x: 'b' })).toBe(false);
-    expect(evaluateCondition({ field: 'x', op: '!=', value: 'a' }, { x: 'b' })).toBe(true);
-    expect(evaluateCondition({ field: 'x', op: '!=', value: 'a' }, { x: 'a' })).toBe(false);
-    expect(evaluateCondition({ field: 'x', op: '>=', value: 5 }, { x: 10 })).toBe(true);
-    expect(evaluateCondition({ field: 'x', op: '>=', value: 5 }, { x: 3 })).toBe(false);
-    expect(evaluateCondition({ field: 'x', op: '>', value: 5 }, { x: 6 })).toBe(true);
-    expect(evaluateCondition({ field: 'x', op: '<=', value: 5 }, { x: 5 })).toBe(true);
-    expect(evaluateCondition({ field: 'x', op: '<', value: 5 }, { x: 3 })).toBe(true);
+    expect(evaluateCondition(mkCond('x', '==', 'a'), { x: 'a' })).toBe(true);
+    expect(evaluateCondition(mkCond('x', '==', 'a'), { x: 'b' })).toBe(false);
+    expect(evaluateCondition(mkCond('x', '!=', 'a'), { x: 'b' })).toBe(true);
+    expect(evaluateCondition(mkCond('x', '!=', 'a'), { x: 'a' })).toBe(false);
+    expect(evaluateCondition(mkCond('x', '>=', 5), { x: 10 })).toBe(true);
+    expect(evaluateCondition(mkCond('x', '>=', 5), { x: 3 })).toBe(false);
+    expect(evaluateCondition(mkCond('x', '>', 5), { x: 6 })).toBe(true);
+    expect(evaluateCondition(mkCond('x', '<=', 5), { x: 5 })).toBe(true);
+    expect(evaluateCondition(mkCond('x', '<', 5), { x: 3 })).toBe(true);
     // undefined field: only != returns true
-    expect(evaluateCondition({ field: 'missing', op: '==', value: 'a' }, {})).toBe(false);
-    expect(evaluateCondition({ field: 'missing', op: '!=', value: 'a' }, {})).toBe(true);
+    expect(evaluateCondition(mkCond('missing', '==', 'a'), {})).toBe(false);
+    expect(evaluateCondition(mkCond('missing', '!=', 'a'), {})).toBe(true);
   });
 
   it('foreach skip with empty source data does not error (no ctx.input fallback)', async () => {

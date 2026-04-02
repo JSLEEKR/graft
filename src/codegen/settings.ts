@@ -43,6 +43,10 @@ function findFirstNodeName(flow: FlowNode[]): string | undefined {
         return step.branches[0];
       case 'foreach':
         return findFirstNodeName(step.body);
+      case 'let':
+        break;
+      case 'graph_call':
+        break;
     }
   }
   return undefined;

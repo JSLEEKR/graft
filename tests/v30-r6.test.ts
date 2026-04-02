@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { mkCond } from './helpers.js';
 import { Lexer } from '../src/lexer/lexer.js';
 import { Parser } from '../src/parser/parser.js';
 import { ProgramIndex } from '../src/program-index.js';
@@ -88,11 +89,11 @@ describe('v3.0-R6: SCOPE_TRANSFORM_CONDITIONAL removed', () => {
       ],
       edges: [{
         source: 'A',
-        target: { kind: 'conditional' as const, branches: [{ condition: { field: 'score', op: '>=', value: 0.5 }, target: 'B' }, { condition: undefined, target: 'B' }] },
+        target: { kind: 'conditional' as const, branches: [{ condition: mkCond('score', '>=', 0.5), target: 'B' }, { condition: undefined, target: 'B' }] },
         transforms: [{ type: 'select' as const, fields: ['findings'] }],
         location: loc,
       }],
-      graphs: [{ name: 'G', input: 'Spec', output: 'Final', budget: 10000, flow: [{ kind: 'node' as const, name: 'A' }, { kind: 'node' as const, name: 'B' }], location: loc }],
+      graphs: [{ name: 'G', input: 'Spec', output: 'Final', budget: 10000, params: [], flow: [{ kind: 'node' as const, name: 'A' }, { kind: 'node' as const, name: 'B' }], location: loc }],
     };
     const checker = new ScopeChecker(program as any);
     const diagnostics = checker.check();
