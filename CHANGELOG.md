@@ -1,5 +1,25 @@
 # Changelog
 
+## v3.6.0 (2026-04-02)
+
+### Added
+- **LSP find-all-references**: `textDocument/references` for contexts, nodes, memories, graphs, and produces names
+  - `isReferable()` gate (broader than `isRenameable` — includes produces names via `producesNodeMap`)
+  - `findReferences()` pure function reusing `collectRenameLocations` infrastructure
+  - `includeDeclaration` support: filters declaration site when `context.includeDeclaration` is false
+  - Cross-file: scans ALL workspace `.gft` files with fast `string.includes()` pre-filter
+- **Rename field collision guard**: blocks rename when new name matches a field in any context, memory, or produces declaration
+
+### Changed
+- **GRAFT_KEYWORDS derived from lexer**: no longer hand-maintained — derived from `Object.keys(KEYWORDS)` excluding type keywords and `output`
+- **Cross-file conflict detection**: replaced regex heuristic with parse-based ProgramIndex check (eliminates false positives from comment-only matches)
+- **Document symbol ranges**: `range` now spans keyword→name (wider), `selectionRange` spans name only (LSP spec compliant)
+
+### Stats
+- 790 tests (51 new), ~220 ratchets
+- 4 rounds (1 MEDIUM, 2 DIRECT, 1 TEST-ONLY), ~10 agent calls
+- R-PROC-14 first real test: A3 analysis completed before convergence, caught produces name gap
+
 ## v3.5.0 (2026-04-02)
 
 ### Added

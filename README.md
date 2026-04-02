@@ -269,7 +269,7 @@ Output targets are pluggable via the `CodegenBackend` interface. The default `Cl
 LSP Server (graft-lsp)
   → Compile on document change
   → ProgramIndex (O(1) declaration lookups)
-  → Diagnostics, Hover, Go-to-Definition, Completions, Code Actions, Document Symbols, Rename (hardened)
+  → Diagnostics, Hover, Go-to-Definition, Completions, Code Actions, Document Symbols, Rename, References
 ```
 
 ## Project Structure
@@ -321,7 +321,7 @@ src/
 ## Development
 
 ```bash
-npm test              # Run all 739 tests
+npm test              # Run all 790 tests
 npm run build         # Compile TypeScript
 npx tsc --noEmit      # Type check only
 ```
@@ -330,6 +330,7 @@ npx tsc --noEmit      # Type check only
 
 | Version | Features |
 |---------|----------|
+| **v3.6** | Find-all-references, keyword unification, symbol range fix, rename field collision guard, 790 tests |
 | **v3.5** | Rename hardening, cross-file conflict detection, FlowNode locations, parallel/foreach symbols, 739 tests |
 | **v3.4** | LSP rename, conditional edge estimation, hierarchical symbols, features split, 690 tests |
 | **v3.3** | LSP code actions (auto-import), conditional edge routing, document symbols, condition type validation, 636 tests |

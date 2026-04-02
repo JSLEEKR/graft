@@ -66,9 +66,10 @@ export function makeSymbol(name: string, kind: SymbolKind, loc: SourceLocation):
     start: { line, character },
     end: { line, character: character + rangeEnd },
   };
+  const nameStart = loc.length != null ? character + loc.length + 1 : character;
   const selectionRange = {
-    start: { line, character },
-    end: { line, character: character + name.length },
+    start: { line, character: nameStart },
+    end: { line, character: nameStart + name.length },
   };
   return { name, kind, range, selectionRange };
 }

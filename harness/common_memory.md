@@ -1,7 +1,7 @@
 # Common Memory — Graft Compiler
-## Last updated: v3.5-R4 completed (v3.5.0 release)
+## Last updated: v3.6-R4 completed (v3.6.0 release)
 
-## Ratchet-Locked Decisions (~210 total, 5 unlocked)
+## Ratchet-Locked Decisions (~220 total, 5 unlocked)
 
 ### T1-T6 (abbreviated — all LOCKED)
 T1: tsc-only, ESM, NodeNext, explicit vitest, shebang, strict, no barrels, .js extensions
@@ -269,6 +269,20 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - [v3.5-R09] Parser captures location at keyword/identifier for all FlowNode kinds — LOCKED
 - [v3.5-R10] Document symbols: parallel/foreach as children with descriptive labels — LOCKED
 
+### v3.6-R1 Ratchets (Find All References)
+- [v3.6-R01] isReferable checks 5 ProgramIndex maps (including producesNodeMap) — LOCKED
+- [v3.6-R02] findReferences reuses collectRenameLocations (no separate reference finder) — LOCKED
+- [v3.6-R03] Cross-file references scan ALL workspace files with includes() pre-filter — LOCKED
+- [v3.6-R04] includeDeclaration filtering via keyword-length position computation — LOCKED
+
+### v3.6-R2 Ratchets (Keyword Unification + Conflict Fix)
+- [v3.6-R05] GRAFT_KEYWORDS derived from lexer KEYWORDS minus type keywords and output — LOCKED
+- [v3.6-R06] Cross-file conflict detection uses Parser+ProgramIndex, not regex — LOCKED
+
+### v3.6-R3 Ratchets (Symbol Range + Rename Polish)
+- [v3.6-R07] makeSymbol range spans keyword→name, selectionRange is name-only — LOCKED
+- [v3.6-R08] Rename field collision guard checks context/memory/produces fields — LOCKED
+
 ## Review Feedback
 - T1-T7: ALL PASS. Test progression: 5 → 31 → 31 → 64 → 78 → 101 → 110
 - v1.2: PASS. 171 tests (135 existing + 36 new). All 12 ratchet items compliant.
@@ -316,6 +330,10 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v3.5-R2: PASS. 716 tests (706 existing + 10 new). 3 new ratchet items. DIRECT tier. Cross-file conflict detection + buildRenameEdits extraction.
 - v3.5-R3: PASS. 724 tests (716 existing + 8 new). 3 new ratchet items. DIRECT tier. FlowNode location + parallel/foreach symbol children.
 - v3.5-R4: PASS. 739 tests (724 existing + 15 new). 0 new ratchet items. TEST-ONLY integration + regression.
+- v3.6-R1: PASS. 753 tests (739 existing + 14 new). 4 new ratchet items. MEDIUM tier (A2+A3, R-PROC-14 applied). Find-all-references.
+- v3.6-R2: PASS. 761 tests (753 existing + 8 new). 2 new ratchet items. DIRECT tier. Keyword unification + parse-based conflict detection.
+- v3.6-R3: NEEDS_CHANGES then PASS. 770 tests (761 existing + 9 new). 2 new ratchet items. DIRECT tier. Symbol range fix + rename field collision guard. Reviewer caught selectionRange bug (started at keyword, not name). Fixed.
+- v3.6-R4: PASS. 790 tests (770 existing + 20 new). 0 new ratchet items. TEST-ONLY integration + regression.
 
 ## Recurring Patterns
 - A3-Skeptic: critical bugs every task (T2-T7 consecutively)
@@ -377,6 +395,10 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v3.5-R2 (DIRECT): 2 agent calls. 0 bugs. Cross-file conflict detection + buildRenameEdits extraction.
 - v3.5-R3 (DIRECT): 2 agent calls. 0 bugs. FlowNode location + parallel/foreach symbol children.
 - v3.5-R4 (TEST-ONLY): 2 agent calls. 0 bugs. Integration tests.
+- v3.6-R1 (MEDIUM): 4 agent calls (2 analysis + 1 merged convergence+impl + 1 review). A3-Skeptic found produces name gap in isRenameable (HIGH). R-PROC-14 first real test — analysis completed before convergence. Find-all-references.
+- v3.6-R2 (DIRECT): 2 agent calls. 0 bugs. Keyword derivation from lexer + parse-based conflict detection.
+- v3.6-R3 (DIRECT): 3 agent calls (1 impl + 1 review NEEDS_CHANGES + 1 fix). Reviewer caught selectionRange starting at keyword instead of name. Symbol range fix + rename field collision guard.
+- v3.6-R4 (TEST-ONLY): 2 agent calls. 0 bugs. Integration tests.
 
 ## Notes for Future
 - Conditional edge routing: IMPLEMENTED in v3.3-R2
@@ -384,7 +406,7 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - Token budget enforcement (Graft tokens vs Claude CLI dollars): approximation only
 - Memory importability: deferred (v2.0-R13 locked as excluded)
 - entryFile guard in resolver: scopes name merging to entry file only (justified deviation from convergence spec)
-- All 739 tests currently passing
+- All 790 tests currently passing
 - v2.0 complete: import system + memory across all pipeline stages (lexer → parser → resolver → analyzer → codegen → runtime → integration)
 - v2.1-R1 complete: constants/utils/memory extracted to shared modules, MODEL_MAP deduplication resolved
 - v2.1-R2 complete: writes schema validation, max_tokens > 0, parallel write detection, compiler.ts warning routing
@@ -400,7 +422,7 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v2.2-R4 complete: LSP server with diagnostics, hover, go-to-definition. 2-file structure (server.ts + features.ts). compile() fixed to return program on GRAPH_MISSING.
 - v2.2-R5 complete: npm distribution metadata (@graft-lang/graft), VS Code extension (syntax highlighting, LSP client). Zero production code changes.
 - v2.2-R6 complete: integration tests (end-to-end compile, LSP round-trip, npm pack, adversarial backlog). All 4 v2.1 adversarial proposals resolved.
-- All 739 tests currently passing
+- All 790 tests currently passing
 - v2.2 complete: 6 rounds (R1-R6), all PASS. Tech debt + correctness + LSP + npm + VS Code + integration.
 - v3.0-R1 complete: Pipeline split (compileToProgram/compileAndGenerate/compile), ProgramIndex threading, RuntimeState interface.
 - v3.0-R2 complete: WriteRef replaces string[] writes, multi-field partial reads (ContextRef.field: string[]), brace syntax in parser, all 10 source files + 5 test files updated.
@@ -437,3 +459,8 @@ T6: estimator.js import, toLocaleString('en-US'), MODEL_MAP duplicated, bash hoo
 - v3.5-R3 complete: FlowNode SourceLocation on all three kinds + parallel/foreach as document symbol children with descriptive labels. DIRECT tier.
 - v3.5-R4 complete: Integration + regression tests (15 cross-cutting tests covering R1-R3 features). TEST-ONLY tier.
 - v3.5 COMPLETE: 4 rounds (R1-R4), all PASS. Rename hardening + cross-file conflicts + FlowNode location + symbol enhancement. 739 tests.
+- v3.6-R1 complete: Find-all-references (isReferable, findReferences, includeDeclaration, cross-file). MEDIUM tier, R-PROC-14 applied.
+- v3.6-R2 complete: GRAFT_KEYWORDS derived from lexer KEYWORDS + parse-based cross-file conflict detection. DIRECT tier.
+- v3.6-R3 complete: Symbol range fix (range=keyword→name, selectionRange=name) + rename field collision guard. DIRECT tier. One NEEDS_CHANGES (selectionRange bug fixed).
+- v3.6-R4 complete: Integration + regression tests (20 cross-cutting tests). TEST-ONLY tier.
+- v3.6 COMPLETE: 4 rounds (R1-R4). Find-all-references + keyword unification + symbol range + rename polish. 790 tests.
