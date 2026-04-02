@@ -1,5 +1,5 @@
 # Common Memory — Graft Compiler
-## Last updated: v4.8 COMPLETE
+## Last updated: v4.9 COMPLETE (FINAL v4.x)
 
 ## Ratchet-Locked Decisions (~275 total, 6 unlocked)
 
@@ -453,6 +453,18 @@
 ### v4.2-R3 Ratchets (LSP)
 - [v4.2-R12] Builtin function completions in graph flow context: Function kind, arity detail — LOCKED
 - [v4.2-R13] Hover documentation for len/max/min/str with signature and description — LOCKED
+
+### v4.9-R1 Ratchets (Codegen Expression Display)
+- [v4.9-R01] Codegen let step shows formatted expression via formatExpr — LOCKED
+- [v4.9-R02] formatExpr handles all 9 Expr kinds — LOCKED
+- [v4.9-R03] Graph call codegen shows formatted argument expressions — LOCKED
+
+### v4.9 Review Feedback
+- v4.9-R1 complete: Codegen expression display (DIRECT). 7 new tests, 1,277 total. PASS.
+  - formatExpr in orchestration.ts for let binding display
+  - Graph call arguments show formatted expressions
+  - Regression: all codegen flow types still work
+- v4.9 COMPLETE: 1 round. Codegen expression display. 1,277 tests. 3 new ratchets. FINAL v4.x.
 
 ### v4.8-R1 Ratchets (LSP Expression Intelligence)
 - [v4.8-R01] ProgramIndex.letBindingMap: Map<string, LetBinding> indexes all let bindings — LOCKED

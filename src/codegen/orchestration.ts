@@ -1,4 +1,4 @@
-import { Program, FlowNode, NodeDecl } from '../parser/ast.js';
+import { Program, FlowNode, NodeDecl, Expr } from '../parser/ast.js';
 import { TokenReport, NodeTokenReport } from '../analyzer/estimator.js';
 import { ProgramIndex } from '../program-index.js';
 
@@ -166,14 +166,14 @@ function generateSteps(
       case 'let':
         text += `
 ### Step ${stepNum}: [data binding] let ${step.name}
-- Bind: \`${step.name}\` = expression result
+- Bind: \`${step.name}\` = \`${formatExpr(step.value)}\`
 `;
         stepNum++;
         break;
 
       case 'graph_call':
         text += `
-### Step ${stepNum}: [sub-pipeline] ${step.name}(${step.args.map(a => `${a.name}: ...`).join(', ')})
+### Step ${stepNum}: [sub-pipeline] ${step.name}(${step.args.map(a => `${a.name}: ${formatExpr(a.value)}`).join(', ')})
 - Execute graph \`${step.name}\` with parameters
 `;
         stepNum++;
@@ -183,4 +183,25 @@ function generateSteps(
   }
 
   return { text, nextStep: stepNum, lastNode: prev };
+}
+
+function formatExpr(expr: Expr): string {
+  switch (expr.kind) {
+    case 'literal':
+      return typeof expr.value === 'string' ? `"${expr.value}"` : String(expr.value);
+    case 'field_access':
+      return expr.segments.join('.');
+    case 'binary':
+      return `${formatExpr(expr.left)} ${expr.op} ${formatExpr(expr.right)}`;
+    case 'unary':
+      return `${expr.op}${formatExpr(expr.operand)}`;
+    case 'group':
+      return `(${formatExpr(expr.inner)})`;
+    case 'call':
+      return `${expr.name}(${expr.args.map(formatExpr).join(', ')})`;
+    case 'template':
+      return '"' + expr.parts.map(p => p.kind === 'text' ? p.value : `\${${formatExpr(p.value)}}`).join('') + '"';
+    case 'conditional':
+      return `if ${formatExpr(expr.condition)} then ${formatExpr(expr.consequent)} else ${formatExpr(expr.alternate)}`;
+  }
 }

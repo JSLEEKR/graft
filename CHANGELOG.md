@@ -1,5 +1,17 @@
 # Changelog
 
+## v4.9.0 (2026-04-02)
+
+### Added
+- **Codegen expression display**: `let` bindings in orchestration output show formatted expressions
+  - `formatExpr()` renders all 9 Expr kinds to human-readable strings
+  - Graph call arguments also show formatted expressions
+- **formatExpr exported** from hover.ts for reuse
+
+### Stats
+- 1,277 tests (7 new), ~326 ratchets
+- 1 round (codegen enhancement + regression). **Final v4.x release.**
+
 ## v4.8.0 (2026-04-02)
 
 ### Added

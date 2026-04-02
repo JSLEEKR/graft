@@ -98,7 +98,7 @@ function mkHover(value: string): Hover {
   return { contents: { kind: MarkupKind.Markdown, value } };
 }
 
-function formatExpr(expr: Expr): string {
+export function formatExpr(expr: Expr): string {
   switch (expr.kind) {
     case 'literal':
       return typeof expr.value === 'string' ? `"${expr.value}"` : String(expr.value);
