@@ -89,6 +89,11 @@ export function checkExprSources(
         }
       }
       break;
+    case 'conditional':
+      checkExprSources(expr.condition, seenNodes, declaredVars, graphName, errors);
+      checkExprSources(expr.consequent, seenNodes, declaredVars, graphName, errors);
+      checkExprSources(expr.alternate, seenNodes, declaredVars, graphName, errors);
+      break;
   }
 }
 

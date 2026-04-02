@@ -1,5 +1,5 @@
 # Common Memory — Graft Compiler
-## Last updated: v4.4 COMPLETE
+## Last updated: v4.5 COMPLETE
 
 ## Ratchet-Locked Decisions (~275 total, 6 unlocked)
 
@@ -453,6 +453,38 @@
 ### v4.2-R3 Ratchets (LSP)
 - [v4.2-R12] Builtin function completions in graph flow context: Function kind, arity detail — LOCKED
 - [v4.2-R13] Hover documentation for len/max/min/str with signature and description — LOCKED
+
+### v4.5-R1 Ratchets (Comparison Operators)
+- [v4.5-R01] Six comparison tokens: Greater, Less, GreaterEqual, LessEqual, EqualEqual, BangEqual — LOCKED
+- [v4.5-R02] parseComparison precedence level between parseExpr and parseAdditive — LOCKED
+- [v4.5-R03] Binary op union extended: '<' | '>' | '<=' | '>=' | '==' | '!=' — LOCKED
+- [v4.5-R04] evaluateExpr comparison: ordered ops use Number(), equality uses == (loose) — LOCKED
+- [v4.5-R05] inferExprType: comparison ops return 'boolean' — LOCKED
+- [v4.5-R06] checkExprTypeErrors: ordered comparison requires numeric, equality allows any — LOCKED
+
+### v4.5-R2 Ratchets (Conditional Expressions)
+- [v4.5-R07] If and Then keywords in tokens.ts KEYWORDS map — LOCKED
+- [v4.5-R08] conditional Expr kind: { condition, consequent, alternate, location } — LOCKED
+- [v4.5-R09] parsePrimary: if <expr> then <expr> else <expr> parsed as conditional — LOCKED
+- [v4.5-R10] evaluateExpr conditional: truthy → consequent, falsy → alternate — LOCKED
+- [v4.5-R11] inferExprType conditional: matching branch types propagate, mismatch → 'unknown' — LOCKED
+- [v4.5-R12] checkExprSources + checkExprTypeErrors recurse into all 3 conditional sub-exprs — LOCKED
+- [v4.5-R13] TextMate grammar: 'if' and 'then' added to keyword pattern — LOCKED
+
+### v4.5 Review Feedback
+- v4.5-R1 complete: Comparison operators (DIRECT). 17 new tests, 1,140 total. PASS.
+  - Six comparison tokens with parseComparison precedence level
+  - Type checker: ordered comparison requires numeric, equality allows any
+  - Runtime evaluation with Number() coercion for ordered ops
+- v4.5-R2 complete: Conditional expressions (DIRECT). 11 new tests, 1,151 total. PASS.
+  - If/Then keywords, conditional Expr kind, parser in parsePrimary
+  - Runtime: truthy/falsy evaluation
+  - Type inference: matching branch types propagate
+- v4.5-R3 complete: Integration + regression (TEST-ONLY). 15 new tests, 1,166 total. PASS.
+  - Cross-feature: conditional with comparison, chained let, nested conditional runtime
+  - Regression: if/then keywords don't break identifiers, arithmetic still works
+  - Fixed: stale 2-arg Lexer constructor in template parsing
+- v4.5 COMPLETE: 3 rounds (R1-R3). Comparison operators, conditional expressions, integration. 1,166 tests. 13 new ratchets.
 
 ### v4.4-R1 Ratchets (evaluateExpr Extraction)
 - [v4.4-R01] src/runtime/expr-eval.ts: evaluateExpr + resolveNestedField extracted from flow-runner.ts — LOCKED

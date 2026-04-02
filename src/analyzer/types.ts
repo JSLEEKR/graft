@@ -173,12 +173,16 @@ export class TypeChecker {
       case 'binary': {
         const leftType = this.inferExprType(expr.left, varTypes);
         const rightType = this.inferExprType(expr.right, varTypes);
+        // Comparison operators return boolean
+        if (expr.op === '<' || expr.op === '>' || expr.op === '<=' || expr.op === '>=' || expr.op === '==' || expr.op === '!=') {
+          return 'boolean';
+        }
         if (expr.op === '+') {
           if (leftType === 'string' || rightType === 'string') return 'string';
           if (leftType === 'number' && rightType === 'number') return 'number';
           return 'unknown';
         }
-        return 'number'; // - and / produce numbers
+        return 'number'; // -, *, /, % produce numbers
       }
       case 'unary': {
         if (expr.op === '!') return 'boolean';
@@ -192,6 +196,12 @@ export class TypeChecker {
       }
       case 'template':
         return 'string';
+      case 'conditional': {
+        const consequentType = this.inferExprType(expr.consequent, varTypes);
+        const alternateType = this.inferExprType(expr.alternate, varTypes);
+        if (consequentType === alternateType) return consequentType;
+        return 'unknown';
+      }
     }
   }
 
@@ -205,7 +215,16 @@ export class TypeChecker {
       const rightType = this.inferExprType(expr.right, varTypes);
 
       if (leftType !== 'unknown' && rightType !== 'unknown') {
-        if (expr.op === '+') {
+        if (expr.op === '==' || expr.op === '!=') {
+          // Equality allows any types
+        } else if (expr.op === '<' || expr.op === '>' || expr.op === '<=' || expr.op === '>=') {
+          if (leftType !== 'number' || rightType !== 'number') {
+            errors.push(new GraftError(
+              `Operator '${expr.op}' requires numeric operands, got '${leftType}' and '${rightType}'`,
+              expr.location, 'error', 'TYPE_EXPR_MISMATCH',
+            ));
+          }
+        } else if (expr.op === '+') {
           if (leftType !== rightType) {
             errors.push(new GraftError(
               `Operator '+' cannot be applied to types '${leftType}' and '${rightType}'`,
@@ -259,6 +278,10 @@ export class TypeChecker {
           this.checkExprTypeErrors(part.value, varTypes, errors);
         }
       }
+    } else if (expr.kind === 'conditional') {
+      this.checkExprTypeErrors(expr.condition, varTypes, errors);
+      this.checkExprTypeErrors(expr.consequent, varTypes, errors);
+      this.checkExprTypeErrors(expr.alternate, varTypes, errors);
     }
   }
 

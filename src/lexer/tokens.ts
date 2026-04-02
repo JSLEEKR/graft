@@ -40,6 +40,8 @@ export enum TokenType {
   Writes = 'Writes',
   Storage = 'Storage',
   Let = 'Let',
+  Then = 'Then',
+  If = 'If',
 
   // Type keywords
   String = 'String',
@@ -141,6 +143,8 @@ export const KEYWORDS: Record<string, TokenType> = {
   writes: TokenType.Writes,
   storage: TokenType.Storage,
   let: TokenType.Let,
+  then: TokenType.Then,
+  if: TokenType.If,
   String: TokenType.String,
   Int: TokenType.Int,
   Float: TokenType.Float,

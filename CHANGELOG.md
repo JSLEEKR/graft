@@ -1,5 +1,30 @@
 # Changelog
 
+## v4.5.0 (2026-04-02)
+
+### Added
+- **Comparison operators**: `<`, `>`, `<=`, `>=`, `==`, `!=` in expressions
+  - New `parseComparison` precedence level (lower than additive, higher than assignment)
+  - Six new token types: `Greater`, `Less`, `GreaterEqual`, `LessEqual`, `EqualEqual`, `BangEqual`
+  - Comparison results infer to `boolean` type
+  - Type checker enforces numeric operands for ordered comparisons (`<`, `>`, `<=`, `>=`)
+  - Equality operators (`==`, `!=`) accept any types
+- **Conditional expressions**: `if <expr> then <expr> else <expr>` in let bindings
+  - New `If` and `Then` keywords in lexer
+  - New `conditional` Expr kind with condition, consequent, alternate
+  - Nested conditionals supported (else-if chains)
+  - Type inference: matching branch types propagate, mismatched → `unknown`
+  - Scope checker validates sources in all three sub-expressions
+  - Runtime: truthy/falsy evaluation (0, false, null → falsy)
+- **TextMate grammar**: `if` and `then` keywords added to VS Code syntax highlighting
+
+### Fixed
+- Stale second argument in template Lexer constructor call (TypeScript compile error)
+
+### Stats
+- 1,166 tests (43 new), ~275 ratchets
+- 3 rounds (R1 comparison, R2 conditional, R3 integration), ~4 agent calls
+
 ## v4.4.0 (2026-04-02)
 
 ### Added

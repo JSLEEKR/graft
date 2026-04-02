@@ -48,6 +48,12 @@ export function evaluateExpr(expr: Expr, outputs: Map<string, unknown>, variable
           }
           return Number(left) % divisor;
         }
+        case '>': return Number(left) > Number(right);
+        case '<': return Number(left) < Number(right);
+        case '>=': return Number(left) >= Number(right);
+        case '<=': return Number(left) <= Number(right);
+        case '==': return left == right;
+        case '!=': return left != right;
       }
       break;
     }
@@ -89,6 +95,12 @@ export function evaluateExpr(expr: Expr, outputs: Map<string, unknown>, variable
         const val = evaluateExpr(part.value, outputs, variables, warnings);
         return String(val);
       }).join('');
+    }
+    case 'conditional': {
+      const cond = evaluateExpr(expr.condition, outputs, variables, warnings);
+      return cond
+        ? evaluateExpr(expr.consequent, outputs, variables, warnings)
+        : evaluateExpr(expr.alternate, outputs, variables, warnings);
     }
   }
 }

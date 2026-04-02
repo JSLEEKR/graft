@@ -767,7 +767,32 @@ export class Parser {
   // --- Expressions --------------------------------------------
 
   private parseExpr(): Expr {
-    return this.parseAdditive();
+    return this.parseComparison();
+  }
+
+  private parseComparison(): Expr {
+    let left = this.parseAdditive();
+    while (
+      this.check(TokenType.Greater) || this.check(TokenType.Less) ||
+      this.check(TokenType.GreaterEqual) || this.check(TokenType.LessEqual) ||
+      this.check(TokenType.EqualEqual) || this.check(TokenType.BangEqual)
+    ) {
+      const opToken = this.current();
+      let op: '<' | '>' | '<=' | '>=' | '==' | '!=';
+      switch (opToken.type) {
+        case TokenType.Greater: op = '>'; break;
+        case TokenType.Less: op = '<'; break;
+        case TokenType.GreaterEqual: op = '>='; break;
+        case TokenType.LessEqual: op = '<='; break;
+        case TokenType.EqualEqual: op = '=='; break;
+        case TokenType.BangEqual: op = '!='; break;
+        default: throw this.error(`Unexpected operator '${opToken.value}'`);
+      }
+      this.advance();
+      const right = this.parseAdditive();
+      left = { kind: 'binary', op, left, right, location: left.location };
+    }
+    return left;
   }
 
   private parseAdditive(): Expr {
@@ -845,7 +870,7 @@ export class Parser {
       }
       // Parse the expression inside ${ ... }
       const exprSource = raw.slice(dollarIdx + 2, j);
-      const innerLexer = new (Lexer)(exprSource, 'template');
+      const innerLexer = new Lexer(exprSource);
       const innerTokens = innerLexer.tokenize();
       // Remove EOF token for parsing
       const exprTokens = innerTokens.filter(t => t.type !== TokenType.EOF);
@@ -927,6 +952,17 @@ export class Parser {
       }
       this.expect(TokenType.RParen);
       return { kind: 'call', name, args, location: loc };
+    }
+
+    // Conditional expression: if <expr> then <expr> else <expr>
+    if (token.type === TokenType.If) {
+      this.advance();
+      const condition = this.parseExpr();
+      this.expect(TokenType.Then);
+      const consequent = this.parseExpr();
+      this.expect(TokenType.Else);
+      const alternate = this.parseExpr();
+      return { kind: 'conditional', condition, consequent, alternate, location: loc };
     }
 
     // Field access: identifier (or keyword) followed by optional dots

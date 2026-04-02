@@ -7,11 +7,12 @@ export type TemplatePart =
 export type Expr =
   | { kind: 'literal'; value: string | number | boolean; location: SourceLocation }
   | { kind: 'field_access'; segments: string[]; location: SourceLocation }
-  | { kind: 'binary'; op: '+' | '-' | '/' | '*' | '%'; left: Expr; right: Expr; location: SourceLocation }
+  | { kind: 'binary'; op: '+' | '-' | '/' | '*' | '%' | '<' | '>' | '<=' | '>=' | '==' | '!='; left: Expr; right: Expr; location: SourceLocation }
   | { kind: 'unary'; op: '-' | '!'; operand: Expr; location: SourceLocation }
   | { kind: 'group'; inner: Expr; location: SourceLocation }
   | { kind: 'call'; name: string; args: Expr[]; location: SourceLocation }
-  | { kind: 'template'; parts: TemplatePart[]; location: SourceLocation };
+  | { kind: 'template'; parts: TemplatePart[]; location: SourceLocation }
+  | { kind: 'conditional'; condition: Expr; consequent: Expr; alternate: Expr; location: SourceLocation };
 
 /** Built-in expression functions with metadata for type checking and LSP. */
 export const BUILTIN_FUNCTIONS: Record<string, {
