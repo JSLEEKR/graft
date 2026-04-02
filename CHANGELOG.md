@@ -1,5 +1,20 @@
 # Changelog
 
+## v4.7.0 (2026-04-02)
+
+### Added
+- **Null coalescing operator**: `??` for safe default values
+  - New `QuestionQuestion` token in lexer
+  - New `parseNullCoalesce` precedence level (highest below assignment)
+  - Checks for null/undefined only — `0`, `false`, `""` are NOT nullish
+  - Short-circuit: right side only evaluated if left is null/undefined
+  - Type inference: left type if known, otherwise right type
+- **TextMate grammar**: `??` added to operator pattern
+
+### Stats
+- 1,240 tests (38 new), ~310 ratchets
+- 3 rounds (R1 null coalescing, R2 runtime hardening, R3 integration)
+
 ## v4.6.0 (2026-04-02)
 
 ### Added

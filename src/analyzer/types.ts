@@ -173,6 +173,11 @@ export class TypeChecker {
       case 'binary': {
         const leftType = this.inferExprType(expr.left, varTypes);
         const rightType = this.inferExprType(expr.right, varTypes);
+        // Null coalescing: result type is right side (fallback) if left is unknown
+        if (expr.op === '??') {
+          if (leftType !== 'unknown') return leftType;
+          return rightType;
+        }
         // Logical and comparison operators return boolean
         if (expr.op === '&&' || expr.op === '||') return 'boolean';
         if (expr.op === '<' || expr.op === '>' || expr.op === '<=' || expr.op === '>=' || expr.op === '==' || expr.op === '!=') {
@@ -216,7 +221,9 @@ export class TypeChecker {
       const rightType = this.inferExprType(expr.right, varTypes);
 
       if (leftType !== 'unknown' && rightType !== 'unknown') {
-        if (expr.op === '&&' || expr.op === '||') {
+        if (expr.op === '??') {
+          // No constraints — any types allowed
+        } else if (expr.op === '&&' || expr.op === '||') {
           if (leftType !== 'boolean' || rightType !== 'boolean') {
             errors.push(new GraftError(
               `Operator '${expr.op}' expects boolean operands, got '${leftType}' and '${rightType}'`,

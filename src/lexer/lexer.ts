@@ -262,6 +262,7 @@ export class Lexer {
     if (ch === '!' && next === '=') return [TokenType.BangEqual, '!='];
     if (ch === '&' && next === '&') return [TokenType.AmpAmp, '&&'];
     if (ch === '|' && next === '|') return [TokenType.PipePipe, '||'];
+    if (ch === '?' && next === '?') return [TokenType.QuestionQuestion, '??'];
     return null;
   }
 

@@ -95,6 +95,7 @@ export enum TokenType {
   BangEqual = 'BangEqual',
   AmpAmp = 'AmpAmp',
   PipePipe = 'PipePipe',
+  QuestionQuestion = 'QuestionQuestion',
 
   // Special
   EOF = 'EOF',

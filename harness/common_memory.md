@@ -1,5 +1,5 @@
 # Common Memory — Graft Compiler
-## Last updated: v4.6 COMPLETE
+## Last updated: v4.7 COMPLETE
 
 ## Ratchet-Locked Decisions (~275 total, 6 unlocked)
 
@@ -453,6 +453,28 @@
 ### v4.2-R3 Ratchets (LSP)
 - [v4.2-R12] Builtin function completions in graph flow context: Function kind, arity detail — LOCKED
 - [v4.2-R13] Hover documentation for len/max/min/str with signature and description — LOCKED
+
+### v4.7-R1 Ratchets (Null Coalescing)
+- [v4.7-R01] QuestionQuestion token in lexer, two-char matching — LOCKED
+- [v4.7-R02] Binary op union extended: '??' added to ast.ts — LOCKED
+- [v4.7-R03] parseNullCoalesce precedence level above parseLogicalOr — LOCKED
+- [v4.7-R04] Runtime: ?? checks null/undefined only (0, false, "" are NOT nullish) — LOCKED
+- [v4.7-R05] Short-circuit: right side only evaluated if left is null/undefined — LOCKED
+- [v4.7-R06] inferExprType: ?? returns left type if known, otherwise right type — LOCKED
+
+### v4.7 Review Feedback
+- v4.7-R1 complete: Null coalescing (DIRECT). 12 new tests, 1,214 total. PASS.
+  - QuestionQuestion token, parseNullCoalesce precedence
+  - Runtime: null/undefined check (not falsy), short-circuit
+  - Type inference: left type propagation
+- v4.7-R2 complete: Runtime hardening (TEST-ONLY). 8 new tests, 1,222 total. PASS.
+  - Edge cases: undefined field access, null nested access, div/mod by zero
+  - Variable priority over outputs verified
+  - Template with undefined interpolation
+- v4.7-R3 complete: Integration + regression (TEST-ONLY). 18 new tests, 1,240 total. PASS.
+  - Cross-feature: ?? with conditional, logical, arithmetic, function calls
+  - All 11 binary operators verified at runtime
+- v4.7 COMPLETE: 3 rounds (R1-R3). Null coalescing, runtime hardening, integration. 1,240 tests. 6 new ratchets.
 
 ### v4.6-R1 Ratchets (Logical Operators)
 - [v4.6-R01] AmpAmp and PipePipe tokens in lexer, two-char matching — LOCKED

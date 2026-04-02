@@ -24,7 +24,7 @@ export function evaluateExpr(expr: Expr, outputs: Map<string, unknown>, variable
       return current;
     }
     case 'binary': {
-      // Short-circuit for logical operators
+      // Short-circuit for logical and null coalescing operators
       if (expr.op === '&&') {
         const left = evaluateExpr(expr.left, outputs, variables, warnings);
         return left ? evaluateExpr(expr.right, outputs, variables, warnings) : left;
@@ -32,6 +32,10 @@ export function evaluateExpr(expr: Expr, outputs: Map<string, unknown>, variable
       if (expr.op === '||') {
         const left = evaluateExpr(expr.left, outputs, variables, warnings);
         return left ? left : evaluateExpr(expr.right, outputs, variables, warnings);
+      }
+      if (expr.op === '??') {
+        const left = evaluateExpr(expr.left, outputs, variables, warnings);
+        return left !== null && left !== undefined ? left : evaluateExpr(expr.right, outputs, variables, warnings);
       }
       const left = evaluateExpr(expr.left, outputs, variables, warnings);
       const right = evaluateExpr(expr.right, outputs, variables, warnings);

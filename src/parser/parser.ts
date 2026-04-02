@@ -767,7 +767,17 @@ export class Parser {
   // --- Expressions --------------------------------------------
 
   private parseExpr(): Expr {
-    return this.parseLogicalOr();
+    return this.parseNullCoalesce();
+  }
+
+  private parseNullCoalesce(): Expr {
+    let left = this.parseLogicalOr();
+    while (this.check(TokenType.QuestionQuestion)) {
+      this.advance();
+      const right = this.parseLogicalOr();
+      left = { kind: 'binary', op: '??', left, right, location: left.location };
+    }
+    return left;
   }
 
   private parseLogicalOr(): Expr {
