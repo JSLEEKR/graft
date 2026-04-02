@@ -97,10 +97,20 @@ export async function executeFlowNodes(
             ctx.outputs.set(flowNode.name, result.output);
           }
 
-          // Check for conditional edge routing
-          const branches = ctx.getConditionalEdge?.(flowNode.name);
-          if (branches && result.output && typeof result.output === 'object') {
-            const output = result.output as Record<string, unknown>;
+          // Multi-hop conditional edge routing
+          const MAX_CONDITIONAL_HOPS = 10;
+          const visited = new Set<string>();
+          visited.add(flowNode.name);
+          let currentNodeName = flowNode.name;
+          let currentOutput = result.output;
+
+          for (let hop = 0; hop < MAX_CONDITIONAL_HOPS; hop++) {
+            if (errors.length > 0) break;
+
+            const branches = ctx.getConditionalEdge?.(currentNodeName);
+            if (!branches || !currentOutput || typeof currentOutput !== 'object') break;
+
+            const output = currentOutput as Record<string, unknown>;
             let routedTo: string | null = null;
             let elseBranch: string | null = null;
 
@@ -114,10 +124,26 @@ export async function executeFlowNodes(
             }
 
             const target = routedTo ?? elseBranch;
-            if (target) {
-              const conditionalResult = await executeWithFailureStrategy(target, nodeResults, errors, ctx);
-              if (conditionalResult) nodeResults.push(conditionalResult);
+            if (!target || target === 'done') break;
+
+            // Cycle detection
+            if (visited.has(target)) {
+              errors.push(`Conditional edge cycle detected: ${[...visited, target].join(' -> ')}`);
+              break;
             }
+            visited.add(target);
+
+            const conditionalResult = await executeWithFailureStrategy(target, nodeResults, errors, ctx);
+            if (!conditionalResult) break;
+            nodeResults.push(conditionalResult);
+
+            // Apply fallback alias if result came from a different node (v3.7-R2 pattern)
+            if (conditionalResult.node !== target) {
+              ctx.outputs.set(target, conditionalResult.output);
+            }
+
+            currentNodeName = target;
+            currentOutput = conditionalResult.output;
           }
         }
         break;

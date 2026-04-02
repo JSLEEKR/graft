@@ -184,7 +184,7 @@ export class ScopeChecker {
         }
       } else {
         for (const branch of edge.target.branches) {
-          if (!this.index.nodeMap.has(branch.target)) {
+          if (branch.target !== 'done' && !this.index.nodeMap.has(branch.target)) {
             errors.push(new GraftError(
               `Edge target '${branch.target}' is not a declared node`,
               edge.location,
