@@ -1,6 +1,9 @@
 import { FlowNode, FailureStrategy, Condition, ConditionalBranch } from '../parser/ast.js';
 import { NodeResult } from './executor.js';
 import { resolveField, RuntimeState } from './prompt-builder.js';
+import { MAX_CONDITIONAL_HOPS } from '../constants.js';
+
+export { MAX_CONDITIONAL_HOPS };
 
 export interface FlowContext extends RuntimeState {
   executeNode: (name: string) => Promise<NodeResult>;
@@ -76,8 +79,6 @@ async function executeWithFailureStrategy(
     }
   }
 }
-
-export const MAX_CONDITIONAL_HOPS = 10;
 
 export function applyFallbackAlias(name: string, result: NodeResult, ctx: FlowContext): void {
   if (result.node !== name) {

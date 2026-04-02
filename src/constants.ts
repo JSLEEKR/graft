@@ -12,3 +12,6 @@ export const BUDGET_WARNING_THRESHOLD = 0.8;
 
 /** Budget fraction at which to emit a critical warning. */
 export const BUDGET_CRITICAL_THRESHOLD = 0.9;
+
+/** Maximum depth for conditional chain traversal in both estimation and runtime. */
+export const MAX_CONDITIONAL_HOPS = 10;

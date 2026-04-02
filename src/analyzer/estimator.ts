@@ -1,6 +1,6 @@
-import { Program, NodeDecl, EdgeDecl, Transform, FlowNode } from '../parser/ast.js';
+import { Program, NodeDecl, EdgeDecl, Transform, FlowNode, ConditionalBranch } from '../parser/ast.js';
 import { GraftError } from '../errors/diagnostics.js';
-import { PARTIAL_FIELD_FACTOR } from '../constants.js';
+import { PARTIAL_FIELD_FACTOR, MAX_CONDITIONAL_HOPS } from '../constants.js';
 import { ProgramIndex } from '../program-index.js';
 
 export interface NodeTokenReport {
@@ -23,7 +23,7 @@ export class TokenEstimator {
   private index: ProgramIndex;
   private nodeMap: Map<string, NodeDecl>;
   private edgeMap: Map<string, EdgeDecl>; // "source->target" key
-  private conditionalEdges: Map<string, string[]>; // source -> target node names
+  private conditionalEdges: Map<string, ConditionalBranch[]>; // source -> branches
 
   constructor(program: Program, index?: ProgramIndex) {
     this.program = program;
@@ -38,7 +38,7 @@ export class TokenEstimator {
       } else {
         this.conditionalEdges.set(
           edge.source,
-          edge.target.branches.map(b => b.target),
+          edge.target.branches,
         );
       }
     }
@@ -57,7 +57,7 @@ export class TokenEstimator {
     this.collectNodeReports(graph.flow, nodeReports, warnings);
 
     // Compute best/worst case costs
-    const { best, worst } = this.computeFlowCosts(graph.flow);
+    const { best, worst } = this.computeFlowCosts(graph.flow, warnings);
     const bestCase = best;
     const worstCase = worst;
 
@@ -121,7 +121,7 @@ export class TokenEstimator {
     }
   }
 
-  private computeFlowCosts(steps: FlowNode[]): { best: number; worst: number } {
+  private computeFlowCosts(steps: FlowNode[], warnings: GraftError[]): { best: number; worst: number } {
     let best = 0;
     let worst = 0;
 
@@ -134,13 +134,12 @@ export class TokenEstimator {
           const retryMul = this.getRetryMultiplier(node);
           best += cost;
           worst += cost * retryMul;
-          // Add conditional edge branch costs
-          const condTargets = this.conditionalEdges.get(step.name);
-          if (condTargets) {
-            const branchCosts = this.getConditionalBranchCosts(condTargets);
-            best += branchCosts.best;
-            worst += branchCosts.worst;
-          }
+          // Add conditional edge branch costs (multi-hop recursive)
+          const branchCosts = this.getConditionalBranchCosts(
+            step.name, warnings, new Set([step.name]), 0,
+          );
+          best += branchCosts.best;
+          worst += branchCosts.worst;
           break;
         }
         case 'parallel': {
@@ -158,7 +157,7 @@ export class TokenEstimator {
         case 'foreach': {
           // Foreach: body runs up to maxIterations times.
           // Best case = 1 iteration. Worst case = maxIterations iterations.
-          const bodyCosts = this.computeFlowCosts(step.body);
+          const bodyCosts = this.computeFlowCosts(step.body, warnings);
           best += bodyCosts.best * 1;
           worst += bodyCosts.worst * step.maxIterations;
           break;
@@ -169,24 +168,68 @@ export class TokenEstimator {
     return { best, worst };
   }
 
-  private getConditionalBranchCosts(targets: string[]): { best: number; worst: number } {
-    const bestCosts: number[] = [];
-    const worstCosts: number[] = [];
-    for (const target of targets) {
-      if (target === 'done') {
-        bestCosts.push(0);
-        worstCosts.push(0);
+  private getConditionalBranchCosts(
+    source: string,
+    warnings: GraftError[],
+    visited: Set<string>,
+    depth: number,
+  ): { best: number; worst: number } {
+    const branches = this.conditionalEdges.get(source);
+    if (!branches) return { best: 0, worst: 0 };
+
+    if (depth >= MAX_CONDITIONAL_HOPS) {
+      warnings.push(new GraftError(
+        `Conditional chain from '${source}' exceeded maximum depth of ${MAX_CONDITIONAL_HOPS}`,
+        { line: 0, column: 0, offset: 0 },
+        'warning',
+        'BUDGET_EXCEEDED',
+      ));
+      return { best: 0, worst: 0 };
+    }
+
+    const branchBestCosts: number[] = [];
+    const branchWorstCosts: number[] = [];
+
+    for (const branch of branches) {
+      if (branch.target === 'done') {
+        branchBestCosts.push(0);
+        branchWorstCosts.push(0);
         continue;
       }
-      const node = this.nodeMap.get(target);
-      if (!node) continue;
-      const cost = this.getNodeCost(target, node);
+
+      if (visited.has(branch.target)) {
+        // Cycle detected
+        warnings.push(new GraftError(
+          `Conditional estimation cycle detected: ${[...visited, branch.target].join(' -> ')}`,
+          { line: 0, column: 0, offset: 0 },
+          'warning',
+          'BUDGET_EXCEEDED',
+        ));
+        branchBestCosts.push(0);
+        branchWorstCosts.push(0);
+        continue;
+      }
+
+      const node = this.nodeMap.get(branch.target);
+      if (!node) continue; // unknown target, skip
+
+      const cost = this.getNodeCost(branch.target, node);
       const retryMul = this.getRetryMultiplier(node);
-      bestCosts.push(cost);
-      worstCosts.push(cost * retryMul);
+
+      // Per-branch visited set copy (handles diamonds correctly)
+      const branchVisited = new Set(visited);
+      branchVisited.add(branch.target);
+
+      const chainCosts = this.getConditionalBranchCosts(
+        branch.target, warnings, branchVisited, depth + 1,
+      );
+
+      branchBestCosts.push(cost + chainCosts.best);
+      branchWorstCosts.push(cost * retryMul + chainCosts.worst);
     }
-    if (bestCosts.length === 0) return { best: 0, worst: 0 };
-    return { best: Math.min(...bestCosts), worst: Math.max(...worstCosts) };
+
+    if (branchBestCosts.length === 0) return { best: 0, worst: 0 };
+    return { best: Math.min(...branchBestCosts), worst: Math.max(...branchWorstCosts) };
   }
 
   private getNodeCost(nodeName: string, node: NodeDecl): number {
