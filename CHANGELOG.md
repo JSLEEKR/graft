@@ -1,5 +1,20 @@
 # Changelog
 
+## v4.8.0 (2026-04-02)
+
+### Added
+- **Variable hover**: hovering over a `let` binding variable shows its expression and graph context
+  - `formatExpr()` function for human-readable expression rendering
+  - Shows all 9 Expr kinds including conditionals, templates, null coalescing
+- **Variable go-to-definition**: jump to `let` declaration from variable references
+- **Expression completions**: `if`, `true`, `false` keywords + variable names in graph flow context
+- **ProgramIndex.letBindingMap**: indexes all `let` bindings across graphs (including nested foreach)
+  - `LetBinding` interface exported from program-index.ts
+
+### Stats
+- 1,270 tests (30 new), ~320 ratchets
+- 3 rounds (R1 hover + go-to-def, R2 completions, R3 integration)
+
 ## v4.7.0 (2026-04-02)
 
 ### Added

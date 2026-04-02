@@ -18,6 +18,9 @@ export function getDefinitionLocation(word: string, index: ProgramIndex, current
   const mem = index.memoryMap.get(word);
   if (mem) return declLocation(mem.location, undefined, word.length, currentUri);
 
+  const letBinding = index.letBindingMap.get(word);
+  if (letBinding?.location) return declLocation(letBinding.location, undefined, word.length, currentUri);
+
   return null;
 }
 

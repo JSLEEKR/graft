@@ -126,6 +126,16 @@ export function getCompletions(
     for (const [name, info] of Object.entries(BUILTIN_FUNCTIONS)) {
       items.push({ label: name, kind: CompletionItemKind.Function, detail: `builtin (${info.arity} arg${info.arity !== 1 ? 's' : ''})` });
     }
+    // Expression keywords
+    items.push({ label: 'if', kind: CompletionItemKind.Keyword, detail: 'Conditional expression' });
+    items.push({ label: 'true', kind: CompletionItemKind.Keyword, detail: 'Boolean literal' });
+    items.push({ label: 'false', kind: CompletionItemKind.Keyword, detail: 'Boolean literal' });
+    // Variable names from let bindings
+    if (cache) {
+      for (const [name, binding] of cache.index.letBindingMap) {
+        items.push({ label: name, kind: CompletionItemKind.Variable, detail: `variable (graph ${binding.graphName})` });
+      }
+    }
     return items;
   }
 

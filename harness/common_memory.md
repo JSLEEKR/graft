@@ -1,5 +1,5 @@
 # Common Memory — Graft Compiler
-## Last updated: v4.7 COMPLETE
+## Last updated: v4.8 COMPLETE
 
 ## Ratchet-Locked Decisions (~275 total, 6 unlocked)
 
@@ -453,6 +453,25 @@
 ### v4.2-R3 Ratchets (LSP)
 - [v4.2-R12] Builtin function completions in graph flow context: Function kind, arity detail — LOCKED
 - [v4.2-R13] Hover documentation for len/max/min/str with signature and description — LOCKED
+
+### v4.8-R1 Ratchets (LSP Expression Intelligence)
+- [v4.8-R01] ProgramIndex.letBindingMap: Map<string, LetBinding> indexes all let bindings — LOCKED
+- [v4.8-R02] LetBinding interface: { name, value, graphName, location } — LOCKED
+- [v4.8-R03] collectLetBindings traverses flow including foreach bodies — LOCKED
+- [v4.8-R04] Hover: formatExpr for human-readable expression display — LOCKED
+- [v4.8-R05] Definition: letBinding go-to-def via letBindingMap — LOCKED
+- [v4.8-R06] Completions: if/true/false keywords + variable names in graph flow — LOCKED
+
+### v4.8 Review Feedback
+- v4.8-R1 complete: Variable hover + go-to-def (DIRECT). 14 new tests, 1,254 total. PASS.
+  - letBindingMap in ProgramIndex, formatExpr in hover.ts
+  - Definition handler checks letBindingMap
+- v4.8-R2 complete: Expression completions (DIRECT). 7 new tests, 1,261 total. PASS.
+  - if/true/false + variable names in graph flow context
+- v4.8-R3 complete: Integration + regression (TEST-ONLY). 9 new tests, 1,270 total. PASS.
+  - Cross-feature: LSP with ??, conditional, logical expressions
+  - Regression: existing hover/definition/completions unaffected
+- v4.8 COMPLETE: 3 rounds (R1-R3). LSP expression intelligence. 1,270 tests. 6 new ratchets.
 
 ### v4.7-R1 Ratchets (Null Coalescing)
 - [v4.7-R01] QuestionQuestion token in lexer, two-char matching — LOCKED

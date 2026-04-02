@@ -1,4 +1,12 @@
-import { Program, ContextDecl, NodeDecl, MemoryDecl, EdgeDecl, GraphDecl, TypeExpr } from './parser/ast.js';
+import { Program, ContextDecl, NodeDecl, MemoryDecl, EdgeDecl, GraphDecl, TypeExpr, FlowNode, Expr } from './parser/ast.js';
+import type { SourceLocation } from './errors/diagnostics.js';
+
+export interface LetBinding {
+  name: string;
+  value: Expr;
+  graphName: string;
+  location?: SourceLocation;
+}
 
 export class ProgramIndex {
   readonly contextMap: Map<string, ContextDecl>;
@@ -9,6 +17,7 @@ export class ProgramIndex {
   readonly graphMap: Map<string, GraphDecl>;
   readonly producesFieldsMap: Map<string, Map<string, TypeExpr>>;
   readonly memoryFieldsMap: Map<string, Map<string, TypeExpr>>;
+  readonly letBindingMap: Map<string, LetBinding>;
 
   constructor(program: Program) {
     this.contextMap = new Map();
@@ -58,6 +67,26 @@ export class ProgramIndex {
         fields.set(f.name, f.type);
       }
       this.memoryFieldsMap.set(m.name, fields);
+    }
+
+    this.letBindingMap = new Map();
+    for (const g of program.graphs) {
+      this.collectLetBindings(g.flow, g.name);
+    }
+  }
+
+  private collectLetBindings(nodes: FlowNode[], graphName: string): void {
+    for (const step of nodes) {
+      if (step.kind === 'let') {
+        this.letBindingMap.set(step.name, {
+          name: step.name,
+          value: step.value,
+          graphName,
+          location: step.location,
+        });
+      } else if (step.kind === 'foreach') {
+        this.collectLetBindings(step.body, graphName);
+      }
     }
   }
 }

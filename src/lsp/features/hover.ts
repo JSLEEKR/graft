@@ -1,6 +1,6 @@
 import type { Hover } from 'vscode-languageserver/node';
 import { MarkupKind } from 'vscode-languageserver/node';
-import { type TypeExpr, BUILTIN_FUNCTIONS } from '../../parser/ast.js';
+import { type TypeExpr, type Expr, BUILTIN_FUNCTIONS } from '../../parser/ast.js';
 import type { ProgramIndex } from '../../program-index.js';
 
 export const KEYWORD_DOCS: Record<string, string> = {
@@ -70,6 +70,13 @@ export function getHoverInfo(word: string, index: ProgramIndex): Hover | null {
     return mkHover(`**produces** ${word} (from node ${producerNode.name})\n\`\`\`\n${fields}\n\`\`\``);
   }
 
+  // Let binding variables
+  const letBinding = index.letBindingMap.get(word);
+  if (letBinding) {
+    const exprStr = formatExpr(letBinding.value);
+    return mkHover(`**let** ${word} = ${exprStr}\n\n(in graph ${letBinding.graphName})`);
+  }
+
   return null;
 }
 
@@ -89,4 +96,25 @@ export function formatType(type: TypeExpr): string {
 
 function mkHover(value: string): Hover {
   return { contents: { kind: MarkupKind.Markdown, value } };
+}
+
+function formatExpr(expr: Expr): string {
+  switch (expr.kind) {
+    case 'literal':
+      return typeof expr.value === 'string' ? `"${expr.value}"` : String(expr.value);
+    case 'field_access':
+      return expr.segments.join('.');
+    case 'binary':
+      return `${formatExpr(expr.left)} ${expr.op} ${formatExpr(expr.right)}`;
+    case 'unary':
+      return `${expr.op}${formatExpr(expr.operand)}`;
+    case 'group':
+      return `(${formatExpr(expr.inner)})`;
+    case 'call':
+      return `${expr.name}(${expr.args.map(formatExpr).join(', ')})`;
+    case 'template':
+      return '"' + expr.parts.map(p => p.kind === 'text' ? p.value : `\${${formatExpr(p.value)}}`).join('') + '"';
+    case 'conditional':
+      return `if ${formatExpr(expr.condition)} then ${formatExpr(expr.consequent)} else ${formatExpr(expr.alternate)}`;
+  }
 }
