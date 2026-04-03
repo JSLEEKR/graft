@@ -4,9 +4,9 @@
 
 # Graft
 
-**Define multi-agent pipelines in 10 lines. Compile to Claude Code in 1 second.**
+**Infrastructure as Code for Claude Code multi-agent pipelines.**
 
-Graft is a graph-native language that compiles `.gft` files into [Claude Code](https://docs.anthropic.com/en/docs/claude-code) harness structures — agents, hooks, orchestration, and settings — with compile-time token budget analysis.
+Graft is a domain-specific language that compiles `.gft` pipeline definitions into [Claude Code](https://docs.anthropic.com/en/docs/claude-code) harness structures — agents, hooks, orchestration plans, and settings — with compile-time token budget analysis.
 
 **[Full User Guide](docs/guide.md)** | **[Examples](examples/)**
 
@@ -92,9 +92,21 @@ That's it. You have a working multi-agent pipeline. See the [full guide](docs/gu
 | `memory` | `.graft/memory/*.json` | Persistent state across runs |
 | config | `.claude/settings.json` | Model routing, budget, hook registration |
 
+## How Execution Works
+
+Graft is a **compiler**, not a runtime orchestrator. It generates static files that Claude Code interprets:
+
+1. **`.claude/CLAUDE.md`** is a natural-language execution plan. Claude Code reads it as instructions — it's a prompt, not a state machine.
+2. **`.claude/hooks/*.js`** are PostToolUse hooks that fire automatically when Claude Code writes to specific paths. These handle edge transforms deterministically.
+3. **`.claude/settings.json`** configures model routing and hook registration.
+
+`graft run` compiles the pipeline and spawns a `claude` CLI subprocess for each node. In `--dry-run` mode, it simulates execution without subprocess calls.
+
+**Important**: The orchestration plan relies on Claude Code's instruction-following. Unlike LangGraph or CrewAI which use deterministic state machines, Graft's execution depends on the LLM correctly interpreting the plan. The hooks and settings are deterministic; the orchestration is not.
+
 ## Why Graft?
 
-Multi-agent systems waste tokens passing full context between agents. Graft fixes this:
+For Claude Code users building multi-agent workflows, Graft solves specific problems:
 
 - **Edge transforms** extract only what the next agent needs (`select`, `drop`, `compact`, `filter`)
 - **Compile-time token analysis** catches budget overruns before you spend API credits
@@ -261,6 +273,15 @@ if (result.success) {
 ## Editor Support
 
 The [Graft VS Code extension](editors/vscode/) provides syntax highlighting, real-time diagnostics, hover, go-to-definition, find references, rename, completions, and code actions.
+
+## Limitations
+
+- **Non-deterministic orchestration**: The execution plan in `CLAUDE.md` is an LLM prompt. Claude Code usually follows it, but there's no guarantee of exact execution order.
+- **Claude Code dependency**: Graft generates `.claude/` structures. If Claude Code's format changes, the codegen must be updated. There is no standalone runtime.
+- **Single provider**: Only Anthropic Claude models (haiku, sonnet, opus) are supported. Multi-provider support is planned but not implemented.
+- **Memory backends**: Only JSON file storage is implemented. Other backends (database, in-memory) are specified but not built.
+
+For features that are planned but not yet implemented, see `SPECIFICATION.md` Section 12 (Future Extensions).
 
 ## Development
 

@@ -248,6 +248,16 @@ graft run pipeline.gft --input input.json --dry-run
 - `--verbose`: Print execution details
 - `--timeout <seconds>`: Subprocess timeout (default: 300)
 
+**How `graft run` works under the hood:**
+
+1. Compiles the `.gft` file (same as `graft compile`)
+2. For each node in the execution plan, spawns a `claude` CLI subprocess
+3. Each subprocess gets the agent's prompt, reads its input, and produces JSON output
+4. Edge transforms run between nodes (same JavaScript hooks as in compiled output)
+5. Conditional routing is evaluated after each node completes
+
+In `--dry-run` mode, no subprocesses are spawned — the pipeline structure is validated and execution is simulated with placeholder outputs.
+
 ### graft watch — File Watcher + Auto-Recompile
 
 ```bash
@@ -477,7 +487,36 @@ if (result.success) {
 
 ---
 
-## 12. Troubleshooting
+## 12. Execution Model and Limitations
+
+### How Graft Differs from Runtime Orchestrators
+
+Graft is a **compiler**, not a runtime orchestrator like LangGraph or CrewAI.
+
+| | Graft | LangGraph / CrewAI |
+|---|---|---|
+| Execution control | LLM follows generated instructions | Deterministic state machine |
+| Token optimization | Compile-time analysis + edge transforms | Manual / none |
+| Runtime dependency | Claude Code | Python runtime |
+| Deployment | `.claude/` files, zero runtime | Application server |
+
+**What this means in practice:**
+- The orchestration plan (`.claude/CLAUDE.md`) is a natural-language prompt. Claude Code interprets it, but there's no hard guarantee of exact execution order.
+- Edge transform hooks (`.claude/hooks/*.js`) are deterministic — they run as Node.js scripts triggered by PostToolUse events.
+- Model routing and permissions (`.claude/settings.json`) are deterministic.
+- The compile-time token analysis is deterministic.
+
+In other words: **the data pipeline is deterministic; the orchestration is best-effort**.
+
+### Known Limitations
+
+- **Non-deterministic orchestration**: Claude Code usually follows `CLAUDE.md` faithfully, but complex pipelines may require explicit re-prompting.
+- **Claude Code dependency**: If the `.claude/` structure format changes upstream, Graft's codegen must be updated.
+- **Single provider**: Only Anthropic Claude models are supported currently.
+- **Memory**: Only JSON file storage works. Database backends are specified but not implemented.
+- **Conditional edge codegen**: Router hooks evaluate conditions correctly, but the orchestration plan may need Claude Code to read the routing file manually in complex cases.
+
+## 13. Troubleshooting
 
 ### Compile error: "is not declared"
 
