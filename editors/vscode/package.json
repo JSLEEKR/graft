@@ -2,8 +2,8 @@
   "name": "graft-lang",
   "displayName": "Graft",
   "description": "Language support for Graft (.gft) files",
-  "version": "5.7.0",
-  "publisher": "graft-lang",
+  "version": "5.8.0",
+  "publisher": "jsleekr",
   "repository": {
     "type": "git",
     "url": "https://github.com/JSLEEKR/graft.git",

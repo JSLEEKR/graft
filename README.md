@@ -231,6 +231,8 @@ graft compile <file.gft> [--out-dir <dir>]   # Compile to .claude/ structure
 graft check <file.gft>                       # Parse + analyze only
 graft run <file.gft> --input <json> [--dry-run] [--verbose]  # Compile and execute
 graft init <name>                            # Scaffold a new project
+graft watch <file.gft> [--out-dir <dir>]     # Watch and recompile on changes
+graft visualize <file.gft>                   # Output pipeline DAG as Mermaid diagram
 ```
 
 ## Programmatic API

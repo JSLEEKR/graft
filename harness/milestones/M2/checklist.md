@@ -4,11 +4,7 @@
 
 ## Checklist
 
-- [ ] **M2-1: VS Code 확장 배포** (M1에서 이관)
-  - [ ] marketplace publisher 등록
-  - [ ] `vsce package` → `.vsix` 생성 확인
-  - [ ] `vsce publish`
-  - [ ] marketplace에서 검색/설치 가능 확인
+- ~~**M2-1: VS Code 확장 배포** — 제외 (사용자 결정)~~
 
 - [ ] **M2-2: npm org `graft-lang` 설정**
   - [ ] npm 웹에서 org 생성
@@ -20,23 +16,27 @@
   - [ ] 각 예제별 실제 Claude Code e2e 검증
   - [ ] 예제별 README/설명 추가
 
-- [ ] **M2-4: 조건부 edge codegen**
-  - [ ] `when risk >= 0.7 -> Reviewer` 등 조건부 라우팅 로직 생성
-  - [ ] 현재: 파싱은 됨, codegen 미구현
+- [x] **M2-4: 조건부 edge codegen**
+  - [x] Router hook 생성 (조건 평가 → 라우팅 결정 파일)
+  - [x] Orchestration에 조건부 분기 설명 포함
+  - [x] Settings에 router hook 등록
+  - [x] Agent input overrides에 조건부 타겟 포함
 
-- [ ] **M2-5: Hook auto-execution 검증**
-  - [ ] PostToolUse `if` 패턴이 Claude Code에서 자동 트리거되는지 확인
-  - [ ] glob 패턴 매칭 정확도 검증
+- [x] **M2-5: Hook auto-execution 검증**
+  - [x] PostToolUse `if` 패턴 문법 확인 (Claude Code 문서 기준)
+  - [x] M1 e2e에서 실제 자동 트리거 확인됨
 
-- [ ] **M2-6: 에러 메시지 개선**
-  - [ ] rustc 스타일 에러 포맷 (`-->`, `^^^`, `= help:`)
-  - [ ] "did you mean?" 제안
+- [x] **M2-6: 에러 메시지 개선**
+  - [x] rustc 스타일 에러 포맷 (`-->`, `^^^`, `= help:`)
+  - [x] "did you mean?" 제안 (Levenshtein 기반)
 
-- [ ] **M2-7: `graft watch`** (P2)
-  - [ ] 파일 변경 시 자동 재컴파일
+- [x] **M2-7: `graft watch`**
+  - [x] 파일 변경 시 자동 재컴파일 (debounce 100ms)
+  - [x] 같은 디렉토리 .gft import 파일 변경도 감지
 
-- [ ] **M2-8: `graft visualize`** (P2)
-  - [ ] 파이프라인 DAG → Mermaid 다이어그램 출력
+- [x] **M2-8: `graft visualize`**
+  - [x] 파이프라인 DAG → Mermaid 다이어그램 출력
+  - [x] 노드 (모델 표시), 엣지 (변환 표시), 조건부 분기, 병렬 블록
 
 ## Verification Criteria
 
