@@ -743,6 +743,215 @@ describe('generateAgent — memory support', () => {
 });
 
 // ---------------------------------------------------------------------------
+// generateOrchestration — parallel→sequential edge transforms
+// ---------------------------------------------------------------------------
+describe('generateOrchestration — parallel edge transforms', () => {
+  const parallelSource = `
+    context PullRequest(max_tokens: 3k) { diff: String }
+    node SecurityReviewer(model: sonnet, budget: 6k/3k) {
+      reads: [PullRequest]
+      produces SecurityAnalysis { vulnerabilities: List<String>, severity: String }
+    }
+    node LogicReviewer(model: sonnet, budget: 6k/3k) {
+      reads: [PullRequest]
+      produces LogicAnalysis { bugs: List<String>, correctness: String }
+    }
+    node SeniorReviewer(model: opus, budget: 10k/5k) {
+      reads: [PullRequest, SecurityAnalysis, LogicAnalysis]
+      produces FinalReview { approved: Bool, summary: String }
+    }
+    edge SecurityReviewer -> SeniorReviewer | select(vulnerabilities, severity) | compact
+    edge LogicReviewer -> SeniorReviewer | select(bugs) | compact
+    graph Review(input: PullRequest, output: FinalReview, budget: 40k) {
+      parallel { SecurityReviewer, LogicReviewer } -> SeniorReviewer -> done
+    }
+  `;
+
+  const parallelReport: TokenReport = {
+    graphName: 'Review',
+    budget: 40000,
+    bestCase: 28000,
+    worstCase: 28000,
+    nodes: [
+      { name: 'SecurityReviewer', estimatedIn: 3000, estimatedOut: 3000 },
+      { name: 'LogicReviewer', estimatedIn: 3000, estimatedOut: 3000 },
+      { name: 'SeniorReviewer', estimatedIn: 6000, estimatedOut: 5000 },
+    ],
+    warnings: [],
+  };
+
+  it('includes Agent tool dispatch instruction for parallel step', () => {
+    const program = parse(parallelSource);
+    const md = generateOrchestration(program, parallelReport);
+    expect(md).toContain('Dispatch all 2 agents concurrently');
+    expect(md).toContain('Agent tool');
+  });
+
+  it('generates edge transform instructions after parallel block', () => {
+    const program = parse(parallelSource);
+    const md = generateOrchestration(program, parallelReport);
+    expect(md).toContain('securityreviewer_to_seniorreviewer.json');
+    expect(md).toContain('logicreviewer_to_seniorreviewer.json');
+    expect(md).toContain('Edge transform');
+    expect(md).toContain('SecurityReviewer → SeniorReviewer');
+    expect(md).toContain('LogicReviewer → SeniorReviewer');
+  });
+
+  it('lists all transformed inputs for downstream node', () => {
+    const program = parse(parallelSource);
+    const md = generateOrchestration(program, parallelReport);
+    expect(md).toContain('Inputs:');
+    // Both transformed files listed
+    expect(md).toContain('securityreviewer_to_seniorreviewer.json');
+    expect(md).toContain('logicreviewer_to_seniorreviewer.json');
+  });
+
+  it('includes hook command in transform instructions', () => {
+    const program = parse(parallelSource);
+    const md = generateOrchestration(program, parallelReport);
+    expect(md).toContain('node .claude/hooks/securityreviewer-to-seniorreviewer.js');
+    expect(md).toContain('node .claude/hooks/logicreviewer-to-seniorreviewer.js');
+  });
+
+  it('uses raw output path for parallel branches without transforms', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 1k/500) {
+        reads: [Spec]
+        produces OutA { data: String }
+      }
+      node B(model: haiku, budget: 1k/500) {
+        reads: [Spec]
+        produces OutB { data: String }
+      }
+      node C(model: haiku, budget: 1k/500) {
+        reads: [OutA, OutB]
+        produces Final { result: String }
+      }
+      graph G(input: Spec, output: Final, budget: 10k) {
+        parallel { A, B } -> C -> done
+      }
+    `);
+    const report: TokenReport = {
+      graphName: 'G',
+      budget: 10000,
+      bestCase: 3000,
+      worstCase: 3000,
+      nodes: [
+        { name: 'A', estimatedIn: 500, estimatedOut: 500 },
+        { name: 'B', estimatedIn: 500, estimatedOut: 500 },
+        { name: 'C', estimatedIn: 1000, estimatedOut: 500 },
+      ],
+      warnings: [],
+    };
+    const md = generateOrchestration(program, report);
+    // No transforms → raw output paths
+    expect(md).toContain('a.json');
+    expect(md).toContain('b.json');
+    expect(md).not.toContain('Edge transform');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// generateAgent — input overrides
+// ---------------------------------------------------------------------------
+describe('generateAgent — input overrides', () => {
+  it('uses transformed path when inputOverrides provided', () => {
+    const program = parse(`
+      context PullRequest(max_tokens: 3k) { diff: String }
+      node SecurityReviewer(model: sonnet, budget: 6k/3k) {
+        reads: [PullRequest]
+        produces SecurityAnalysis { vulnerabilities: List<String> }
+      }
+      node SeniorReviewer(model: opus, budget: 10k/5k) {
+        reads: [PullRequest, SecurityAnalysis]
+        produces FinalReview { approved: Bool }
+      }
+      graph G(input: PullRequest, output: FinalReview, budget: 20k) {
+        SecurityReviewer -> SeniorReviewer -> done
+      }
+    `);
+    const overrides = new Map<string, string>();
+    overrides.set('SecurityAnalysis', '.graft/session/node_outputs/securityreviewer_to_seniorreviewer.json');
+    const md = generateAgent(program.nodes[1], new Set(), overrides);
+    expect(md).toContain('securityreviewer_to_seniorreviewer.json');
+    // PullRequest still reads from .graft/session/, but SecurityAnalysis uses override
+    expect(md).toContain('SecurityAnalysis` from `.graft/session/node_outputs/securityreviewer_to_seniorreviewer.json`');
+  });
+
+  it('uses default path when no override exists', () => {
+    const program = parse(`
+      context PullRequest(max_tokens: 3k) { diff: String }
+      node SeniorReviewer(model: opus, budget: 10k/5k) {
+        reads: [PullRequest]
+        produces FinalReview { approved: Bool }
+      }
+      graph G(input: PullRequest, output: FinalReview, budget: 20k) {
+        SeniorReviewer -> done
+      }
+    `);
+    const md = generateAgent(program.nodes[0], new Set(), new Map());
+    expect(md).toContain('from `.graft/session/`');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// generateHook — graceful no-op
+// ---------------------------------------------------------------------------
+describe('generateHook — graceful no-op', () => {
+  it('exits 0 when input file does not exist', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 2k/1k) {
+        reads: [Spec]
+        produces Out { findings: List<String>, score: Float(0..1) }
+      }
+      node B(model: haiku, budget: 1k/500) {
+        reads: [Out]
+        produces Final { result: String }
+      }
+      edge A -> B | select(findings) | compact
+      graph G(input: Spec, output: Final, budget: 5k) { A -> B -> done }
+    `);
+    const hook = generateHook(program.edges[0]);
+    expect(hook).toContain('process.exit(0)');
+    expect(hook).not.toContain('process.exit(1)');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// generateSettings — hook deduplication
+// ---------------------------------------------------------------------------
+describe('generateSettings — parallel hooks', () => {
+  it('generates separate hooks for each edge with transforms', () => {
+    const program = parse(`
+      context Spec(max_tokens: 500) { name: String }
+      node A(model: sonnet, budget: 1k/500) {
+        reads: [Spec]
+        produces OutA { data: String }
+      }
+      node B(model: sonnet, budget: 1k/500) {
+        reads: [Spec]
+        produces OutB { data: String }
+      }
+      node C(model: haiku, budget: 2k/1k) {
+        reads: [OutA, OutB]
+        produces Final { result: String }
+      }
+      edge A -> C | select(data) | compact
+      edge B -> C | select(data) | compact
+      graph G(input: Spec, output: Final, budget: 10k) {
+        parallel { A, B } -> C -> done
+      }
+    `);
+    const settings = generateSettings(program, 'test.gft');
+    expect(settings.hooks.PostToolUse).toHaveLength(2);
+    expect(settings.hooks.PostToolUse[0].hooks[0].command).toContain('a-to-c.js');
+    expect(settings.hooks.PostToolUse[1].hooks[0].command).toContain('b-to-c.js');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // generateOrchestration — memory support
 // ---------------------------------------------------------------------------
 describe('generateOrchestration — memory support', () => {
