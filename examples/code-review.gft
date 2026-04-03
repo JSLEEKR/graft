@@ -1,0 +1,71 @@
+// Adversarial Code Review Pipeline
+// Security + Performance + Logic reviewers challenge each other,
+// then a senior reviewer makes the final call.
+
+context PullRequest(max_tokens: 3k) {
+  diff: String
+  description: String
+  files_changed: List<String>
+}
+
+node SecurityReviewer(model: sonnet, budget: 6k/3k) {
+  reads: [PullRequest]
+
+  produces SecurityAnalysis {
+    vulnerabilities: List<String>
+    severity: String
+    recommendation: String
+  }
+}
+
+node LogicReviewer(model: sonnet, budget: 6k/3k) {
+  reads: [PullRequest]
+
+  produces LogicAnalysis {
+    bugs: List<String>
+    edge_cases: List<String>
+    correctness: String
+  }
+}
+
+node PerformanceReviewer(model: haiku, budget: 4k/2k) {
+  reads: [PullRequest]
+
+  produces PerfAnalysis {
+    hotspots: List<String>
+    complexity_concerns: List<String>
+    impact: String
+  }
+}
+
+node SeniorReviewer(model: opus, budget: 10k/5k) {
+  reads: [PullRequest, SecurityAnalysis, LogicAnalysis, PerfAnalysis]
+
+  produces FinalReview {
+    approved: Bool
+    blocking_issues: List<String>
+    suggestions: List<String>
+    summary: String
+  }
+}
+
+edge SecurityReviewer -> SeniorReviewer
+  | select(vulnerabilities, severity)
+  | compact
+
+edge LogicReviewer -> SeniorReviewer
+  | select(bugs, edge_cases)
+  | compact
+
+edge PerformanceReviewer -> SeniorReviewer
+  | select(hotspots, complexity_concerns)
+  | compact
+
+graph AdversarialReview(input: PullRequest, output: FinalReview, budget: 40k) {
+  parallel {
+    SecurityReviewer
+    LogicReviewer
+    PerformanceReviewer
+  }
+  -> SeniorReviewer -> done
+}

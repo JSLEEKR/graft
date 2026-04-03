@@ -1,0 +1,173 @@
+// Adversarial Debate Pipeline
+// 4 agents independently analyze → cross-critique → converge → implement
+// The same pattern that built the Graft compiler, now expressed IN Graft.
+
+context Task(max_tokens: 2k) {
+  description: String
+  codebase_context: String
+  existing_code: Optional<String>
+}
+
+memory DebateHistory(max_tokens: 4k, storage: file) {
+  locked_decisions: List<String>
+  failed_approaches: List<String>
+  iteration_count: Int
+}
+
+// ── Phase 1: Independent Analysis (4 agents parallel) ──
+
+node Architect(model: opus, budget: 10k/5k) {
+  reads: [Task, DebateHistory]
+
+  produces ArchitectProposal {
+    approach: String
+    code: String
+    tradeoffs: String
+    convergence_score: Int
+  }
+}
+
+node Pragmatist(model: sonnet, budget: 8k/4k) {
+  reads: [Task, DebateHistory]
+
+  produces PragmatistProposal {
+    approach: String
+    code: String
+    tradeoffs: String
+    convergence_score: Int
+  }
+}
+
+node Skeptic(model: sonnet, budget: 8k/4k) {
+  reads: [Task, DebateHistory]
+
+  produces SkepticProposal {
+    approach: String
+    code: String
+    edge_cases: List<String>
+    failure_modes: List<String>
+    convergence_score: Int
+  }
+}
+
+node Specialist(model: sonnet, budget: 8k/4k) {
+  reads: [Task, DebateHistory]
+
+  produces SpecialistProposal {
+    approach: String
+    code: String
+    domain_insights: List<String>
+    convergence_score: Int
+  }
+}
+
+// ── Phase 2: Cross-Critique ──
+// Each agent sees all proposals, the highest convergence scorer
+// must include a self-rebuttal (forced dissent).
+
+node Critic(model: opus, budget: 12k/6k) {
+  reads: [
+    ArchitectProposal,
+    PragmatistProposal,
+    SkepticProposal,
+    SpecialistProposal
+  ]
+
+  produces Critique {
+    strongest_approach: String
+    weaknesses_found: List<String>
+    forced_dissent: String
+    revised_recommendation: String
+  }
+}
+
+// ── Phase 3: Convergence ──
+
+node Converger(model: opus, budget: 10k/5k) {
+  reads: [
+    ArchitectProposal,
+    PragmatistProposal,
+    SkepticProposal,
+    SpecialistProposal,
+    Critique
+  ]
+
+  produces ConvergedDesign {
+    adopted_approach: String
+    final_code: String
+    test_plan: String
+    locked_decisions: List<String>
+    dissent_rulings: List<String>
+  }
+}
+
+// ── Phase 4: Implementation ──
+
+node Implementer(model: sonnet, budget: 15k/8k) {
+  reads: [ConvergedDesign, Task]
+  tools: [file_read, file_write, terminal]
+  on_failure: retry(2)
+
+  produces Implementation {
+    files_changed: List<String>
+    tests_added: List<String>
+    test_results: String
+  }
+}
+
+// ── Phase 5: Review ──
+
+node Reviewer(model: opus, budget: 10k/5k) {
+  reads: [ConvergedDesign, Implementation]
+
+  produces ReviewResult {
+    verdict: String
+    issues: List<String>
+    approved: Bool
+  }
+}
+
+// ── Edges: data flow between phases ──
+
+edge Architect -> Critic
+  | select(approach, tradeoffs, convergence_score)
+
+edge Pragmatist -> Critic
+  | select(approach, tradeoffs, convergence_score)
+
+edge Skeptic -> Critic
+  | select(approach, edge_cases, failure_modes, convergence_score)
+
+edge Specialist -> Critic
+  | select(approach, domain_insights, convergence_score)
+
+edge Critic -> Converger
+  | compact
+
+edge Converger -> Implementer
+  | select(adopted_approach, final_code, test_plan)
+
+edge Implementer -> Reviewer
+  | compact
+
+// Conditional: if review fails, route back for retry
+edge Reviewer -> {
+  when approved == false -> Implementer
+  else -> Converger
+}
+
+// ── Orchestration ──
+
+graph AdversarialDebate(input: Task, output: ReviewResult, budget: 120k) {
+  parallel {
+    Architect
+    Pragmatist
+    Skeptic
+    Specialist
+  }
+  -> Critic
+  -> Converger
+  -> Implementer
+  -> Reviewer
+  -> done
+}

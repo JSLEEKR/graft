@@ -1,0 +1,51 @@
+// Lightweight Adversarial Debate (2 agents)
+// Good for focused tasks where full 4-agent debate is overkill.
+// Pragmatist proposes, Skeptic challenges, Converger decides.
+
+context Task(max_tokens: 1k) {
+  description: String
+  constraints: Optional<String>
+}
+
+node Pragmatist(model: sonnet, budget: 6k/3k) {
+  reads: [Task]
+
+  produces QuickProposal {
+    approach: String
+    code: String
+    rationale: String
+  }
+}
+
+node Skeptic(model: sonnet, budget: 6k/3k) {
+  reads: [Task, QuickProposal]
+
+  produces Challenge {
+    risks: List<String>
+    alternatives: List<String>
+    verdict: String
+  }
+}
+
+node Converger(model: opus, budget: 8k/4k) {
+  reads: [QuickProposal, Challenge, Task]
+
+  produces FinalDesign {
+    approach: String
+    code: String
+    risk_mitigations: List<String>
+  }
+}
+
+edge Pragmatist -> Skeptic
+  | select(approach, code, rationale)
+
+edge Skeptic -> Converger
+  | compact
+
+edge Pragmatist -> Converger
+  | select(approach, code)
+
+graph DebateLite(input: Task, output: FinalDesign, budget: 30k) {
+  Pragmatist -> Skeptic -> Converger -> done
+}
