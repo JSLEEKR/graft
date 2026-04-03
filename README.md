@@ -8,7 +8,9 @@
 
 Graft is a graph-native language that compiles `.gft` files into [Claude Code](https://docs.anthropic.com/en/docs/claude-code) harness structures — agents, hooks, orchestration, and settings — with compile-time token budget analysis.
 
-## 10-Minute Getting Started
+**[Full User Guide](docs/guide.md)** | **[Examples](examples/)**
+
+## Quick Start
 
 ### 1. Install
 
@@ -24,8 +26,6 @@ Requires Node.js 20+.
 graft init my-pipeline
 cd my-pipeline
 ```
-
-This creates `pipeline.gft` — a simple two-node pipeline ready to compile.
 
 ### 3. Compile
 
@@ -64,7 +64,7 @@ claude
 
 Then tell Claude Code:
 
-> `.claude/CLAUDE.md`의 실행 계획을 따라서 파이프라인을 실행해줘. 입력은 `.graft/session/input.json`에 있어.
+> Follow the execution plan in `.claude/CLAUDE.md`. The input is at `.graft/session/input.json`.
 
 Claude Code reads the generated `.claude/` structure and runs the pipeline automatically.
 
@@ -74,7 +74,7 @@ Claude Code reads the generated `.claude/` structure and runs the pipeline autom
 cat .graft/session/node_outputs/reviewer.json
 ```
 
-That's it. You have a working multi-agent pipeline.
+That's it. You have a working multi-agent pipeline. See the [full guide](docs/guide.md) for details on writing `.gft` files, edge transforms, conditional routing, memory, and more.
 
 ---
 
@@ -175,6 +175,16 @@ edge Analyzer -> Reviewer
   | compact
 ```
 
+### Conditional Routing
+
+```graft
+edge RiskAssessor -> {
+  when risk_score > 0.7 -> DetailedReviewer
+  when risk_score > 0.3 -> StandardReviewer
+  else -> AutoApprove
+}
+```
+
 ### Flow Control
 
 ```graft
@@ -185,7 +195,7 @@ graph Pipeline(input: TaskSpec, output: Report, budget: 35k) {
 }
 ```
 
-Also supports: `foreach`, `let` variables with expressions, parameterized sub-graphs, conditional edge routing.
+Also supports: `foreach`, `let` variables with expressions, parameterized sub-graphs.
 
 ### Imports and Memory
 
@@ -258,7 +268,7 @@ The [Graft VS Code extension](editors/vscode/) provides syntax highlighting, rea
 git clone https://github.com/JSLEEKR/graft.git
 cd graft && npm install
 npm run build         # Compile TypeScript
-npm test              # Run all 1,574 tests
+npm test              # Run all 1,614 tests
 ```
 
 ## License
