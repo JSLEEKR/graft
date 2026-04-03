@@ -350,6 +350,47 @@ graph G(input: Foo, output: Out, budget: 2k) { N -> done }
     expect(result.errors.some(e => e.message.includes('not found'))).toBe(true);
   });
 
+  it('compiles examples/code-review.gft with parallel pipeline', () => {
+    const codereviewPath = path.resolve(__dirname, '../examples/code-review.gft');
+    const source = fs.readFileSync(codereviewPath, 'utf-8');
+    const result = compile(source, codereviewPath);
+    expect(result.success).toBe(true);
+    expect(result.errors).toEqual([]);
+    expect(result.report).toBeDefined();
+    expect(result.program!.nodes).toHaveLength(4);
+    expect(result.program!.edges).toHaveLength(3);
+
+    // File set: 4 agents + 3 hooks + CLAUDE.md + settings.json + 2 scaffold = 10
+    expect(result.files).toBeDefined();
+    const filePaths = result.files!.map(f => f.path);
+    expect(filePaths).toContain('.claude/agents/securityreviewer.md');
+    expect(filePaths).toContain('.claude/agents/logicreviewer.md');
+    expect(filePaths).toContain('.claude/agents/performancereviewer.md');
+    expect(filePaths).toContain('.claude/agents/seniorreviewer.md');
+    expect(filePaths).toContain('.claude/hooks/securityreviewer-to-seniorreviewer.js');
+    expect(filePaths).toContain('.claude/hooks/logicreviewer-to-seniorreviewer.js');
+    expect(filePaths).toContain('.claude/hooks/performancereviewer-to-seniorreviewer.js');
+
+    // CLAUDE.md should have parallel dispatch + edge transforms
+    const claudeMd = result.files!.find(f => f.path === '.claude/CLAUDE.md');
+    expect(claudeMd!.content).toContain('Dispatch all 3 agents concurrently');
+    expect(claudeMd!.content).toContain('Agent tool');
+    expect(claudeMd!.content).toContain('securityreviewer_to_seniorreviewer.json');
+    expect(claudeMd!.content).toContain('Edge transform');
+
+    // SeniorReviewer agent should have exact transformed input paths
+    const senior = result.files!.find(f => f.path === '.claude/agents/seniorreviewer.md');
+    expect(senior!.content).toContain('securityreviewer_to_seniorreviewer.json');
+    expect(senior!.content).toContain('logicreviewer_to_seniorreviewer.json');
+    expect(senior!.content).toContain('performancereviewer_to_seniorreviewer.json');
+    expect(senior!.content).toContain('model: claude-opus-4-20250514');
+
+    // Hooks should use graceful no-op
+    const hook = result.files!.find(f => f.path === '.claude/hooks/securityreviewer-to-seniorreviewer.js');
+    expect(hook!.content).toContain('process.exit(0)');
+    expect(hook!.content).not.toContain('process.exit(1)');
+  });
+
   it('compiles examples/chatbot.gft from disk', () => {
     const chatbotPath = path.resolve(__dirname, '../examples/chatbot.gft');
     const source = fs.readFileSync(chatbotPath, 'utf-8');
