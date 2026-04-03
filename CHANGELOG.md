@@ -1,5 +1,20 @@
 # Changelog
 
+## v5.3.0 (2026-04-03)
+
+### Added
+- **Parallel codegen tests**: 9 new tests covering parallel→sequential edge transforms, Agent tool dispatch, hook graceful no-op, agent input overrides
+- **code-review.gft integration test**: full 4-agent parallel pipeline e2e compilation with all assertions
+- **Hook entry merging**: multiple edge transform hooks now share one PostToolUse "Write" matcher entry instead of separate entries
+
+### Fixed
+- **Hook schema**: `if` field verified against Claude Code spec (glob pattern syntax)
+- **settings.json cleanliness**: 3 separate "Write" entries → 1 entry with 3 hooks
+
+### Stats
+- 1,344 tests (10 new), all passing
+- code-review.gft + chatbot.gft + hello.gft all compile correctly
+
 ## v5.2.0 (2026-04-03)
 
 ### Fixed
