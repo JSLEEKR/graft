@@ -34,3 +34,4 @@ build/
 *.o
 *.exe
 *.tsbuildinfo
+*.vsix
