@@ -2,7 +2,7 @@
 import { Command } from 'commander';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { compile, compileAndWrite } from './compiler.js';
+import { compile, compileAndWrite, compileToProgram } from './compiler.js';
 import { VERSION } from './version.js';
 import { formatTokenReport } from './format.js';
 
@@ -189,6 +189,140 @@ graph ${safeName}(input: Input, output: Output, budget: 10k) {
     console.log(`  # Open in Claude Code to run the pipeline`);
     console.log('');
   });
+
+program
+  .command('watch')
+  .description('Watch .gft file and recompile on changes')
+  .argument('<file>', '.gft source file')
+  .option('--out-dir <dir>', 'output directory', '.')
+  .action((file: string, opts: { outDir: string }) => {
+    const resolved = path.resolve(file);
+    if (!fs.existsSync(resolved)) {
+      console.error(`Error: file not found: ${resolved}`);
+      process.exit(1);
+    }
+
+    function doCompile() {
+      const source = fs.readFileSync(resolved, 'utf-8');
+      try {
+        const result = compileAndWrite(source, resolved, path.resolve(opts.outDir));
+        if (!result.success) {
+          console.error('\n✗ Compilation failed:\n');
+          for (const err of result.errors) {
+            console.error(err.format(source, file));
+            console.error('');
+          }
+        } else {
+          const timestamp = new Date().toLocaleTimeString();
+          const fileCount = result.files?.length || 0;
+          console.log(`[${timestamp}] ✓ Compiled ${file} → ${fileCount} files`);
+          for (const w of result.warnings) {
+            console.log(`  ⚠ ${w.message}`);
+          }
+        }
+      } catch (e) {
+        console.error(`Error: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+
+    // Initial compile
+    doCompile();
+    console.log(`\nWatching ${file} for changes... (Ctrl+C to stop)\n`);
+
+    // Watch for changes
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    fs.watch(resolved, () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(doCompile, 100);
+    });
+
+    // Also watch imported files in the same directory
+    const dir = path.dirname(resolved);
+    try {
+      fs.watch(dir, { recursive: false }, (_, filename) => {
+        if (filename && filename.endsWith('.gft') && filename !== path.basename(resolved)) {
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(doCompile, 100);
+        }
+      });
+    } catch {
+      // Ignore if directory watch fails
+    }
+  });
+
+program
+  .command('visualize')
+  .description('Output pipeline DAG as a Mermaid diagram')
+  .argument('<file>', '.gft source file')
+  .option('--format <fmt>', 'output format: mermaid', 'mermaid')
+  .action((file: string) => {
+    const source = readSource(file);
+    const result = compileToProgram(source, path.resolve(file));
+
+    if (!result.success || !result.program) {
+      console.error('\n✗ Compilation failed:\n');
+      for (const err of result.errors) {
+        console.error(err.format(source, file));
+        console.error('');
+      }
+      process.exit(1);
+    }
+
+    const { program: prog } = result;
+    const lines: string[] = ['graph TD'];
+
+    // Nodes
+    for (const node of prog.nodes) {
+      const model = node.model;
+      lines.push(`    ${node.name}["${node.name}<br/><small>${model}</small>"]`);
+    }
+
+    // Direct edges
+    for (const edge of prog.edges) {
+      if (edge.target.kind === 'direct') {
+        const label = edge.transforms.length > 0
+          ? edge.transforms.map(t => t.type).join(' → ')
+          : '';
+        if (label) {
+          lines.push(`    ${edge.source} -->|${label}| ${edge.target.node}`);
+        } else {
+          lines.push(`    ${edge.source} --> ${edge.target.node}`);
+        }
+      } else if (edge.target.kind === 'conditional') {
+        for (const branch of edge.target.branches) {
+          const target = branch.target === 'done' ? 'done((done))' : branch.target;
+          const label = branch.condition
+            ? formatExprForMermaid(branch.condition)
+            : 'else';
+          lines.push(`    ${edge.source} -->|${label}| ${target}`);
+        }
+      }
+    }
+
+    // Graph flow (parallel blocks)
+    if (prog.graphs[0]) {
+      for (const step of prog.graphs[0].flow) {
+        if (step.kind === 'parallel') {
+          lines.push(`    subgraph parallel["parallel"]`);
+          for (const b of step.branches) {
+            lines.push(`        ${b}`);
+          }
+          lines.push(`    end`);
+        }
+      }
+    }
+
+    console.log(lines.join('\n'));
+  });
+
+function formatExprForMermaid(expr: import('./parser/ast.js').Expr): string {
+  if (expr.kind === 'binary') {
+    const left = expr.left.kind === 'field_access' ? expr.left.segments[0] : '?';
+    const right = expr.right.kind === 'literal' ? String(expr.right.value) : '?';
+    return `${left} ${expr.op} ${right}`;
+  }
+  return '?';
+}
 
 function readSource(file: string): string {
   const resolved = path.resolve(file);
