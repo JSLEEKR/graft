@@ -49,5 +49,9 @@ export function formatExpr(expr: Expr): string {
       return '"' + expr.parts.map(p => p.kind === 'text' ? p.value : `\${${formatExpr(p.value)}}`).join('') + '"';
     case 'conditional':
       return `if ${formatExpr(expr.condition)} then ${formatExpr(expr.consequent)} else ${formatExpr(expr.alternate)}`;
+    default: {
+      const _exhaustive: never = expr;
+      return _exhaustive;
+    }
   }
 }

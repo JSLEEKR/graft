@@ -216,6 +216,10 @@ export class TypeChecker {
         if (consequentType === alternateType) return consequentType;
         return 'unknown';
       }
+      default: {
+        const _exhaustive: never = expr;
+        return _exhaustive;
+      }
     }
   }
 

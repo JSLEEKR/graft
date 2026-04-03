@@ -65,8 +65,8 @@ export function evaluateExpr(expr: Expr, outputs: Map<string, unknown>, variable
         case '<': return Number(left) < Number(right);
         case '>=': return Number(left) >= Number(right);
         case '<=': return Number(left) <= Number(right);
-        case '==': return left == right;
-        case '!=': return left != right;
+        case '==': return left === right;
+        case '!=': return left !== right;
       }
       break;
     }
@@ -114,6 +114,10 @@ export function evaluateExpr(expr: Expr, outputs: Map<string, unknown>, variable
       return cond
         ? evaluateExpr(expr.consequent, outputs, variables, warnings)
         : evaluateExpr(expr.alternate, outputs, variables, warnings);
+    }
+    default: {
+      const _exhaustive: never = expr;
+      return _exhaustive;
     }
   }
 }

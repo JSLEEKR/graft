@@ -150,10 +150,11 @@ describe('Regression: existing patterns unchanged', () => {
     expect(!!evaluateExpr(cond, new Map(Object.entries({ severity: 'low' } as Record<string, unknown>)))).toBe(false);
   });
 
-  it('unified equality: routing and transform agree on numeric strings', () => {
+  it('unified equality: routing and transform agree on numeric strings (strict: no cross-type match)', () => {
     const cond = mkCond('status', '==', 200);
-    expect(!!evaluateExpr(cond, new Map(Object.entries({ status: '200' } as Record<string, unknown>)))).toBe(true);
-    expect(!!evaluateExpr(cond, new Map(Object.entries({ status: '200' } as Record<string, unknown>)))).toBe(true);
+    // With strict equality (v5.0), string "200" !== number 200
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ status: '200' } as Record<string, unknown>)))).toBe(false);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ status: 200 } as Record<string, unknown>)))).toBe(true);
   });
 });
 

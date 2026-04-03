@@ -94,6 +94,10 @@ export function checkExprSources(
       checkExprSources(expr.consequent, seenNodes, declaredVars, graphName, errors);
       checkExprSources(expr.alternate, seenNodes, declaredVars, graphName, errors);
       break;
+    default: {
+      const _exhaustive: never = expr;
+      throw new Error(`Unhandled expression kind: ${(_exhaustive as { kind: string }).kind}`);
+    }
   }
 }
 

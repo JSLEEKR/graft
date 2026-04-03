@@ -92,16 +92,16 @@ describe('Graph call return values', () => {
 // ── Equality semantics unification ───────────────────────────────
 
 describe('Equality semantics unification', () => {
-  it('evaluateExpr uses loose equality for == (string "200" == number 200)', () => {
+  it('evaluateExpr uses strict equality for == (string "200" !== number 200)', () => {
     const cond = mkCond('status', '==', 200);
-    // With loose equality, string "200" should == number 200
-    expect(!!evaluateExpr(cond, new Map(Object.entries({ status: '200' } as Record<string, unknown>)))).toBe(true);
+    // With strict equality (v5.0), string "200" !== number 200
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ status: '200' } as Record<string, unknown>)))).toBe(false);
   });
 
-  it('evaluateExpr uses loose equality for != (different types)', () => {
+  it('evaluateExpr uses strict equality for != (different types)', () => {
     const cond = mkCond('status', '!=', 200);
-    // "200" loosely equals 200, so != should be false
-    expect(!!evaluateExpr(cond, new Map(Object.entries({ status: '200' } as Record<string, unknown>)))).toBe(false);
+    // "200" strictly !== 200, so != should be true
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ status: '200' } as Record<string, unknown>)))).toBe(true);
   });
 
   it('evaluateExpr strict cases still work', () => {

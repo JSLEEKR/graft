@@ -116,14 +116,14 @@ describe('Evaluate: comparison operators', () => {
     expect(evaluateExpr(mkBinary('!=', 5, 6), new Map())).toBe(true);
   });
 
-  it('loose equality: "5" == 5', () => {
+  it('strict equality: "5" !== 5 (v5.0)', () => {
     const expr: Expr = {
       kind: 'binary', op: '==' as any,
       left: { kind: 'literal', value: '5', location: loc },
       right: { kind: 'literal', value: 5, location: loc },
       location: loc,
     };
-    expect(evaluateExpr(expr, new Map())).toBe(true);
+    expect(evaluateExpr(expr, new Map())).toBe(false);
   });
 });
 
