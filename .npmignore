@@ -9,3 +9,5 @@ tsconfig.json
 vitest.config.ts
 .claude/
 .graft/
+.github/
+*.js.map
