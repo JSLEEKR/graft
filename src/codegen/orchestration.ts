@@ -96,6 +96,7 @@ function generateSteps(
   let text = '';
   let stepNum = startStep;
   let prev = prevNode;
+  let prevParallelBranches: string[] = [];
 
   for (const step of flow) {
     switch (step.kind) {
@@ -106,12 +107,31 @@ function generateSteps(
         let inputSource = '';
         let transformNote = '';
         if (prev) {
+          // Single predecessor (sequential)
           const edgeInfo = edgeMap.get(`${prev}->${step.name}`);
           if (edgeInfo) {
             inputSource = `\n- Input: \`.graft/session/node_outputs/${prev.toLowerCase()}_to_${lowerName}.json\``;
             transformNote = `\n- **Edge transform**: After ${prev} completes, transform its output: ${describeTransforms(edgeInfo.transforms)}. Save to \`.graft/session/node_outputs/${prev.toLowerCase()}_to_${lowerName}.json\` before starting ${step.name}.`;
           } else {
             inputSource = `\n- Input: \`.graft/session/node_outputs/${prev.toLowerCase()}.json\``;
+          }
+        } else if (prevParallelBranches.length > 0) {
+          // Multiple predecessors (after parallel block)
+          const inputs: string[] = [];
+          const transforms: string[] = [];
+          for (const branch of prevParallelBranches) {
+            const edgeInfo = edgeMap.get(`${branch}->${step.name}`);
+            if (edgeInfo) {
+              const transformedPath = `.graft/session/node_outputs/${branch.toLowerCase()}_to_${lowerName}.json`;
+              inputs.push(`\`${transformedPath}\``);
+              transforms.push(`- **Edge transform** (${branch} → ${step.name}): ${describeTransforms(edgeInfo.transforms)}. Run: \`node .claude/hooks/${branch.toLowerCase()}-to-${lowerName}.js\` or manually apply. Output: \`${transformedPath}\``);
+            } else {
+              inputs.push(`\`.graft/session/node_outputs/${branch.toLowerCase()}.json\``);
+            }
+          }
+          inputSource = `\n- Inputs: ${inputs.join(', ')}`;
+          if (transforms.length > 0) {
+            transformNote = '\n' + transforms.join('\n');
           }
         }
 
@@ -137,6 +157,7 @@ function generateSteps(
 - Output: \`.graft/session/node_outputs/${lowerName}.json\`
 `;
         prev = step.name;
+        prevParallelBranches = [];
         stepNum++;
         break;
       }
@@ -145,7 +166,8 @@ function generateSteps(
         const branchList = step.branches.join(', ');
         text += `
 ### Step ${stepNum}: [parallel] ${branchList}
-- Run concurrently, wait for all to complete
+- **Dispatch all ${step.branches.length} agents concurrently** using the Agent tool in a single message
+- Wait for all to complete before proceeding
 `;
         for (const branchName of step.branches) {
           const lowerName = branchName.toLowerCase();
@@ -168,7 +190,8 @@ function generateSteps(
         }
         text += `- Completion: all ${step.branches.length} \`===NODE_COMPLETE===\` signals received
 `;
-        // After parallel, prev is ambiguous; set to null
+        // Track parallel branches for downstream edge resolution
+        prevParallelBranches = [...step.branches];
         prev = null;
         stepNum++;
         break;

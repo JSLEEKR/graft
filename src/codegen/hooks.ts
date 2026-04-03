@@ -21,8 +21,9 @@ const OUTPUT = path.resolve('.graft/session/node_outputs/${source}_to_${target}.
 const TOKEN_LOG = path.resolve('.graft/token_log.txt');
 
 if (!fs.existsSync(INPUT)) {
-  console.error('[Graft] ERROR: ${edge.source} output not found at ' + INPUT);
-  process.exit(1);
+  // Graceful no-op: this hook fires on ALL Write calls,
+  // so the source output may not exist yet (different agent writing).
+  process.exit(0);
 }
 
 const raw = fs.readFileSync(INPUT, 'utf-8');

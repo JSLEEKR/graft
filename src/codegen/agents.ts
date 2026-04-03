@@ -12,7 +12,7 @@ const TOOL_MAP: Record<string, string[]> = {
   browser: ['Bash'],
 };
 
-export function generateAgent(node: NodeDecl, memoryNames: Set<string> = new Set()): string {
+export function generateAgent(node: NodeDecl, memoryNames: Set<string> = new Set(), inputOverrides: Map<string, string> = new Map()): string {
   const name = node.name.toLowerCase();
   const resolvedModel = MODEL_MAP[node.model] || node.model;
   const tools = resolveTools(node.tools);
@@ -31,7 +31,7 @@ model: ${resolvedModel}${toolsLine}
 # ${node.name} Agent
 
 ## Context Loading
-${formatReads(node, memoryNames)}
+${formatReads(node, memoryNames, inputOverrides)}
 ${writesSection}## Output Contract
 Produce JSON output matching this schema:
 \`\`\`json
@@ -63,13 +63,18 @@ function resolveTools(tools: string[]): string[] {
   return [...resolved];
 }
 
-function formatReads(node: NodeDecl, memoryNames: Set<string>): string {
+function formatReads(node: NodeDecl, memoryNames: Set<string>, inputOverrides: Map<string, string> = new Map()): string {
   if (node.reads.length === 0) return 'No external context required.';
   return node.reads.map(ref => {
     const isMemory = memoryNames.has(ref.context);
     const fieldLabel = ref.field
       ? (ref.field.length === 1 ? `.${ref.field[0]}` : `.{${ref.field.join(', ')}}`)
       : '';
+    // Check if there's an edge-transformed input override for this context
+    const override = inputOverrides.get(ref.context);
+    if (override) {
+      return `- Load \`${ref.context}${fieldLabel}\` from \`${override}\``;
+    }
     const dir = isMemory ? `.graft/memory/${ref.context.toLowerCase()}.json` : '.graft/session/';
     return `- Load \`${ref.context}${fieldLabel}\` from \`${dir}\``;
   }).join('\n');
