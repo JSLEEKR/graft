@@ -1,26 +1,28 @@
 # Graft — Productization Harness
 
 > v1.0-v5.0: Compiler built via adversarial debate (archived in `harness/tasks/`).
-> v6.0+: Product-focused Ship-Verify-Iterate process.
+> v5.1-v5.8+: Product-focused Ship-Verify-Iterate process.
 
 ## Project Info
 
 - **Goal**: Graft — graph-native language for AI agent harness engineering
 - **Language**: TypeScript (hand-written recursive descent parser)
-- **Current Version**: v5.0.0 (quality + unification release)
-- **Phase**: Productization (M1: install & run)
+- **Current Version**: v5.8.0
+- **Phase**: Productization (M2: real-world validation)
 - **Roadmap**: `docs/superpowers/specs/2026-04-03-graft-v6-productization-roadmap.md`
 - **Milestone Tracking**: `harness/milestones/M{N}/checklist.md`
+- **User Guide**: `docs/guide.md`
 - **Dev Notes**: `C:\Users\user\OneDrive\Documents\GraftDevNotes\graft-v1-development-notes.md`
 - **Blog**: `JSLEEKR/jslee-homepage` → `content/blog/`
 
 ## Process: Ship-Verify-Iterate
 
 ```
-Ship (구현)  →  Verify (검증)  →  Iterate (개선)
-   │                │                  │
-   TDD            실제 시나리오       마찰 제거
-   단일 에이전트    "10분 안에 되는가?"  발견된 문제 수정
+Ship (implement) → Verify (validate) → Iterate (improve)
+   │                    │                    │
+   TDD              Real scenarios       Remove friction
+   Single agent     "Does it work        Fix discovered
+                     in 10 minutes?"      issues
 ```
 
 ### When to use multi-agent debate (legacy process)
@@ -34,17 +36,17 @@ For everything else (features, fixes, docs, deployment): direct implementation w
 
 Legacy debate harness docs preserved in `harness/tasks/` and `harness/common_memory.md`.
 
-## Current Milestone: M1 — "설치하고 돌려볼 수 있다"
+## Current Milestone: M2 — "Prove it works in real scenarios"
 
-Priority order:
-1. **M1-2**: Claude Code 출력 검증 (compile 결과가 실제로 동작하는가?)
-2. **M1-4**: e2e 데모 기록
-3. **M1-1**: npm publish
-4. **M1-3**: README 재작성 (10분 Getting Started)
-5. **M1-5**: VS Code 확장 배포
-6. **M1-6**: `graft init` scaffolding
+M1 ("You can install it and run it") completed 2026-04-03.
 
-See `harness/milestones/M1/checklist.md` for details.
+Remaining M2 items:
+1. **M2-2**: npm org `graft-lang` setup
+2. **M2-3**: Real-world example e2e verification
+
+Completed: M2-4 (conditional codegen), M2-5 (hook verification), M2-6 (error messages), M2-7 (watch), M2-8 (visualize).
+
+See `harness/milestones/M2/checklist.md` for details.
 
 ## Architecture
 
@@ -76,7 +78,7 @@ LSP: graft-lsp (hover, completions, go-to-def, rename, references, code actions)
 ## Conventions
 
 - Tests: `vitest`, files in `tests/`, named `v{XX}-r{N}.test.ts` for versioned features
-- Commits: `feat(M1): description` for milestone work, `fix: description` for fixes
+- Commits: `feat(M2): description` for milestone work, `fix: description` for fixes
 - No barrels except `src/types.ts`
 - Exhaustive `never` defaults on all Expr switch dispatchers
 - Strict equality (`===`/`!==`) in runtime
