@@ -1,0 +1,7 @@
+{
+  "verdict": "<string>",
+  "issues": [
+    "<string>"
+  ],
+  "approved": false
+}

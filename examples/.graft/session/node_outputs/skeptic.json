@@ -1,0 +1,11 @@
+{
+  "approach": "<string>",
+  "code": "<string>",
+  "edge_cases": [
+    "<string>"
+  ],
+  "failure_modes": [
+    "<string>"
+  ],
+  "convergence_score": 0
+}

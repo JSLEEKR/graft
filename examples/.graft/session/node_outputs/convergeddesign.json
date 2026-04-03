@@ -1,0 +1,11 @@
+{
+  "adopted_approach": "<string>",
+  "final_code": "<string>",
+  "test_plan": "<string>",
+  "locked_decisions": [
+    "<string>"
+  ],
+  "dissent_rulings": [
+    "<string>"
+  ]
+}
