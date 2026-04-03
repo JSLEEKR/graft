@@ -1471,7 +1471,7 @@ describe('TypeChecker — expressions', () => {
       edges: [{
         source: 'A',
         target: { kind: 'conditional', branches: [
-          { condition: { left: { kind: 'field_access', segments: ['label'], location: loc }, op: '>=', value: 'high' }, target: 'B' },
+          { condition: { kind: 'binary', op: '>=', left: { kind: 'field_access', segments: ['label'], location: loc }, right: { kind: 'literal', value: 'high', location: loc }, location: loc }, target: 'B' },
           { condition: undefined, target: 'B' },
         ] },
         transforms: [],

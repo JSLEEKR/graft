@@ -10,7 +10,7 @@ import {
 } from '../src/lsp/features/index.js';
 import { evaluateCondition } from '../src/runtime/flow-runner.js';
 import { ProgramIndex } from '../src/program-index.js';
-import type { Condition } from '../src/parser/ast.js';
+import type { Expr } from '../src/parser/ast.js';
 
 // Helper: minimal valid program source with two nodes and a graph
 function fullSource(extras = ''): string {
@@ -97,9 +97,9 @@ describe('v3.3-R4: Code actions integration', () => {
 // ========================================
 // 2. Conditional Edge Runtime Integration
 // ========================================
-describe('v3.3-R4: Conditional edge runtime integration', () => {
+describe('v3.3-R4: Expral edge runtime integration', () => {
   it('evaluateCondition with string equality works through the runtime path', () => {
-    const condition: Condition = mkCond('status', '==', 'approved');
+    const condition: Expr = mkCond('status', '==', 'approved');
     expect(evaluateCondition(condition, { status: 'approved' })).toBe(true);
     expect(evaluateCondition(condition, { status: 'rejected' })).toBe(false);
   });
@@ -272,7 +272,7 @@ describe('v3.3-R4: Cross-feature interactions', () => {
     expect(condMismatch).toBeUndefined();
 
     // Runtime: evaluateCondition routes correctly
-    const condition: Condition = mkCond('score', '>=', 8);
+    const condition: Expr = mkCond('score', '>=', 8);
     expect(evaluateCondition(condition, { score: 10, label: 'good' })).toBe(true);
     expect(evaluateCondition(condition, { score: 3, label: 'low' })).toBe(false);
   });

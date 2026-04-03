@@ -1,6 +1,7 @@
-import { Program, FlowNode, NodeDecl, Expr } from '../parser/ast.js';
+import { Program, FlowNode, NodeDecl } from '../parser/ast.js';
 import { TokenReport, NodeTokenReport } from '../analyzer/estimator.js';
 import { ProgramIndex } from '../program-index.js';
+import { formatExpr } from '../format.js';
 
 export function generateOrchestration(program: Program, report: TokenReport): string {
   const graph = program.graphs[0];
@@ -185,23 +186,3 @@ function generateSteps(
   return { text, nextStep: stepNum, lastNode: prev };
 }
 
-function formatExpr(expr: Expr): string {
-  switch (expr.kind) {
-    case 'literal':
-      return typeof expr.value === 'string' ? `"${expr.value}"` : String(expr.value);
-    case 'field_access':
-      return expr.segments.join('.');
-    case 'binary':
-      return `${formatExpr(expr.left)} ${expr.op} ${formatExpr(expr.right)}`;
-    case 'unary':
-      return `${expr.op}${formatExpr(expr.operand)}`;
-    case 'group':
-      return `(${formatExpr(expr.inner)})`;
-    case 'call':
-      return `${expr.name}(${expr.args.map(formatExpr).join(', ')})`;
-    case 'template':
-      return '"' + expr.parts.map(p => p.kind === 'text' ? p.value : `\${${formatExpr(p.value)}}`).join('') + '"';
-    case 'conditional':
-      return `if ${formatExpr(expr.condition)} then ${formatExpr(expr.consequent)} else ${formatExpr(expr.alternate)}`;
-  }
-}

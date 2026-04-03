@@ -1,4 +1,4 @@
-import { Program, TypeExpr, conditionFieldName, Expr, FlowNode, GraphDecl, BUILTIN_FUNCTIONS } from '../parser/ast.js';
+import { Program, TypeExpr, Expr, FlowNode, GraphDecl, BUILTIN_FUNCTIONS } from '../parser/ast.js';
 import { GraftError } from '../errors/diagnostics.js';
 import { ProgramIndex } from '../program-index.js';
 
@@ -98,11 +98,19 @@ export class TypeChecker {
 
       for (const branch of edge.target.branches) {
         if (!branch.condition) continue; // else branch
-        const { op } = branch.condition;
-        const field = conditionFieldName(branch.condition);
+        const cond = branch.condition;
+        if (cond.kind !== 'binary') continue;
+        const { op } = cond;
 
         // Only ordered comparisons need numeric types
         if (op === '==' || op === '!=') continue;
+
+        // Extract field name from left side
+        const field = cond.left.kind === 'field_access'
+          ? cond.left.segments.join('.')
+          : cond.left.kind === 'call'
+            ? `${cond.left.name}(...)`
+            : '<expr>';
 
         const fieldType = sourceFields.get(field);
         if (!fieldType) continue; // scope checker catches this
@@ -317,7 +325,9 @@ export class TypeChecker {
 
       for (const branch of edge.target.branches) {
         if (!branch.condition) continue;
-        const { op, left } = branch.condition;
+        const cond = branch.condition;
+        if (cond.kind !== 'binary') continue;
+        const { op, left } = cond;
 
         if (op === '==' || op === '!=') continue;
 

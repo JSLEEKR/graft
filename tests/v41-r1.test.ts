@@ -2,15 +2,17 @@ import { describe, it, expect } from 'vitest';
 import { mkCond } from './helpers.js';
 import { evaluateCondition } from '../src/runtime/flow-runner.js';
 import { evalCondition } from '../src/runtime/transforms.js';
-import { Condition } from '../src/parser/ast.js';
+import { Expr } from '../src/parser/ast.js';
 
 const loc = { line: 1, column: 1, offset: 0 };
 
-function mkMultiCond(segments: string[], op: Condition['op'], value: string | number | boolean): Condition {
+function mkMultiCond(segments: string[], op: '<' | '>' | '<=' | '>=' | '==' | '!=', value: string | number | boolean): Expr {
   return {
-    left: { kind: 'field_access', segments, location: loc },
+    kind: 'binary',
     op,
-    value,
+    left: { kind: 'field_access', segments, location: loc },
+    right: { kind: 'literal', value, location: loc },
+    location: loc,
   };
 }
 

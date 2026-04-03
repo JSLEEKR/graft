@@ -1,4 +1,5 @@
-import { EdgeDecl, Transform, conditionFieldName } from '../parser/ast.js';
+import { EdgeDecl, Transform } from '../parser/ast.js';
+import { formatExpr } from '../format.js';
 
 // Note: Generated scripts require bash (Git Bash on Windows).
 // If hook execution fails on Windows, prefix commands with `bash` in settings.ts.
@@ -93,8 +94,13 @@ function transformsToJq(transforms: Transform[]): string {
 
 function filterToJq(t: Extract<Transform, { type: 'filter' }>): string {
   const { field, condition } = t;
-  const valueStr = typeof condition.value === 'string'
-    ? `"${condition.value}"`
-    : String(condition.value);
-  return `{${field}: [.${field}[] | select(.${conditionFieldName(condition)} ${condition.op} ${valueStr})]}`;
+  if (condition.kind !== 'binary') return `{${field}: .${field}}`;
+  // Extract field name and value from binary Expr
+  const fieldName = condition.left.kind === 'field_access'
+    ? condition.left.segments.join('.')
+    : formatExpr(condition.left);
+  const valueStr = condition.right.kind === 'literal'
+    ? (typeof condition.right.value === 'string' ? `"${condition.right.value}"` : String(condition.right.value))
+    : formatExpr(condition.right);
+  return `{${field}: [.${field}[] | select(.${fieldName} ${condition.op} ${valueStr})]}`;
 }

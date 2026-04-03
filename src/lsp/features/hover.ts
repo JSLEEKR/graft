@@ -1,7 +1,8 @@
 import type { Hover } from 'vscode-languageserver/node';
 import { MarkupKind } from 'vscode-languageserver/node';
-import { type TypeExpr, type Expr, BUILTIN_FUNCTIONS } from '../../parser/ast.js';
+import { type TypeExpr, BUILTIN_FUNCTIONS } from '../../parser/ast.js';
 import type { ProgramIndex } from '../../program-index.js';
+import { formatExpr } from '../../format.js';
 
 export const KEYWORD_DOCS: Record<string, string> = {
   context: 'Declares a context schema with typed fields and a max_tokens budget.\n\n```graft\ncontext Name(max_tokens: 1k) {\n  field: Type\n}\n```',
@@ -98,23 +99,5 @@ function mkHover(value: string): Hover {
   return { contents: { kind: MarkupKind.Markdown, value } };
 }
 
-export function formatExpr(expr: Expr): string {
-  switch (expr.kind) {
-    case 'literal':
-      return typeof expr.value === 'string' ? `"${expr.value}"` : String(expr.value);
-    case 'field_access':
-      return expr.segments.join('.');
-    case 'binary':
-      return `${formatExpr(expr.left)} ${expr.op} ${formatExpr(expr.right)}`;
-    case 'unary':
-      return `${expr.op}${formatExpr(expr.operand)}`;
-    case 'group':
-      return `(${formatExpr(expr.inner)})`;
-    case 'call':
-      return `${expr.name}(${expr.args.map(formatExpr).join(', ')})`;
-    case 'template':
-      return '"' + expr.parts.map(p => p.kind === 'text' ? p.value : `\${${formatExpr(p.value)}}`).join('') + '"';
-    case 'conditional':
-      return `if ${formatExpr(expr.condition)} then ${formatExpr(expr.consequent)} else ${formatExpr(expr.alternate)}`;
-  }
-}
+// formatExpr moved to src/format.ts in v5.0-R1
+export { formatExpr } from '../../format.js';

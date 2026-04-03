@@ -100,7 +100,7 @@ export type EdgeTarget =
 
 export interface ConditionalBranch {
   /** When undefined, this branch represents the `else` case (default target). */
-  condition?: Condition;
+  condition?: Expr;
   target: string;
 }
 
@@ -170,27 +170,10 @@ export interface WriteRef {
   location: SourceLocation;
 }
 
-// Conditions (edge routing, filter)
-export interface Condition {
-  left: Expr;
-  op: '>=' | '>' | '<' | '<=' | '==' | '!=';
-  value: string | number | boolean;
-}
-
-export function conditionFieldName(condition: Condition): string {
-  if (condition.left.kind === 'field_access') {
-    return condition.left.segments.join('.');
-  }
-  if (condition.left.kind === 'call') {
-    return `${condition.left.name}(...)`;
-  }
-  return '<expr>';
-}
-
 // Transform operations on edges
 export type Transform =
   | { type: 'select'; fields: string[] }
-  | { type: 'filter'; field: string; condition: Condition }
+  | { type: 'filter'; field: string; condition: Expr }
   | { type: 'drop'; field: string }
   | { type: 'compact' }
   | { type: 'truncate'; tokens: number };

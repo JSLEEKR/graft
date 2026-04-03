@@ -1,4 +1,4 @@
-import { Transform, Condition } from '../parser/ast.js';
+import { Transform, Expr } from '../parser/ast.js';
 import { resolveNestedField } from './flow-runner.js';
 
 export function applyTransforms(data: unknown, transforms: Transform[]): unknown {
@@ -26,7 +26,7 @@ function applySelect(obj: Record<string, unknown>, fields: string[]): Record<str
   return result;
 }
 
-function applyFilter(obj: Record<string, unknown>, field: string, condition: Condition): Record<string, unknown> {
+function applyFilter(obj: Record<string, unknown>, field: string, condition: Expr): Record<string, unknown> {
   const arr = obj[field];
   if (!Array.isArray(arr)) return obj;
   const filtered = arr.filter(item => evalCondition(item, condition));
@@ -91,15 +91,16 @@ function truncateDeep(data: unknown, ratio: number): unknown {
   return data;
 }
 
-export function evalCondition(item: unknown, condition: Condition): boolean {
+export function evalCondition(item: unknown, condition: Expr): boolean {
   if (typeof item !== 'object' || item === null) return false;
+  if (condition.kind !== 'binary') return false;
   let val: unknown;
   if (condition.left.kind === 'field_access') {
     val = resolveNestedField(condition.left.segments, item as Record<string, unknown>);
   } else {
     val = undefined;
   }
-  const target = condition.value;
+  const target = condition.right.kind === 'literal' ? condition.right.value : undefined;
   switch (condition.op) {
     case '==': return val == target;
     case '!=': return val != target;

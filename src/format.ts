@@ -1,4 +1,5 @@
 import { TokenReport } from './analyzer/estimator.js';
+import { Expr } from './parser/ast.js';
 
 export interface FormatOptions {
   /** Include budget comparison on best/worst path lines */
@@ -28,4 +29,25 @@ export function formatTokenReport(report: TokenReport, options?: FormatOptions):
   }
 
   return lines.join('\n');
+}
+
+export function formatExpr(expr: Expr): string {
+  switch (expr.kind) {
+    case 'literal':
+      return typeof expr.value === 'string' ? `"${expr.value}"` : String(expr.value);
+    case 'field_access':
+      return expr.segments.join('.');
+    case 'binary':
+      return `${formatExpr(expr.left)} ${expr.op} ${formatExpr(expr.right)}`;
+    case 'unary':
+      return `${expr.op}${formatExpr(expr.operand)}`;
+    case 'group':
+      return `(${formatExpr(expr.inner)})`;
+    case 'call':
+      return `${expr.name}(${expr.args.map(formatExpr).join(', ')})`;
+    case 'template':
+      return '"' + expr.parts.map(p => p.kind === 'text' ? p.value : `\${${formatExpr(p.value)}}`).join('') + '"';
+    case 'conditional':
+      return `if ${formatExpr(expr.condition)} then ${formatExpr(expr.consequent)} else ${formatExpr(expr.alternate)}`;
+  }
 }

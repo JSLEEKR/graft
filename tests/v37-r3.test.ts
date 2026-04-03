@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { mkCond } from './helpers.js';
 import { executeFlowNodes, FlowContext } from '../src/runtime/flow-runner.js';
 import { NodeResult } from '../src/runtime/executor.js';
-import { FlowNode, ConditionalBranch, Condition, Program } from '../src/parser/ast.js';
+import { FlowNode, ConditionalBranch, Expr, Program } from '../src/parser/ast.js';
 import { ScopeChecker } from '../src/analyzer/scope.js';
 
 /**

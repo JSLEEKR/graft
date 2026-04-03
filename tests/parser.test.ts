@@ -253,9 +253,9 @@ describe('Parser', () => {
       expect(edge.transforms[0].type).toBe('filter');
       const filter = edge.transforms[0] as Extract<typeof edge.transforms[0], { type: 'filter' }>;
       expect(filter.field).toBe('issues');
-      expect(filter.condition.left).toMatchObject({ kind: 'field_access', segments: ['severity'] });
-      expect(filter.condition.op).toBe('>=');
-      expect(filter.condition.value).toBe('medium');
+      expect(filter.condition).toMatchObject({ kind: 'binary', op: '>=' });
+      expect((filter.condition as any).left).toMatchObject({ kind: 'field_access', segments: ['severity'] });
+      expect((filter.condition as any).right).toMatchObject({ kind: 'literal', value: 'medium' });
     });
 
     it('parses edge with truncate', () => {
@@ -278,15 +278,15 @@ describe('Parser', () => {
       `);
       const edge = program.edges[0];
       expect(edge.target.kind).toBe('conditional');
-      const branches = (edge.target as { kind: 'conditional'; branches: { condition?: { left: unknown; op: string; value: unknown }; target: string }[] }).branches;
+      const branches = (edge.target as { kind: 'conditional'; branches: { condition?: any; target: string }[] }).branches;
       expect(branches.length).toBe(3);
-      expect(branches[0].condition?.left).toMatchObject({ kind: 'field_access', segments: ['risk_score'] });
-      expect(branches[0].condition?.op).toBe('>');
-      expect(branches[0].condition?.value).toBe(0.7);
+      expect(branches[0].condition).toMatchObject({ kind: 'binary', op: '>' });
+      expect(branches[0].condition.left).toMatchObject({ kind: 'field_access', segments: ['risk_score'] });
+      expect(branches[0].condition.right).toMatchObject({ kind: 'literal', value: 0.7 });
       expect(branches[0].target).toBe('DetailedReviewer');
-      expect(branches[1].condition?.left).toMatchObject({ kind: 'field_access', segments: ['risk_score'] });
-      expect(branches[1].condition?.op).toBe('>');
-      expect(branches[1].condition?.value).toBe(0.3);
+      expect(branches[1].condition).toMatchObject({ kind: 'binary', op: '>' });
+      expect(branches[1].condition.left).toMatchObject({ kind: 'field_access', segments: ['risk_score'] });
+      expect(branches[1].condition.right).toMatchObject({ kind: 'literal', value: 0.3 });
       expect(branches[1].target).toBe('StandardReviewer');
       expect(branches[2].condition).toBeUndefined();
       expect(branches[2].target).toBe('AutoApprove');
@@ -600,9 +600,9 @@ describe('Parser', () => {
       const filter = program.edges[0].transforms[0] as Extract<typeof program.edges[0].transforms[0], { type: 'filter' }>;
       expect(filter.type).toBe('filter');
       expect(filter.field).toBe('items');
-      expect(filter.condition.left).toMatchObject({ kind: 'field_access', segments: ['budget'] });
-      expect(filter.condition.op).toBe('>=');
-      expect(filter.condition.value).toBe(100);
+      expect(filter.condition).toMatchObject({ kind: 'binary', op: '>=' });
+      expect((filter.condition as any).left).toMatchObject({ kind: 'field_access', segments: ['budget'] });
+      expect((filter.condition as any).right).toMatchObject({ kind: 'literal', value: 100 });
     });
   });
 

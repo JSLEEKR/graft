@@ -6,7 +6,7 @@ import {
   Program, ContextDecl, NodeDecl, EdgeDecl, GraphDecl,
   ImportDecl, MemoryDecl,
   Field, TypeExpr, ContextRef, WriteRef, ProducesDecl,
-  Transform, Condition, FailureStrategy,
+  Transform, FailureStrategy,
   EdgeTarget, ConditionalBranch,
   FlowNode, Expr, TemplatePart, GraphParam, GraphArg, BUILTIN_FUNCTIONS,
 } from './ast.js';
@@ -467,12 +467,12 @@ export class Parser {
     throw this.error('Expected transform operation (select, filter, drop, compact, truncate)');
   }
 
-  private parseCondition(): Condition {
+  private parseCondition(): Expr {
     const loc = this.current().location;
     const field = this.expectIdentifierOrKeyword();
     const left: Expr = { kind: 'field_access', segments: [field], location: loc };
     const opToken = this.current();
-    let op: Condition['op'];
+    let op: '<' | '>' | '<=' | '>=' | '==' | '!=';
     switch (opToken.type) {
       case TokenType.GreaterEqual: op = '>='; break;
       case TokenType.Greater: op = '>'; break;
@@ -486,7 +486,8 @@ export class Parser {
     this.advance();
 
     const value = this.parseConditionValue();
-    return { left, op, value };
+    const right: Expr = { kind: 'literal', value, location: this.tokens[this.pos - 1].location };
+    return { kind: 'binary', op, left, right, location: loc };
   }
 
   private parseConditionValue(): string | number | boolean {

@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Lexer } from '../src/lexer/lexer.js';
 import { Parser } from '../src/parser/parser.js';
-import { conditionFieldName } from '../src/parser/ast.js';
-import type { Expr, FlowNode, GraphDecl, Condition } from '../src/parser/ast.js';
+import type { Expr, FlowNode, GraphDecl } from '../src/parser/ast.js';
 
 function parse(source: string) {
   const tokens = new Lexer(source).tokenize();
@@ -303,22 +302,19 @@ describe('v4.0-R1: condition migration', () => {
     const target = program.edges[0].target;
     if (target.kind === 'conditional') {
       const cond = target.branches[0].condition!;
-      expect(cond.left.kind).toBe('field_access');
-      if (cond.left.kind === 'field_access') {
-        expect(cond.left.segments).toEqual(['score']);
+      expect(cond.kind).toBe('binary');
+      if (cond.kind === 'binary') {
+        expect(cond.left.kind).toBe('field_access');
+        if (cond.left.kind === 'field_access') {
+          expect(cond.left.segments).toEqual(['score']);
+        }
+        expect(cond.op).toBe('>=');
+        expect(cond.right.kind).toBe('literal');
+        if (cond.right.kind === 'literal') {
+          expect(cond.right.value).toBe(5);
+        }
       }
-      expect(cond.op).toBe('>=');
-      expect(cond.value).toBe(5);
     }
-  });
-
-  it('conditionFieldName extracts field name', () => {
-    const cond: Condition = {
-      left: { kind: 'field_access', segments: ['node', 'output', 'score'], location: { line: 0, column: 0, offset: 0 } },
-      op: '>=',
-      value: 5,
-    };
-    expect(conditionFieldName(cond)).toBe('node.output.score');
   });
 });
 

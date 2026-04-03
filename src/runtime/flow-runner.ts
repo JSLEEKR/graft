@@ -1,4 +1,4 @@
-import { FlowNode, FailureStrategy, Condition, ConditionalBranch, Transform, Expr, GraphDecl } from '../parser/ast.js';
+import { FlowNode, FailureStrategy, ConditionalBranch, Transform, Expr, GraphDecl } from '../parser/ast.js';
 import { NodeResult } from './executor.js';
 import { resolveField, RuntimeState } from './prompt-builder.js';
 import { applyTransforms } from './transforms.js';
@@ -22,10 +22,11 @@ export interface FlowContext extends RuntimeState {
 }
 
 export function evaluateCondition(
-  condition: Condition,
+  condition: Expr,
   output: Record<string, unknown>,
   variables?: Map<string, unknown>,
 ): boolean {
+  if (condition.kind !== 'binary') return false;
   let fieldValue: unknown;
   if (condition.left.kind === 'field_access') {
     const { segments } = condition.left;
@@ -45,17 +46,21 @@ export function evaluateCondition(
     fieldValue = undefined;
   }
 
+  // Extract the right-side value from the literal Expr
+  const condValue = condition.right.kind === 'literal' ? condition.right.value : undefined;
+
   if (fieldValue === undefined) {
     return condition.op === '!=';
   }
 
   switch (condition.op) {
-    case '==': return fieldValue == condition.value;
-    case '!=': return fieldValue != condition.value;
-    case '>=': return Number(fieldValue) >= Number(condition.value);
-    case '>':  return Number(fieldValue) > Number(condition.value);
-    case '<=': return Number(fieldValue) <= Number(condition.value);
-    case '<':  return Number(fieldValue) < Number(condition.value);
+    case '==': return fieldValue == condValue;
+    case '!=': return fieldValue != condValue;
+    case '>=': return Number(fieldValue) >= Number(condValue);
+    case '>':  return Number(fieldValue) > Number(condValue);
+    case '<=': return Number(fieldValue) <= Number(condValue);
+    case '<':  return Number(fieldValue) < Number(condValue);
+    default: return false;
   }
 }
 
