@@ -136,6 +136,60 @@ program
     console.log('');
   });
 
+program
+  .command('init')
+  .description('Scaffold a new Graft project')
+  .argument('<name>', 'project name')
+  .action((name: string) => {
+    const dir = path.resolve(name);
+    if (fs.existsSync(dir)) {
+      console.error(`Error: directory '${name}' already exists`);
+      process.exit(1);
+    }
+
+    fs.mkdirSync(dir, { recursive: true });
+
+    const baseName = path.basename(name);
+    const safeName = baseName.replace(/[^a-zA-Z0-9]/g, '_').replace(/^_+|_+$/g, '') || 'pipeline';
+
+    fs.writeFileSync(path.join(dir, 'pipeline.gft'), `// ${safeName} — a simple two-node pipeline
+
+context Input(max_tokens: 500) {
+  question: String
+}
+
+node Analyst(model: sonnet, budget: 4k/2k) {
+  reads: [Input]
+  produces Analysis {
+    answer: String
+    confidence: Float(0..1)
+  }
+}
+
+node Reviewer(model: haiku, budget: 2k/1k) {
+  reads: [Analysis]
+  produces Output {
+    final_answer: String
+    approved: Bool
+  }
+}
+
+edge Analyst -> Reviewer | select(answer, confidence) | compact
+
+graph ${safeName}(input: Input, output: Output, budget: 10k) {
+  Analyst -> Reviewer -> done
+}
+`);
+
+    console.log(`\nCreated ${name}/`);
+    console.log(`  pipeline.gft`);
+    console.log(`\nNext steps:`);
+    console.log(`  cd ${name}`);
+    console.log(`  graft compile pipeline.gft`);
+    console.log(`  # Open in Claude Code to run the pipeline`);
+    console.log('');
+  });
+
 function readSource(file: string): string {
   const resolved = path.resolve(file);
   if (!fs.existsSync(resolved)) {

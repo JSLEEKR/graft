@@ -1,5 +1,24 @@
 # Changelog
 
+## v5.1.0 (2026-04-03)
+
+### Added
+- **`graft init <name>`** command: scaffolds a new Graft project with a working two-node pipeline
+- **GitHub Actions CI**: test matrix (Node 20/22) on push/PR, automated npm publish on tag
+- **VS Code extension packaging**: `.vscodeignore`, vsce scripts, version sync
+
+### Fixed
+- **Claude Code hook format**: settings.json hooks now use `{ matcher, hooks: [{ type: "command", command }] }` (was flat `{ matcher, command }`)
+- **Agent frontmatter**: added required `description` field, omit `tools:` line when empty
+
+### Changed
+- **README rewritten**: Quick Start focus, concise language overview, updated to v5.0 features
+- **VS Code extension**: version bumped to 5.0.0, added repository and icon fields
+
+### Stats
+- 1,334 tests (all passing), Claude Code output verified against spec
+- M1 milestone: install, compile, run — all working
+
 ## v5.0.0 (2026-04-03)
 
 ### Changed

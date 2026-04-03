@@ -35,7 +35,9 @@ describe('generateAgent', () => {
     const md = generateAgent(node);
 
     expect(md).toContain('name: researcher');
+    expect(md).toContain('description: Researcher agent');
     expect(md).toContain('claude-sonnet-4-20250514');
+    expect(md).not.toContain('tools:'); // no tools declared → omit tools line
     expect(md).toContain('# Researcher Agent');
     expect(md).toContain('"findings"');
     expect(md).toContain('"confidence"');
@@ -55,6 +57,7 @@ describe('generateAgent', () => {
       graph G(input: Spec, output: Out, budget: 15k) { Impl -> done }
     `);
     const md = generateAgent(program.nodes[0]);
+    expect(md).toContain('tools: [');
     expect(md).toContain('Read');
     expect(md).toContain('Write');
     expect(md).toContain('Edit');
@@ -471,6 +474,10 @@ describe('generateSettings', () => {
     expect(settings.hooks).toBeDefined();
     expect(settings.hooks.PostToolUse.length).toBe(1);
     expect(settings.hooks.PostToolUse[0].matcher).toContain('a.json');
+    // Claude Code hook format: { matcher, hooks: [{ type, command }] }
+    expect(settings.hooks.PostToolUse[0].hooks).toHaveLength(1);
+    expect(settings.hooks.PostToolUse[0].hooks[0].type).toBe('command');
+    expect(settings.hooks.PostToolUse[0].hooks[0].command).toContain('a-to-b.sh');
   });
 
   it('has no overrides when all nodes use same model', () => {

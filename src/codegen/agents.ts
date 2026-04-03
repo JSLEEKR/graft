@@ -20,10 +20,12 @@ export function generateAgent(node: NodeDecl, memoryNames: Set<string> = new Set
   const failureSection = formatFailure(node);
   const writesSection = formatWrites(node, memoryNames);
 
+  const toolsLine = tools.length > 0 ? `\ntools: [${tools.join(', ')}]` : '';
+
   return `---
 name: ${name}
-model: ${resolvedModel}
-tools: [${tools.join(', ')}]
+description: ${node.name} agent — produces ${node.produces.name}
+model: ${resolvedModel}${toolsLine}
 ---
 
 # ${node.name} Agent

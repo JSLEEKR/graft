@@ -25,9 +25,14 @@ export interface GraftSettings {
   };
 }
 
+interface HookCommand {
+  type: 'command';
+  command: string;
+}
+
 interface HookEntry {
   matcher: string;
-  command: string;
+  hooks: HookCommand[];
 }
 
 /**
@@ -79,7 +84,7 @@ export function generateSettings(program: Program, sourceFile: string, index?: P
     const target = edge.target.node.toLowerCase();
     hookEntries.push({
       matcher: `Write(.graft/session/node_outputs/${source}.json)`,
-      command: `.claude/hooks/${source}-to-${target}.sh`,
+      hooks: [{ type: 'command', command: `.claude/hooks/${source}-to-${target}.sh` }],
     });
   }
 
