@@ -1,0 +1,41 @@
+// PR Summarizer
+// Minimal, practical pipeline for daily use.
+// Reads a PR diff, produces a concise summary + risk assessment.
+
+context PullRequest(max_tokens: 4k) {
+  title: String
+  diff: String
+  files_changed: List<String>
+  author: String
+}
+
+node Analyzer(model: sonnet, budget: 6k/3k) {
+  reads: [PullRequest]
+
+  produces PRAnalysis {
+    summary: String
+    changes_by_area: List<String>
+    risk_level: String
+    breaking_changes: List<String>
+    review_suggestions: List<String>
+  }
+}
+
+node Formatter(model: haiku, budget: 2k/1k) {
+  reads: [PullRequest, PRAnalysis]
+
+  produces PRSummary {
+    title: String
+    one_liner: String
+    detailed_summary: String
+    risk_badge: String
+  }
+}
+
+edge Analyzer -> Formatter
+  | select(summary, risk_level, breaking_changes)
+  | compact
+
+graph PRSummarizer(input: PullRequest, output: PRSummary, budget: 15k) {
+  Analyzer -> Formatter -> done
+}

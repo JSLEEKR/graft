@@ -1,0 +1,73 @@
+// Data Analysis Pipeline
+// Ingest raw data → classify → run parallel analyses → generate report.
+
+context RawData(max_tokens: 4k) {
+  dataset_description: String
+  sample_rows: List<String>
+  question: String
+}
+
+node Classifier(model: haiku, budget: 3k/1k) {
+  reads: [RawData]
+
+  produces Classification {
+    data_type: String
+    columns: List<String>
+    row_count: Int
+    quality_issues: List<String>
+  }
+}
+
+node StatAnalyzer(model: sonnet, budget: 6k/3k) {
+  reads: [RawData, Classification]
+
+  produces StatResults {
+    summary_stats: String
+    distributions: List<String>
+    outliers: List<String>
+  }
+}
+
+node TrendAnalyzer(model: sonnet, budget: 6k/3k) {
+  reads: [RawData, Classification]
+
+  produces TrendResults {
+    trends: List<String>
+    correlations: List<String>
+    predictions: List<String>
+  }
+}
+
+node ReportWriter(model: opus, budget: 10k/5k) {
+  reads: [RawData, Classification, StatResults, TrendResults]
+
+  produces AnalysisReport {
+    executive_summary: String
+    findings: List<String>
+    recommendations: List<String>
+    visualizations_suggested: List<String>
+  }
+}
+
+edge Classifier -> StatAnalyzer
+  | select(data_type, columns)
+  | compact
+
+edge Classifier -> TrendAnalyzer
+  | select(data_type, columns)
+  | compact
+
+edge StatAnalyzer -> ReportWriter
+  | select(summary_stats, outliers)
+  | compact
+
+edge TrendAnalyzer -> ReportWriter
+  | select(trends, correlations)
+  | compact
+
+graph DataAnalysis(input: RawData, output: AnalysisReport, budget: 50k) {
+  Classifier
+  -> parallel { StatAnalyzer, TrendAnalyzer }
+  -> ReportWriter
+  -> done
+}

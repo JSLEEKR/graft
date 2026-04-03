@@ -350,6 +350,69 @@ graph G(input: Foo, output: Out, budget: 2k) { N -> done }
     expect(result.errors.some(e => e.message.includes('not found'))).toBe(true);
   });
 
+  it('compiles examples/content-pipeline.gft with memory', () => {
+    const p = path.resolve(__dirname, '../examples/content-pipeline.gft');
+    const result = compile(fs.readFileSync(p, 'utf-8'), p);
+    expect(result.success).toBe(true);
+    expect(result.program!.nodes).toHaveLength(4);
+    expect(result.program!.memories).toHaveLength(1);
+    // Memory scaffold
+    expect(result.files!.map(f => f.path)).toContain('.graft/memory/.gitkeep');
+    // MetadataExtractor has memory write
+    const meta = result.files!.find(f => f.path === '.claude/agents/metadataextractor.md');
+    expect(meta!.content).toContain('Memory Saving');
+  });
+
+  it('compiles examples/data-analysis.gft with seq→parallel→seq', () => {
+    const p = path.resolve(__dirname, '../examples/data-analysis.gft');
+    const result = compile(fs.readFileSync(p, 'utf-8'), p);
+    expect(result.success).toBe(true);
+    expect(result.program!.nodes).toHaveLength(4);
+    // Parallel step in orchestration
+    const claudeMd = result.files!.find(f => f.path === '.claude/CLAUDE.md');
+    expect(claudeMd!.content).toContain('[parallel]');
+    expect(claudeMd!.content).toContain('Dispatch all 2 agents');
+    // ReportWriter has transformed inputs from parallel branches
+    expect(claudeMd!.content).toContain('statanalyzer_to_reportwriter.json');
+    expect(claudeMd!.content).toContain('trendanalyzer_to_reportwriter.json');
+    // StatAnalyzer has transformed input from Classifier
+    const stat = result.files!.find(f => f.path === '.claude/agents/statanalyzer.md');
+    expect(stat!.content).toContain('classifier_to_statanalyzer.json');
+  });
+
+  it('compiles examples/pr-summarizer.gft', () => {
+    const p = path.resolve(__dirname, '../examples/pr-summarizer.gft');
+    const result = compile(fs.readFileSync(p, 'utf-8'), p);
+    expect(result.success).toBe(true);
+    expect(result.program!.nodes).toHaveLength(2);
+    expect(result.report!.bestCase).toBeLessThanOrEqual(result.report!.budget);
+  });
+
+  it('compiles examples/adversarial-debate.gft (complex 8-node)', () => {
+    const p = path.resolve(__dirname, '../examples/adversarial-debate.gft');
+    const result = compile(fs.readFileSync(p, 'utf-8'), p);
+    expect(result.success).toBe(true);
+    expect(result.program!.nodes).toHaveLength(8);
+    expect(result.program!.memories).toHaveLength(1);
+    // 4-agent parallel dispatch
+    const claudeMd = result.files!.find(f => f.path === '.claude/CLAUDE.md');
+    expect(claudeMd!.content).toContain('Dispatch all 4 agents');
+    // Edge transforms from parallel to Critic
+    expect(claudeMd!.content).toContain('architect_to_critic.json');
+    // Implementer has retry(2)
+    const impl = result.files!.find(f => f.path === '.claude/agents/implementer.md');
+    expect(impl!.content).toContain('Retry up to 2 times');
+    expect(impl!.content).toContain('tools: [Read, Write, Edit, Bash]');
+  });
+
+  it('compiles examples/debate-lite.gft', () => {
+    const p = path.resolve(__dirname, '../examples/debate-lite.gft');
+    const result = compile(fs.readFileSync(p, 'utf-8'), p);
+    expect(result.success).toBe(true);
+    expect(result.program!.nodes).toHaveLength(3);
+    expect(result.report!.bestCase).toBeLessThanOrEqual(result.report!.budget);
+  });
+
   it('compiles examples/code-review.gft with parallel pipeline', () => {
     const codereviewPath = path.resolve(__dirname, '../examples/code-review.gft');
     const source = fs.readFileSync(codereviewPath, 'utf-8');

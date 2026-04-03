@@ -1,0 +1,73 @@
+// Content Pipeline
+// Research a topic → write a draft → edit for quality → produce final output.
+// Memory stores previously published articles to avoid repetition.
+
+memory PublishedArticles(max_tokens: 3k, storage: file) {
+  titles: List<String>
+  topics_covered: List<String>
+}
+
+context Brief(max_tokens: 800) {
+  topic: String
+  audience: String
+  tone: String
+  max_words: Int
+}
+
+node Researcher(model: sonnet, budget: 6k/3k) {
+  reads: [Brief, PublishedArticles]
+
+  produces ResearchNotes {
+    key_points: List<String>
+    sources: List<String>
+    angle: String
+    avoid_topics: List<String>
+  }
+}
+
+node Drafter(model: sonnet, budget: 8k/4k) {
+  reads: [Brief, ResearchNotes]
+
+  produces Draft {
+    title: String
+    body: String
+    word_count: Int
+  }
+}
+
+node Editor(model: opus, budget: 10k/5k) {
+  reads: [Brief, Draft]
+
+  produces FinalArticle {
+    title: String
+    body: String
+    word_count: Int
+    edit_notes: List<String>
+  }
+}
+
+node MetadataExtractor(model: haiku, budget: 2k/1k) {
+  reads: [FinalArticle]
+  writes: [PublishedArticles]
+
+  produces ArticleMetadata {
+    title: String
+    summary: String
+    tags: List<String>
+  }
+}
+
+edge Researcher -> Drafter
+  | select(key_points, angle)
+  | compact
+
+edge Drafter -> Editor
+  | select(title, body)
+
+edge Editor -> MetadataExtractor
+  | select(title)
+  | compact
+
+graph ContentPipeline(input: Brief, output: ArticleMetadata, budget: 40k) {
+  Researcher -> Drafter -> Editor -> MetadataExtractor -> done
+}
