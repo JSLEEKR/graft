@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mkCond } from './helpers.js';
-import { executeFlowNodes, evaluateCondition, evaluateExpr, FlowContext } from '../src/runtime/flow-runner.js';
+import { executeFlowNodes, evaluateExpr, FlowContext } from '../src/runtime/flow-runner.js';
 import { NodeResult } from '../src/runtime/executor.js';
 import { FlowNode, Expr, GraphDecl } from '../src/parser/ast.js';
 
@@ -149,18 +149,18 @@ describe('let execution in flow', () => {
 });
 
 describe('variable used in condition', () => {
-  it('evaluateCondition resolves variable before output field', () => {
+  it('evaluateExpr resolves variable before output field', () => {
     const vars = new Map<string, unknown>([['score', 0.9]]);
     const output = { score: 0.1 }; // should be overridden by variable
     const condition = mkCond('score', '>=', 0.7);
-    expect(evaluateCondition(condition, output, vars)).toBe(true);
+    expect(!!evaluateExpr(condition, new Map(Object.entries(output)), vars)).toBe(true);
   });
 
-  it('evaluateCondition falls back to output when no variable', () => {
+  it('evaluateExpr falls back to output when no variable', () => {
     const vars = new Map<string, unknown>();
     const output = { score: 0.5 };
     const condition = mkCond('score', '>=', 0.7);
-    expect(evaluateCondition(condition, output, vars)).toBe(false);
+    expect(!!evaluateExpr(condition, new Map(Object.entries(output)), vars)).toBe(false);
   });
 });
 

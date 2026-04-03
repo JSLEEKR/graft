@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mkCond } from './helpers.js';
-import { evaluateCondition, resolveNestedField, evaluateExpr, executeFlowNodes, FlowContext } from '../src/runtime/flow-runner.js';
-import { evalCondition } from '../src/runtime/transforms.js';
+import { resolveNestedField, evaluateExpr, executeFlowNodes, FlowContext } from '../src/runtime/flow-runner.js';
 import { NodeResult } from '../src/runtime/executor.js';
 import { FlowNode, GraphDecl, Expr } from '../src/parser/ast.js';
 import { compile, compileToProgram } from '../src/compiler.js';
@@ -138,14 +137,14 @@ describe('Regression: v4.0 patterns after output isolation', () => {
 describe('Regression: transform filter with conditions', () => {
   it('single-segment filter condition still works', () => {
     const cond = mkCond('severity', '>=', 5);
-    expect(evalCondition({ severity: 8 }, cond)).toBe(true);
-    expect(evalCondition({ severity: 2 }, cond)).toBe(false);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ severity: 8 } as Record<string, unknown>)))).toBe(true);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ severity: 2 } as Record<string, unknown>)))).toBe(false);
   });
 
   it('multi-segment filter condition now works', () => {
     const cond = mkMultiCond(['info', 'level'], '==', 'critical');
-    expect(evalCondition({ info: { level: 'critical' } }, cond)).toBe(true);
-    expect(evalCondition({ info: { level: 'low' } }, cond)).toBe(false);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ info: { level: 'critical' } } as Record<string, unknown>)))).toBe(true);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ info: { level: 'low' } } as Record<string, unknown>)))).toBe(false);
   });
 });
 

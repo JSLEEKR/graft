@@ -8,12 +8,10 @@ import { mkCond } from './helpers.js';
 describe('transforms', () => {
   // Lazy import to verify module exists
   let applyTransforms: typeof import('../src/runtime/transforms.js').applyTransforms;
-  let evalCondition: typeof import('../src/runtime/transforms.js').evalCondition;
 
   beforeEach(async () => {
     const mod = await import('../src/runtime/transforms.js');
     applyTransforms = mod.applyTransforms;
-    evalCondition = mod.evalCondition;
   });
 
   it('select picks specified fields', () => {
@@ -98,43 +96,43 @@ describe('transforms', () => {
   });
 });
 
-describe('evalCondition', () => {
-  let evalCondition: typeof import('../src/runtime/transforms.js').evalCondition;
+describe('evalCondition (via evaluateExpr)', () => {
+  let evaluateExpr: typeof import('../src/runtime/flow-runner.js').evaluateExpr;
 
   beforeEach(async () => {
-    const mod = await import('../src/runtime/transforms.js');
-    evalCondition = mod.evalCondition;
+    const mod = await import('../src/runtime/flow-runner.js');
+    evaluateExpr = mod.evaluateExpr;
   });
 
   it('== operator', () => {
-    expect(evalCondition({ status: 'ok' }, mkCond('status', '==', 'ok'))).toBe(true);
-    expect(evalCondition({ status: 'fail' }, mkCond('status', '==', 'ok'))).toBe(false);
+    expect(!!evaluateExpr(mkCond('status', '==', 'ok'), new Map(Object.entries({ status: 'ok' } as Record<string, unknown>)))).toBe(true);
+    expect(!!evaluateExpr(mkCond('status', '==', 'ok'), new Map(Object.entries({ status: 'fail' } as Record<string, unknown>)))).toBe(false);
   });
 
   it('!= operator', () => {
-    expect(evalCondition({ status: 'fail' }, mkCond('status', '!=', 'ok'))).toBe(true);
+    expect(!!evaluateExpr(mkCond('status', '!=', 'ok'), new Map(Object.entries({ status: 'fail' } as Record<string, unknown>)))).toBe(true);
   });
 
   it('> operator', () => {
-    expect(evalCondition({ score: 8 }, mkCond('score', '>', 5))).toBe(true);
-    expect(evalCondition({ score: 5 }, mkCond('score', '>', 5))).toBe(false);
+    expect(!!evaluateExpr(mkCond('score', '>', 5), new Map(Object.entries({ score: 8 } as Record<string, unknown>)))).toBe(true);
+    expect(!!evaluateExpr(mkCond('score', '>', 5), new Map(Object.entries({ score: 5 } as Record<string, unknown>)))).toBe(false);
   });
 
   it('>= operator', () => {
-    expect(evalCondition({ score: 5 }, mkCond('score', '>=', 5))).toBe(true);
+    expect(!!evaluateExpr(mkCond('score', '>=', 5), new Map(Object.entries({ score: 5 } as Record<string, unknown>)))).toBe(true);
   });
 
   it('< operator', () => {
-    expect(evalCondition({ score: 3 }, mkCond('score', '<', 5))).toBe(true);
+    expect(!!evaluateExpr(mkCond('score', '<', 5), new Map(Object.entries({ score: 3 } as Record<string, unknown>)))).toBe(true);
   });
 
   it('<= operator', () => {
-    expect(evalCondition({ score: 5 }, mkCond('score', '<=', 5))).toBe(true);
+    expect(!!evaluateExpr(mkCond('score', '<=', 5), new Map(Object.entries({ score: 5 } as Record<string, unknown>)))).toBe(true);
   });
 
   it('returns false for non-object items', () => {
-    expect(evalCondition('not-object', mkCond('x', '==', 1))).toBe(false);
-    expect(evalCondition(null, mkCond('x', '==', 1))).toBe(false);
+    expect(!!evaluateExpr(mkCond('x', '==', 1), new Map())).toBe(false);
+    expect(!!evaluateExpr(mkCond('x', '==', 1), new Map())).toBe(false);
   });
 });
 

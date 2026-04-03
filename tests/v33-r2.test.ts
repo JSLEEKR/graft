@@ -1,59 +1,59 @@
 import { describe, it, expect } from 'vitest';
 import { mkCond } from './helpers.js';
-import { evaluateCondition } from '../src/runtime/flow-runner.js';
+import { evaluateExpr } from '../src/runtime/flow-runner.js';
 import { ConditionalBranch, Expr } from '../src/parser/ast.js';
 import { FlowContext, executeFlowNodes } from '../src/runtime/flow-runner.js';
 import { NodeResult } from '../src/runtime/executor.js';
 
-describe('evaluateCondition', () => {
+describe('evaluateCondition (via evaluateExpr)', () => {
   it('== match', () => {
     const cond: Expr = mkCond('status', '==', 'done');
-    expect(evaluateCondition(cond, { status: 'done' })).toBe(true);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ status: 'done' })))).toBe(true);
   });
 
   it('== no match', () => {
     const cond: Expr = mkCond('status', '==', 'done');
-    expect(evaluateCondition(cond, { status: 'pending' })).toBe(false);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ status: 'pending' })))).toBe(false);
   });
 
   it('!= match', () => {
     const cond: Expr = mkCond('status', '!=', 'done');
-    expect(evaluateCondition(cond, { status: 'pending' })).toBe(true);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ status: 'pending' })))).toBe(true);
   });
 
   it('>= numeric', () => {
     const cond: Expr = mkCond('score', '>=', 70);
-    expect(evaluateCondition(cond, { score: 80 })).toBe(true);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ score: 80 })))).toBe(true);
   });
 
   it('> numeric (boundary false)', () => {
     const cond: Expr = mkCond('score', '>', 70);
-    expect(evaluateCondition(cond, { score: 70 })).toBe(false);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ score: 70 })))).toBe(false);
   });
 
   it('<= numeric', () => {
     const cond: Expr = mkCond('score', '<=', 50);
-    expect(evaluateCondition(cond, { score: 50 })).toBe(true);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ score: 50 })))).toBe(true);
   });
 
   it('< numeric (boundary false)', () => {
     const cond: Expr = mkCond('score', '<', 50);
-    expect(evaluateCondition(cond, { score: 50 })).toBe(false);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ score: 50 })))).toBe(false);
   });
 
   it('missing field with == returns false', () => {
     const cond: Expr = mkCond('status', '==', 'x');
-    expect(evaluateCondition(cond, {})).toBe(false);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({})))).toBe(false);
   });
 
   it('missing field with != returns true', () => {
     const cond: Expr = mkCond('status', '!=', 'x');
-    expect(evaluateCondition(cond, {})).toBe(true);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({})))).toBe(true);
   });
 
   it('boolean value', () => {
     const cond: Expr = mkCond('flag', '==', true);
-    expect(evaluateCondition(cond, { flag: true })).toBe(true);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ flag: true })))).toBe(true);
   });
 });
 

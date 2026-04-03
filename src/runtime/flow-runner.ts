@@ -1,4 +1,4 @@
-import { FlowNode, FailureStrategy, ConditionalBranch, Transform, Expr, GraphDecl } from '../parser/ast.js';
+import { FlowNode, FailureStrategy, ConditionalBranch, Transform, GraphDecl } from '../parser/ast.js';
 import { NodeResult } from './executor.js';
 import { resolveField, RuntimeState } from './prompt-builder.js';
 import { applyTransforms } from './transforms.js';
@@ -21,48 +21,6 @@ export interface FlowContext extends RuntimeState {
   getGraphDecl?: (name: string) => GraphDecl | undefined;
 }
 
-export function evaluateCondition(
-  condition: Expr,
-  output: Record<string, unknown>,
-  variables?: Map<string, unknown>,
-): boolean {
-  if (condition.kind !== 'binary') return false;
-  let fieldValue: unknown;
-  if (condition.left.kind === 'field_access') {
-    const { segments } = condition.left;
-    // Single-segment: variable-first resolution
-    if (segments.length === 1) {
-      const name = segments[0];
-      if (variables?.has(name)) {
-        fieldValue = variables.get(name);
-      } else {
-        fieldValue = output[name];
-      }
-    } else {
-      // Multi-segment: traverse nested object properties
-      fieldValue = resolveNestedField(segments, output);
-    }
-  } else {
-    fieldValue = undefined;
-  }
-
-  // Extract the right-side value from the literal Expr
-  const condValue = condition.right.kind === 'literal' ? condition.right.value : undefined;
-
-  if (fieldValue === undefined) {
-    return condition.op === '!=';
-  }
-
-  switch (condition.op) {
-    case '==': return fieldValue == condValue;
-    case '!=': return fieldValue != condValue;
-    case '>=': return Number(fieldValue) >= Number(condValue);
-    case '>':  return Number(fieldValue) > Number(condValue);
-    case '<=': return Number(fieldValue) <= Number(condValue);
-    case '<':  return Number(fieldValue) < Number(condValue);
-    default: return false;
-  }
-}
 
 async function executeWithFailureStrategy(
   name: string,
@@ -144,13 +102,14 @@ export async function executeConditionalChain(
 
     const { branches, transforms } = edgeInfo;
     const output = currentOutput as Record<string, unknown>;
+    const outputMap = new Map(Object.entries(output));
     let routedTo: string | null = null;
     let elseBranch: string | null = null;
 
     for (const branch of branches) {
       if (!branch.condition) {
         elseBranch = branch.target;
-      } else if (evaluateCondition(branch.condition, output, ctx.variables)) {
+      } else if (!!evaluateExpr(branch.condition, outputMap, ctx.variables)) {
         routedTo = branch.target;
         break;
       }

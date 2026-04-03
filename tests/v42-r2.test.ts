@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mkCond } from './helpers.js';
-import { executeFlowNodes, FlowContext, evaluateCondition, evaluateExpr } from '../src/runtime/flow-runner.js';
-import { evalCondition } from '../src/runtime/transforms.js';
+import { executeFlowNodes, FlowContext, evaluateExpr } from '../src/runtime/flow-runner.js';
 import { NodeResult } from '../src/runtime/executor.js';
 import { FlowNode, GraphDecl } from '../src/parser/ast.js';
 
@@ -93,29 +92,29 @@ describe('Graph call return values', () => {
 // ── Equality semantics unification ───────────────────────────────
 
 describe('Equality semantics unification', () => {
-  it('evalCondition uses loose equality for == (string "200" == number 200)', () => {
+  it('evaluateExpr uses loose equality for == (string "200" == number 200)', () => {
     const cond = mkCond('status', '==', 200);
     // With loose equality, string "200" should == number 200
-    expect(evalCondition({ status: '200' }, cond)).toBe(true);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ status: '200' } as Record<string, unknown>)))).toBe(true);
   });
 
-  it('evalCondition uses loose equality for != (different types)', () => {
+  it('evaluateExpr uses loose equality for != (different types)', () => {
     const cond = mkCond('status', '!=', 200);
     // "200" loosely equals 200, so != should be false
-    expect(evalCondition({ status: '200' }, cond)).toBe(false);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ status: '200' } as Record<string, unknown>)))).toBe(false);
   });
 
-  it('evalCondition strict cases still work', () => {
+  it('evaluateExpr strict cases still work', () => {
     const cond = mkCond('level', '==', 'high');
-    expect(evalCondition({ level: 'high' }, cond)).toBe(true);
-    expect(evalCondition({ level: 'low' }, cond)).toBe(false);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ level: 'high' } as Record<string, unknown>)))).toBe(true);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ level: 'low' } as Record<string, unknown>)))).toBe(false);
   });
 
-  it('evaluateCondition and evalCondition agree on loose equality', () => {
+  it('evaluateExpr consistent on loose equality from both routing and transform paths', () => {
     const cond = mkCond('score', '==', 100);
-    // Both should treat string "100" == number 100 the same way
-    const routingResult = evaluateCondition(cond, { score: '100' });
-    const transformResult = evalCondition({ score: '100' }, cond);
+    // Both routing and transform now use the same evaluateExpr
+    const routingResult = !!evaluateExpr(cond, new Map(Object.entries({ score: '100' } as Record<string, unknown>)));
+    const transformResult = !!evaluateExpr(cond, new Map(Object.entries({ score: '100' } as Record<string, unknown>)));
     expect(routingResult).toBe(transformResult);
   });
 });

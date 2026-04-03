@@ -8,7 +8,7 @@ import {
   computeRelativeImportPath,
   getDocumentSymbols,
 } from '../src/lsp/features/index.js';
-import { evaluateCondition } from '../src/runtime/flow-runner.js';
+import { evaluateExpr } from '../src/runtime/flow-runner.js';
 import { ProgramIndex } from '../src/program-index.js';
 import type { Expr } from '../src/parser/ast.js';
 
@@ -98,10 +98,10 @@ describe('v3.3-R4: Code actions integration', () => {
 // 2. Conditional Edge Runtime Integration
 // ========================================
 describe('v3.3-R4: Expral edge runtime integration', () => {
-  it('evaluateCondition with string equality works through the runtime path', () => {
+  it('evaluateExpr with string equality works through the runtime path', () => {
     const condition: Expr = mkCond('status', '==', 'approved');
-    expect(evaluateCondition(condition, { status: 'approved' })).toBe(true);
-    expect(evaluateCondition(condition, { status: 'rejected' })).toBe(false);
+    expect(!!evaluateExpr(condition, new Map(Object.entries({ status: 'approved' })))).toBe(true);
+    expect(!!evaluateExpr(condition, new Map(Object.entries({ status: 'rejected' })))).toBe(false);
   });
 
   it('compileToProgram succeeds for graph with conditional edge on numeric field', () => {
@@ -244,7 +244,7 @@ describe('v3.3-R4: Backward compatibility', () => {
 // 5. Cross-feature Interactions
 // ========================================
 describe('v3.3-R4: Cross-feature interactions', () => {
-  it('conditional edge on numeric field compiles without error and evaluateCondition works', () => {
+  it('conditional edge on numeric field compiles without error and evaluateExpr works', () => {
     const source = `
       context Input(max_tokens: 1k) { query: String }
       node Router(model: sonnet, budget: 5k/2k) {
@@ -271,10 +271,10 @@ describe('v3.3-R4: Cross-feature interactions', () => {
     const condMismatch = result.errors.find(e => e.code === 'TYPE_CONDITION_MISMATCH');
     expect(condMismatch).toBeUndefined();
 
-    // Runtime: evaluateCondition routes correctly
+    // Runtime: evaluateExpr routes correctly
     const condition: Expr = mkCond('score', '>=', 8);
-    expect(evaluateCondition(condition, { score: 10, label: 'good' })).toBe(true);
-    expect(evaluateCondition(condition, { score: 3, label: 'low' })).toBe(false);
+    expect(!!evaluateExpr(condition, new Map(Object.entries({ score: 10, label: 'good' })))).toBe(true);
+    expect(!!evaluateExpr(condition, new Map(Object.entries({ score: 3, label: 'low' })))).toBe(false);
   });
 
   it('document symbols for file with conditional edge: edge symbol name contains "conditional"', () => {

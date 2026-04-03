@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mkCond } from './helpers.js';
-import { executeFlowNodes, FlowContext, evaluateCondition } from '../src/runtime/flow-runner.js';
+import { executeFlowNodes, FlowContext, evaluateExpr } from '../src/runtime/flow-runner.js';
 import { FlowNode, ConditionalBranch, Program } from '../src/parser/ast.js';
 import { Lexer } from '../src/lexer/lexer.js';
 import { Parser } from '../src/parser/parser.js';
@@ -486,20 +486,20 @@ graph Pipeline(input: Spec, output: Output, budget: 5000) {
     expect(nonExistentError).toBeDefined();
   });
 
-  it('evaluateCondition handles all comparison operators correctly', () => {
+  it('evaluateExpr handles all comparison operators correctly', () => {
     // Verify the condition evaluation used in multi-hop routing
-    expect(evaluateCondition(mkCond('x', '==', 'a'), { x: 'a' })).toBe(true);
-    expect(evaluateCondition(mkCond('x', '==', 'a'), { x: 'b' })).toBe(false);
-    expect(evaluateCondition(mkCond('x', '!=', 'a'), { x: 'b' })).toBe(true);
-    expect(evaluateCondition(mkCond('x', '!=', 'a'), { x: 'a' })).toBe(false);
-    expect(evaluateCondition(mkCond('x', '>=', 5), { x: 10 })).toBe(true);
-    expect(evaluateCondition(mkCond('x', '>=', 5), { x: 3 })).toBe(false);
-    expect(evaluateCondition(mkCond('x', '>', 5), { x: 6 })).toBe(true);
-    expect(evaluateCondition(mkCond('x', '<=', 5), { x: 5 })).toBe(true);
-    expect(evaluateCondition(mkCond('x', '<', 5), { x: 3 })).toBe(true);
+    expect(!!evaluateExpr(mkCond('x', '==', 'a'), new Map(Object.entries({ x: 'a' })))).toBe(true);
+    expect(!!evaluateExpr(mkCond('x', '==', 'a'), new Map(Object.entries({ x: 'b' })))).toBe(false);
+    expect(!!evaluateExpr(mkCond('x', '!=', 'a'), new Map(Object.entries({ x: 'b' })))).toBe(true);
+    expect(!!evaluateExpr(mkCond('x', '!=', 'a'), new Map(Object.entries({ x: 'a' })))).toBe(false);
+    expect(!!evaluateExpr(mkCond('x', '>=', 5), new Map(Object.entries({ x: 10 })))).toBe(true);
+    expect(!!evaluateExpr(mkCond('x', '>=', 5), new Map(Object.entries({ x: 3 })))).toBe(false);
+    expect(!!evaluateExpr(mkCond('x', '>', 5), new Map(Object.entries({ x: 6 })))).toBe(true);
+    expect(!!evaluateExpr(mkCond('x', '<=', 5), new Map(Object.entries({ x: 5 })))).toBe(true);
+    expect(!!evaluateExpr(mkCond('x', '<', 5), new Map(Object.entries({ x: 3 })))).toBe(true);
     // undefined field: only != returns true
-    expect(evaluateCondition(mkCond('missing', '==', 'a'), {})).toBe(false);
-    expect(evaluateCondition(mkCond('missing', '!=', 'a'), {})).toBe(true);
+    expect(!!evaluateExpr(mkCond('missing', '==', 'a'), new Map(Object.entries({})))).toBe(false);
+    expect(!!evaluateExpr(mkCond('missing', '!=', 'a'), new Map(Object.entries({})))).toBe(true);
   });
 
   it('foreach skip with empty source data does not error (no ctx.input fallback)', async () => {

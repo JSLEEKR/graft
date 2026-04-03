@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mkCond } from './helpers.js';
-import { executeFlowNodes, evaluateCondition, evaluateExpr, FlowContext } from '../src/runtime/flow-runner.js';
+import { executeFlowNodes, evaluateExpr, FlowContext } from '../src/runtime/flow-runner.js';
 import { NodeResult } from '../src/runtime/executor.js';
 import { FlowNode, Expr, GraphDecl } from '../src/parser/ast.js';
 import { Lexer } from '../src/lexer/lexer.js';
@@ -56,7 +56,7 @@ describe('Cross-feature: variable + conditional edge', () => {
 
     // Now use variable in condition evaluation
     const cond = mkCond('score', '>=', 80);
-    const condResult = evaluateCondition(cond, {}, ctx.variables);
+    const condResult = !!evaluateExpr(cond, new Map(Object.entries({})), ctx.variables);
     expect(condResult).toBe(true);
   });
 });
@@ -247,10 +247,10 @@ describe('Regression: existing flow patterns unchanged', () => {
   it('condition with field reference still works (not variables)', () => {
     const output = { status: 'error', score: 75 };
     const cond = mkCond('status', '==', 'error');
-    expect(evaluateCondition(cond, output)).toBe(true);
+    expect(!!evaluateExpr(cond, new Map(Object.entries(output)))).toBe(true);
 
     const cond2 = mkCond('score', '>=', 70);
-    expect(evaluateCondition(cond2, output)).toBe(true);
+    expect(!!evaluateExpr(cond2, new Map(Object.entries(output)))).toBe(true);
   });
 
   it('graph without params compiles and estimates correctly', () => {

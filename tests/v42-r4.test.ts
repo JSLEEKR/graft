@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mkCond } from './helpers.js';
-import { evaluateExpr, evaluateCondition, executeFlowNodes, FlowContext } from '../src/runtime/flow-runner.js';
-import { evalCondition } from '../src/runtime/transforms.js';
+import { evaluateExpr, executeFlowNodes, FlowContext } from '../src/runtime/flow-runner.js';
 import { NodeResult } from '../src/runtime/executor.js';
 import { FlowNode, GraphDecl, Expr } from '../src/parser/ast.js';
 import { compile, compileToProgram } from '../src/compiler.js';
@@ -139,22 +138,22 @@ describe('Regression: existing patterns unchanged', () => {
     expect(ctx.variables?.get('x')).toBe(42);
   });
 
-  it('evaluateCondition still works with field_access LHS', () => {
+  it('evaluateExpr still works with field_access LHS', () => {
     const cond = mkCond('score', '>=', 80);
-    expect(evaluateCondition(cond, { score: 90 })).toBe(true);
-    expect(evaluateCondition(cond, { score: 70 })).toBe(false);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ score: 90 })))).toBe(true);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ score: 70 })))).toBe(false);
   });
 
-  it('evalCondition still works with field_access LHS', () => {
+  it('evaluateExpr still works with field_access LHS (transform replacement)', () => {
     const cond = mkCond('severity', '==', 'high');
-    expect(evalCondition({ severity: 'high' }, cond)).toBe(true);
-    expect(evalCondition({ severity: 'low' }, cond)).toBe(false);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ severity: 'high' } as Record<string, unknown>)))).toBe(true);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ severity: 'low' } as Record<string, unknown>)))).toBe(false);
   });
 
   it('unified equality: routing and transform agree on numeric strings', () => {
     const cond = mkCond('status', '==', 200);
-    expect(evaluateCondition(cond, { status: '200' })).toBe(true);
-    expect(evalCondition({ status: '200' }, cond)).toBe(true);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ status: '200' } as Record<string, unknown>)))).toBe(true);
+    expect(!!evaluateExpr(cond, new Map(Object.entries({ status: '200' } as Record<string, unknown>)))).toBe(true);
   });
 });
 
