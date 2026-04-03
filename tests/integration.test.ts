@@ -467,4 +467,36 @@ graph G(input: Foo, output: Out, budget: 2k) { N -> done }
     const filePaths = result.files!.map(f => f.path);
     expect(filePaths).toContain('.graft/memory/.gitkeep');
   });
+
+  it('resolves imports when sourceFile is a subdirectory path (regression)', () => {
+    // Bug: CLI used path.basename(file) which stripped directory info,
+    // causing import resolution to fail when CWD != source file directory.
+    const subDir = path.join(tmpDir, 'sub');
+    fs.mkdirSync(subDir, { recursive: true });
+    fs.writeFileSync(path.join(subDir, 'lib.gft'), `
+context Ctx(max_tokens: 100) { data: String }
+`);
+    fs.writeFileSync(path.join(subDir, 'main.gft'), `
+import { Ctx } from "./lib.gft"
+node Worker(model: haiku, budget: 1k/500) {
+  reads: [Ctx]
+  produces Out { result: String }
+}
+graph G(input: Ctx, output: Out, budget: 2k) { Worker -> done }
+`);
+
+    const mainPath = path.join(subDir, 'main.gft');
+    const source = fs.readFileSync(mainPath, 'utf-8');
+
+    // With full path: should succeed
+    const resultFull = compile(source, mainPath);
+    expect(resultFull.success).toBe(true);
+    expect(resultFull.program!.contexts.map(c => c.name)).toContain('Ctx');
+
+    // With basename only: would fail if CWD doesn't contain lib.gft
+    // (This is the pattern the old CLI used — now fixed)
+    const resultBasename = compile(source, 'main.gft');
+    expect(resultBasename.success).toBe(false);
+    expect(resultBasename.errors.some(e => e.message.includes('not found'))).toBe(true);
+  });
 });

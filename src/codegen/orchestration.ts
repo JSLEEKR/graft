@@ -136,6 +136,7 @@ function generateSteps(
         }
 
         let memoryLines = '';
+        let additionalInputs = '';
         const nodeDecl = nodeMap.get(step.name);
         if (nodeDecl) {
           const memReads = nodeDecl.reads.filter(r => memoryNames.has(r.context));
@@ -147,11 +148,26 @@ function generateSteps(
               memoryLines += `\n- Memory save: \`.graft/memory/${w.memory.toLowerCase()}.json\``;
             }
           }
+          // List produces-type reads that aren't covered by edges
+          for (const ref of nodeDecl.reads) {
+            if (memoryNames.has(ref.context)) continue; // already handled as memory
+            // Find the node that produces this type
+            const producerNode = [...nodeMap.values()].find(n => n.produces.name === ref.context);
+            if (!producerNode || producerNode.name === step.name) continue;
+            // Skip if already covered by edge-based input/transform
+            const edgeKey = `${producerNode.name}->${step.name}`;
+            if (edgeMap.has(edgeKey)) continue;
+            // Skip if already in prevParallelBranches list (these are covered by the parallel input resolution above)
+            if (prevParallelBranches.includes(producerNode.name)) continue;
+            // Skip if this is the immediate sequential predecessor (already covered)
+            if (prev === producerNode.name) continue;
+            additionalInputs += `\n- Also reads: \`.graft/session/node_outputs/${producerNode.name.toLowerCase()}.json\` (${ref.context})`;
+          }
         }
 
         text += `
 ### Step ${stepNum}: ${step.name} [sequential]
-- Agent: ${lowerName}${inputSource}${transformNote}${memoryLines}
+- Agent: ${lowerName}${inputSource}${transformNote}${additionalInputs}${memoryLines}
 - Expected tokens: input ~${nodeReport?.estimatedIn.toLocaleString('en-US') || '?'} / output ~${nodeReport?.estimatedOut.toLocaleString('en-US') || '?'}
 - Completion: \`===NODE_COMPLETE:${lowerName}===\`
 - Output: \`.graft/session/node_outputs/${lowerName}.json\`
@@ -169,9 +185,22 @@ function generateSteps(
 - **Dispatch all ${step.branches.length} agents concurrently** using the Agent tool in a single message
 - Wait for all to complete before proceeding
 `;
+        // Collect edge transforms from preceding sequential node into parallel branches
+        const incomingTransforms: string[] = [];
         for (const branchName of step.branches) {
           const lowerName = branchName.toLowerCase();
           const nodeReport = report.nodes.find(n => n.name === branchName);
+          let branchInputNote = '';
+          if (prev) {
+            const edgeInfo = edgeMap.get(`${prev}->${branchName}`);
+            if (edgeInfo) {
+              const transformedPath = `.graft/session/node_outputs/${prev.toLowerCase()}_to_${lowerName}.json`;
+              branchInputNote = ` [input: \`${transformedPath}\`]`;
+              incomingTransforms.push(`- **Edge transform** (${prev} → ${branchName}): ${describeTransforms(edgeInfo.transforms)}. Run: \`node .claude/hooks/${prev.toLowerCase()}-to-${lowerName}.js\` or manually apply. Output: \`${transformedPath}\``);
+            } else {
+              branchInputNote = ` [input: \`.graft/session/node_outputs/${prev.toLowerCase()}.json\`]`;
+            }
+          }
           let branchMemAnnotations = '';
           const branchDecl = nodeMap.get(branchName);
           if (branchDecl) {
@@ -185,8 +214,11 @@ function generateSteps(
               }
             }
           }
-          text += `- Agent: ${lowerName} -- tokens: input ~${nodeReport?.estimatedIn.toLocaleString('en-US') || '?'} / output ~${nodeReport?.estimatedOut.toLocaleString('en-US') || '?'}${branchMemAnnotations}
+          text += `- Agent: ${lowerName} -- tokens: input ~${nodeReport?.estimatedIn.toLocaleString('en-US') || '?'} / output ~${nodeReport?.estimatedOut.toLocaleString('en-US') || '?'}${branchInputNote}${branchMemAnnotations}
 `;
+        }
+        if (incomingTransforms.length > 0) {
+          text += incomingTransforms.join('\n') + '\n';
         }
         text += `- Completion: all ${step.branches.length} \`===NODE_COMPLETE===\` signals received
 `;

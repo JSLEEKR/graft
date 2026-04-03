@@ -337,7 +337,7 @@ export class Executor {
       if (edge.transforms.length > 0 && edge.target.kind === 'direct') {
         const transformed = applyTransforms(output, edge.transforms);
         const targetName = edge.target.node.toLowerCase();
-        const transformedFileName = `${nodeDecl.name.toLowerCase()}_transformed_for_${targetName}.json`;
+        const transformedFileName = `${nodeDecl.name.toLowerCase()}_to_${targetName}.json`;
         fs.writeFileSync(
           path.join(this.nodeOutputDir, transformedFileName),
           JSON.stringify(transformed, null, 2),

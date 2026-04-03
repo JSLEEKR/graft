@@ -409,12 +409,12 @@ export class Parser {
         this.advance();
         const condition = this.parseCondition();
         this.expect(TokenType.Arrow);
-        const target = this.expectIdentifier();
+        const target = this.check(TokenType.Done) ? (this.advance(), 'done') : this.expectIdentifier();
         branches.push({ condition, target });
       } else if (this.check(TokenType.Else)) {
         this.advance();
         this.expect(TokenType.Arrow);
-        const target = this.expectIdentifier();
+        const target = this.check(TokenType.Done) ? (this.advance(), 'done') : this.expectIdentifier();
         branches.push({ condition: undefined, target });
       } else {
         throw this.error(`Expected 'when' or 'else' in conditional edge`);

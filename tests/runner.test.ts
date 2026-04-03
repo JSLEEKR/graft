@@ -433,8 +433,8 @@ graph TransformRun(input: UserRequest, output: BOut, budget: 6k) {
       if (promptArg?.includes('B Agent')) {
         // Read what was passed as context to B
         const sessionDir = path.join(opts.cwd, '.graft', 'session', 'node_outputs');
-        if (fs.existsSync(path.join(sessionDir, 'a_transformed_for_b.json'))) {
-          bInput = JSON.parse(fs.readFileSync(path.join(sessionDir, 'a_transformed_for_b.json'), 'utf-8'));
+        if (fs.existsSync(path.join(sessionDir, 'a_to_b.json'))) {
+          bInput = JSON.parse(fs.readFileSync(path.join(sessionDir, 'a_to_b.json'), 'utf-8'));
         } else if (fs.existsSync(path.join(sessionDir, 'aout.json'))) {
           bInput = JSON.parse(fs.readFileSync(path.join(sessionDir, 'aout.json'), 'utf-8'));
         }

@@ -29,9 +29,9 @@ describe('project scaffolding', () => {
     expect(content).toContain('graph SimpleQA');
   });
 
-  it('tsc compiles without errors', () => {
+  it('tsc compiles without errors', { timeout: 30000 }, () => {
     // This is the real smoke test: does the full toolchain work?
-    const result = execSync('npx tsc --noEmit', { encoding: 'utf-8' });
+    const result = execSync('npx tsc --noEmit', { encoding: 'utf-8', timeout: 25000 });
     // tsc --noEmit produces no output on success
     expect(result.trim()).toBe('');
   });

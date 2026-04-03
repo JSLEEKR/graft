@@ -9,19 +9,35 @@ export class ClaudeCodeBackend implements CodegenBackend {
   readonly name = 'claude';
 
   generateAgent(node: NodeDecl, memoryNames: Set<string>, ctx: CodegenContext): string {
-    // Compute input overrides: for each incoming edge with transforms,
-    // map the source's produces name to the transformed file path
+    // Compute input overrides: map produces names to actual file paths
     const inputOverrides = new Map<string, string>();
+
+    // 1. For edges with transforms: use the transformed output path
+    // 2. For edges without transforms: use the source's raw output path
     for (const edge of ctx.program.edges) {
-      if (edge.target.kind === 'direct' && edge.target.node === node.name && edge.transforms.length > 0) {
+      if (edge.target.kind === 'direct' && edge.target.node === node.name) {
         const sourceNode = ctx.program.nodes.find(n => n.name === edge.source);
         if (sourceNode) {
           const producesName = sourceNode.produces.name;
-          const transformedPath = `.graft/session/node_outputs/${edge.source.toLowerCase()}_to_${node.name.toLowerCase()}.json`;
-          inputOverrides.set(producesName, transformedPath);
+          if (edge.transforms.length > 0) {
+            inputOverrides.set(producesName, `.graft/session/node_outputs/${edge.source.toLowerCase()}_to_${node.name.toLowerCase()}.json`);
+          } else {
+            inputOverrides.set(producesName, `.graft/session/node_outputs/${edge.source.toLowerCase()}.json`);
+          }
         }
       }
     }
+
+    // 3. For produces reads with no corresponding edge: resolve to producer's raw output
+    for (const ref of node.reads) {
+      if (inputOverrides.has(ref.context) || memoryNames.has(ref.context)) continue;
+      // Check if this read references a produces type from another node
+      const producerNode = ctx.program.nodes.find(n => n.produces.name === ref.context);
+      if (producerNode && producerNode.name !== node.name) {
+        inputOverrides.set(ref.context, `.graft/session/node_outputs/${producerNode.name.toLowerCase()}.json`);
+      }
+    }
+
     return generateAgent(node, memoryNames, inputOverrides);
   }
 

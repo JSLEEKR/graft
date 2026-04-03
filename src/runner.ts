@@ -24,7 +24,7 @@ export async function run(opts: RunInput): Promise<RunResult> {
   const source = fs.readFileSync(sourceFile, 'utf-8');
   const workDir = opts.workDir ?? path.dirname(sourceFile);
 
-  const compileResult = compile(source, path.basename(sourceFile));
+  const compileResult = compile(source, sourceFile);
   if (!compileResult.success || !compileResult.program) {
     return { success: false, graph: '', nodeResults: [], finalOutput: null, totalDurationMs: 0, errors: compileResult.errors.map(e => e.message) };
   }

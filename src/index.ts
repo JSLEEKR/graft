@@ -30,7 +30,7 @@ program
 
     let result;
     try {
-      result = compileAndWrite(source, path.basename(file), path.resolve(opts.outDir));
+      result = compileAndWrite(source, path.resolve(file), path.resolve(opts.outDir));
     } catch (e) {
       console.error(`Error: ${e instanceof Error ? e.message : String(e)}`);
       process.exit(1);
@@ -73,7 +73,7 @@ program
   .argument('<file>', '.gft source file')
   .action((file: string) => {
     const source = readSource(file);
-    const result = compile(source, path.basename(file));
+    const result = compile(source, path.resolve(file));
 
     if (!result.success) {
       console.error('\n✗ Check failed:\n');
