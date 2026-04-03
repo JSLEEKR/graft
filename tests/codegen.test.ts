@@ -472,7 +472,7 @@ describe('generateSettings', () => {
     expect(settings.hooks).toBeDefined();
     expect(settings.hooks.PostToolUse.length).toBe(1);
     expect(settings.hooks.PostToolUse[0].matcher).toBe('Write');
-    // Claude Code hook format: { matcher, hooks: [{ type, command, if }] }
+    // All hooks merged under single "Write" matcher
     expect(settings.hooks.PostToolUse[0].hooks).toHaveLength(1);
     expect(settings.hooks.PostToolUse[0].hooks[0].type).toBe('command');
     expect(settings.hooks.PostToolUse[0].hooks[0].command).toContain('a-to-b.js');
@@ -945,9 +945,12 @@ describe('generateSettings — parallel hooks', () => {
       }
     `);
     const settings = generateSettings(program, 'test.gft');
-    expect(settings.hooks.PostToolUse).toHaveLength(2);
+    // All hooks merged under single "Write" matcher
+    expect(settings.hooks.PostToolUse).toHaveLength(1);
+    expect(settings.hooks.PostToolUse[0].matcher).toBe('Write');
+    expect(settings.hooks.PostToolUse[0].hooks).toHaveLength(2);
     expect(settings.hooks.PostToolUse[0].hooks[0].command).toContain('a-to-c.js');
-    expect(settings.hooks.PostToolUse[1].hooks[0].command).toContain('b-to-c.js');
+    expect(settings.hooks.PostToolUse[0].hooks[1].command).toContain('b-to-c.js');
   });
 });
 

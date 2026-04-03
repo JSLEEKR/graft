@@ -77,19 +77,25 @@ export function generateSettings(program: Program, sourceFile: string, index?: P
     }
   }
 
-  const hookEntries: HookEntry[] = [];
+  // Collect all hook commands, then merge into a single "Write" matcher entry
+  const hookCommands: HookCommand[] = [];
   for (const edge of program.edges) {
     if (edge.transforms.length === 0) continue;
     if (edge.target.kind !== 'direct') continue;
     const source = edge.source.toLowerCase();
     const target = edge.target.node.toLowerCase();
+    hookCommands.push({
+      type: 'command',
+      command: `node .claude/hooks/${source}-to-${target}.js`,
+      if: `Write(.graft/session/node_outputs/${source}.json)`,
+    });
+  }
+
+  const hookEntries: HookEntry[] = [];
+  if (hookCommands.length > 0) {
     hookEntries.push({
       matcher: 'Write',
-      hooks: [{
-        type: 'command',
-        command: `node .claude/hooks/${source}-to-${target}.js`,
-        if: `Write(.graft/session/node_outputs/${source}.json)`,
-      }],
+      hooks: hookCommands,
     });
   }
 
