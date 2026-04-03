@@ -36,7 +36,7 @@ export function generate(program: Program, report: TokenReport, sourceFile: stri
       const source = edge.source.toLowerCase();
       const target = edge.target.node.toLowerCase();
       files.push({
-        path: `.claude/hooks/${source}-to-${target}.sh`,
+        path: `.claude/hooks/${source}-to-${target}.js`,
         content: hook,
       });
     }

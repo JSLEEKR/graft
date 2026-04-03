@@ -1,7 +1,11 @@
-import { Program, FlowNode, NodeDecl } from '../parser/ast.js';
+import { Program, FlowNode, NodeDecl, Transform } from '../parser/ast.js';
 import { TokenReport, NodeTokenReport } from '../analyzer/estimator.js';
 import { ProgramIndex } from '../program-index.js';
 import { formatExpr } from '../format.js';
+
+interface EdgeInfo {
+  transforms: Transform[];
+}
 
 export function generateOrchestration(program: Program, report: TokenReport): string {
   const graph = program.graphs[0];
@@ -10,10 +14,10 @@ export function generateOrchestration(program: Program, report: TokenReport): st
   const index = new ProgramIndex(program);
   const memoryNames = new Set(program.memories.map(m => m.name));
 
-  const edgeMap = new Map<string, boolean>();
+  const edgeMap = new Map<string, EdgeInfo>();
   for (const edge of program.edges) {
     if (edge.target.kind === 'direct' && edge.transforms.length > 0) {
-      edgeMap.set(`${edge.source}->${edge.target.node}`, true);
+      edgeMap.set(`${edge.source}->${edge.target.node}`, { transforms: edge.transforms });
     }
   }
 
@@ -56,10 +60,34 @@ Check \`.graft/token_log.txt\` after each step.
 `;
 }
 
+function describeTransforms(transforms: Transform[]): string {
+  const parts: string[] = [];
+  for (const t of transforms) {
+    switch (t.type) {
+      case 'select':
+        parts.push(`keep only fields: ${t.fields.map(f => `\`${f}\``).join(', ')}`);
+        break;
+      case 'drop':
+        parts.push(`remove field \`${t.field}\``);
+        break;
+      case 'compact':
+        parts.push('minify JSON (no whitespace)');
+        break;
+      case 'filter':
+        parts.push(`filter \`${t.field}\` array`);
+        break;
+      case 'truncate':
+        parts.push(`truncate to ${t.tokens} tokens`);
+        break;
+    }
+  }
+  return parts.join(', then ');
+}
+
 function generateSteps(
   flow: FlowNode[],
   report: TokenReport,
-  edgeMap: Map<string, boolean>,
+  edgeMap: Map<string, EdgeInfo>,
   startStep: number,
   prevNode: string | null,
   nodeMap: Map<string, NodeDecl>,
@@ -76,10 +104,12 @@ function generateSteps(
         const nodeReport = report.nodes.find(n => n.name === step.name);
 
         let inputSource = '';
+        let transformNote = '';
         if (prev) {
-          const hasTransform = edgeMap.has(`${prev}->${step.name}`);
-          if (hasTransform) {
+          const edgeInfo = edgeMap.get(`${prev}->${step.name}`);
+          if (edgeInfo) {
             inputSource = `\n- Input: \`.graft/session/node_outputs/${prev.toLowerCase()}_to_${lowerName}.json\``;
+            transformNote = `\n- **Edge transform**: After ${prev} completes, transform its output: ${describeTransforms(edgeInfo.transforms)}. Save to \`.graft/session/node_outputs/${prev.toLowerCase()}_to_${lowerName}.json\` before starting ${step.name}.`;
           } else {
             inputSource = `\n- Input: \`.graft/session/node_outputs/${prev.toLowerCase()}.json\``;
           }
@@ -101,7 +131,7 @@ function generateSteps(
 
         text += `
 ### Step ${stepNum}: ${step.name} [sequential]
-- Agent: ${lowerName}${inputSource}${memoryLines}
+- Agent: ${lowerName}${inputSource}${transformNote}${memoryLines}
 - Expected tokens: input ~${nodeReport?.estimatedIn.toLocaleString('en-US') || '?'} / output ~${nodeReport?.estimatedOut.toLocaleString('en-US') || '?'}
 - Completion: \`===NODE_COMPLETE:${lowerName}===\`
 - Output: \`.graft/session/node_outputs/${lowerName}.json\`

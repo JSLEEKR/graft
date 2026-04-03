@@ -28,6 +28,7 @@ export interface GraftSettings {
 interface HookCommand {
   type: 'command';
   command: string;
+  if?: string;
 }
 
 interface HookEntry {
@@ -83,8 +84,12 @@ export function generateSettings(program: Program, sourceFile: string, index?: P
     const source = edge.source.toLowerCase();
     const target = edge.target.node.toLowerCase();
     hookEntries.push({
-      matcher: `Write(.graft/session/node_outputs/${source}.json)`,
-      hooks: [{ type: 'command', command: `.claude/hooks/${source}-to-${target}.sh` }],
+      matcher: 'Write',
+      hooks: [{
+        type: 'command',
+        command: `node .claude/hooks/${source}-to-${target}.js`,
+        if: `Write(.graft/session/node_outputs/${source}.json)`,
+      }],
     });
   }
 

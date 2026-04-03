@@ -214,13 +214,11 @@ describe('generateHook', () => {
     const sh = generateHook(edge);
 
     expect(sh).not.toBeNull();
-    expect(sh).toContain('#!/bin/bash');
-    expect(sh).toContain('set -euo pipefail');
+    expect(sh).toContain('#!/usr/bin/env node');
     expect(sh).toContain('a.json');
     expect(sh).toContain('a_to_b.json');
-    expect(sh).toContain('jq');
     expect(sh).toContain('findings');
-    expect(sh).toContain('-c');
+    expect(sh).toContain('JSON.stringify');
   });
 
   it('returns null for edge without transforms', () => {
@@ -261,7 +259,7 @@ describe('generateHook', () => {
     `);
     const sh = generateHook(program.edges[0]);
     expect(sh).not.toBeNull();
-    expect(sh).toContain('del(.debug)');
+    expect(sh).toContain('delete result["debug"]');
   });
 
   it('generates select projection for multiple fields via multi-field select', () => {
@@ -285,8 +283,8 @@ describe('generateHook', () => {
     `);
     const sh = generateHook(program.edges[0]);
     expect(sh).not.toBeNull();
-    expect(sh).toContain('a: .a');
-    expect(sh).toContain('b: .b');
+    expect(sh).toContain('"a": data["a"]');
+    expect(sh).toContain('"b": data["b"]');
   });
 });
 
@@ -473,11 +471,12 @@ describe('generateSettings', () => {
     expect(settings.graft.model_routing.overrides.b).toBe('claude-haiku-4-5-20251001');
     expect(settings.hooks).toBeDefined();
     expect(settings.hooks.PostToolUse.length).toBe(1);
-    expect(settings.hooks.PostToolUse[0].matcher).toContain('a.json');
-    // Claude Code hook format: { matcher, hooks: [{ type, command }] }
+    expect(settings.hooks.PostToolUse[0].matcher).toBe('Write');
+    // Claude Code hook format: { matcher, hooks: [{ type, command, if }] }
     expect(settings.hooks.PostToolUse[0].hooks).toHaveLength(1);
     expect(settings.hooks.PostToolUse[0].hooks[0].type).toBe('command');
-    expect(settings.hooks.PostToolUse[0].hooks[0].command).toContain('a-to-b.sh');
+    expect(settings.hooks.PostToolUse[0].hooks[0].command).toContain('a-to-b.js');
+    expect(settings.hooks.PostToolUse[0].hooks[0].if).toContain('a.json');
   });
 
   it('has no overrides when all nodes use same model', () => {
@@ -563,7 +562,7 @@ describe('generate', () => {
     expect(files).toHaveLength(7);
     expect(files.map(f => f.path)).toContain('.claude/agents/researcher.md');
     expect(files.map(f => f.path)).toContain('.claude/agents/writer.md');
-    expect(files.map(f => f.path)).toContain('.claude/hooks/researcher-to-writer.sh');
+    expect(files.map(f => f.path)).toContain('.claude/hooks/researcher-to-writer.js');
     expect(files.map(f => f.path)).toContain('.claude/CLAUDE.md');
     expect(files.map(f => f.path)).toContain('.claude/settings.json');
     expect(files.map(f => f.path)).toContain('.graft/session/node_outputs/.gitkeep');

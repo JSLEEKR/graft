@@ -54,7 +54,7 @@ describe('end-to-end compilation', () => {
     expect(filePaths).toContain('.claude/CLAUDE.md');
     expect(filePaths).toContain('.claude/agents/researcher.md');
     expect(filePaths).toContain('.claude/agents/writer.md');
-    expect(filePaths).toContain('.claude/hooks/researcher-to-writer.sh');
+    expect(filePaths).toContain('.claude/hooks/researcher-to-writer.js');
     expect(filePaths).toContain('.claude/settings.json');
     expect(filePaths).toContain('.graft/session/node_outputs/.gitkeep');
     expect(filePaths).toContain('.graft/token_log.txt');
@@ -90,11 +90,11 @@ describe('end-to-end compilation', () => {
     expect(researcherAgent!.content).toContain('===NODE_COMPLETE:researcher===');
   });
 
-  it('generates hook script with jq transforms', () => {
+  it('generates hook script with Node.js transforms', () => {
     const result = compile(HELLO_GFT, 'hello.gft');
-    const hook = result.files!.find(f => f.path === '.claude/hooks/researcher-to-writer.sh');
+    const hook = result.files!.find(f => f.path === '.claude/hooks/researcher-to-writer.js');
     expect(hook).toBeDefined();
-    expect(hook!.content).toContain('jq');
+    expect(hook!.content).toContain('#!/usr/bin/env node');
     expect(hook!.content).toContain('findings');
   });
 
