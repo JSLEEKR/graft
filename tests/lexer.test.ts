@@ -211,9 +211,9 @@ describe('Lexer', () => {
   it('GraftError.format() produces readable output', () => {
     const err = new GraftError('bad token', { line: 1, column: 5, offset: 4 });
     const output = err.format('node @foo');
-    expect(output).toContain('line 1:5');
+    expect(output).toContain('<source>:1:5');
     expect(output).toContain('node @foo');
-    expect(output).toContain('    ^');
+    expect(output).toContain('^');
     expect(output).toContain('bad token');
   });
 });

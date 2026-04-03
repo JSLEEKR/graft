@@ -39,7 +39,7 @@ program
     if (!result.success) {
       console.error('\n✗ Compilation failed:\n');
       for (const err of result.errors) {
-        console.error(err.format(source));
+        console.error(err.format(source, file));
         console.error('');
       }
       process.exit(1);
@@ -78,7 +78,7 @@ program
     if (!result.success) {
       console.error('\n✗ Check failed:\n');
       for (const err of result.errors) {
-        console.error(err.format(source));
+        console.error(err.format(source, file));
         console.error('');
       }
       process.exit(1);

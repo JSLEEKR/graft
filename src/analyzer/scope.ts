@@ -1,5 +1,5 @@
 import { Program, FlowNode, WriteRef } from '../parser/ast.js';
-import { GraftError, SourceLocation } from '../errors/diagnostics.js';
+import { GraftError, SourceLocation, didYouMean } from '../errors/diagnostics.js';
 import { ProgramIndex } from '../program-index.js';
 import {
   checkVarCollision,
@@ -90,11 +90,21 @@ export class ScopeChecker {
         const isMemory = this.index.memoryMap.has(ref.context);
 
         if (!isContext && !isProduces && !isMemory) {
+          const allNames = [
+            ...this.index.contextMap.keys(),
+            ...this.index.producesFieldsMap.keys(),
+            ...this.index.memoryMap.keys(),
+          ];
+          const suggestion = didYouMean(ref.context, allNames);
+          const help = suggestion
+            ? `did you mean '${suggestion}'?`
+            : undefined;
           errors.push(new GraftError(
             `'${ref.context}' is not declared as a context, produces output, or memory`,
             ref.location,
             'error',
             'SCOPE_UNDEFINED_REF',
+            help,
           ));
           continue;
         }
@@ -103,14 +113,17 @@ export class ScopeChecker {
         if (ref.field) {
           if (isContext) {
             const ctx = this.index.contextMap.get(ref.context)!;
-            const fieldNames = new Set(ctx.fields.map(f => f.name));
+            const fieldNames = ctx.fields.map(f => f.name);
+            const fieldSet = new Set(fieldNames);
             for (const f of ref.field) {
-              if (!fieldNames.has(f)) {
+              if (!fieldSet.has(f)) {
+                const suggestion = didYouMean(f, fieldNames);
                 errors.push(new GraftError(
                   `Field '${f}' does not exist in context '${ref.context}'`,
                   ref.location,
                   'error',
                   'SCOPE_FIELD_NOT_FOUND',
+                  suggestion ? `did you mean '${suggestion}'?` : undefined,
                 ));
               }
             }
@@ -118,11 +131,13 @@ export class ScopeChecker {
             const fields = this.index.producesFieldsMap.get(ref.context)!;
             for (const f of ref.field) {
               if (!fields.has(f)) {
+                const suggestion = didYouMean(f, [...fields.keys()]);
                 errors.push(new GraftError(
                   `Field '${f}' does not exist in produces '${ref.context}'`,
                   ref.location,
                   'error',
                   'SCOPE_FIELD_NOT_FOUND',
+                  suggestion ? `did you mean '${suggestion}'?` : undefined,
                 ));
               }
             }
