@@ -1,5 +1,22 @@
 # Changelog
 
+## v5.2.0 (2026-04-03)
+
+### Fixed
+- **Parallel→sequential edge transforms**: orchestration CLAUDE.md now generates edge transform instructions when a sequential node follows a parallel block (was silently skipped)
+- **Agent input paths**: downstream nodes (e.g., SeniorReviewer after parallel reviewers) get exact transformed input file paths in agent MD instead of vague `.graft/session/` reference
+- **Graceful hook no-op**: hook scripts exit(0) instead of exit(1) when input file doesn't exist, preventing failures from hooks firing on unrelated Write calls
+- **Parallel dispatch instruction**: orchestration explicitly tells Claude Code to "dispatch all N agents concurrently using the Agent tool in a single message"
+
+### Changed
+- `agents.ts`: accepts `inputOverrides` map for edge-transformed input resolution
+- `claude-backend.ts`: computes input overrides from program edges at codegen time
+
+### Stats
+- 1,334 tests (all passing)
+- code-review.gft (4-agent parallel pipeline) compiles to correct orchestration structure
+- Verified: hello.gft sequential pipeline output unchanged
+
 ## v5.1.0 (2026-04-03)
 
 ### Added

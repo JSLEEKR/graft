@@ -1,6 +1,6 @@
 {
   "name": "@graft-lang/graft",
-  "version": "5.1.0",
+  "version": "5.2.0",
   "description": "Graft compiler — compile .gft graph DSL to Claude Code harness structures",
   "type": "module",
   "license": "MIT",
