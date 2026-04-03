@@ -1,71 +1,88 @@
-[![npm version](https://img.shields.io/npm/v/@graft-lang/graft.svg)](https://www.npmjs.com/package/@graft-lang/graft)
-[![CI](https://github.com/JSLEEKR/graft/actions/workflows/ci.yml/badge.svg)](https://github.com/JSLEEKR/graft/actions/workflows/ci.yml)
-[![Node.js](https://img.shields.io/node/v/@graft-lang/graft.svg)](https://nodejs.org)
+[![npm version](https://img.shields.io/npm/v/@jsleekr/graft.svg)](https://www.npmjs.com/package/@jsleekr/graft)
+[![Node.js](https://img.shields.io/node/v/@jsleekr/graft.svg)](https://nodejs.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 # Graft
 
-**A graph-native language for AI agent pipelines.**
+**Define multi-agent pipelines in 10 lines. Compile to Claude Code in 1 second.**
 
-Graft compiles `.gft` files into [Claude Code](https://docs.anthropic.com/en/docs/claude-code) harness structures. Define your multi-agent pipeline declaratively, and the compiler generates the agents, hooks, orchestration, and settings — with compile-time token budget analysis.
+Graft is a graph-native language that compiles `.gft` files into [Claude Code](https://docs.anthropic.com/en/docs/claude-code) harness structures — agents, hooks, orchestration, and settings — with compile-time token budget analysis.
 
-## Quick Start
+## 10-Minute Getting Started
+
+### 1. Install
 
 ```bash
-npm install -g @graft-lang/graft
+npm install -g @jsleekr/graft
 ```
 
-Write a pipeline (`hello.gft`):
+Requires Node.js 20+.
 
-```graft
-context UserRequest(max_tokens: 500) {
-  question: String
-}
+### 2. Create a project
 
-node Researcher(model: sonnet, budget: 2k/1k) {
-  reads: [UserRequest]
-  produces Research {
-    findings: List<String>
-    confidence: Float(0..1)
-  }
-}
-
-node Writer(model: haiku, budget: 1500/800) {
-  reads: [Research.findings]
-  produces Answer { response: String }
-}
-
-edge Researcher -> Writer | select(findings) | compact
-
-graph SimpleQA(input: UserRequest, output: Answer, budget: 6k) {
-  Researcher -> Writer -> done
-}
+```bash
+graft init my-pipeline
+cd my-pipeline
 ```
 
-Compile it:
+This creates `pipeline.gft` — a simple two-node pipeline ready to compile.
+
+### 3. Compile
+
+```bash
+graft compile pipeline.gft
+```
+
+Output:
 
 ```
-$ graft compile hello.gft
-
 ✓ Parse OK
 ✓ Scope check OK
 ✓ Type check OK
 ✓ Token analysis:
-    Researcher           in ~   500  out ~ 1,000
-    Writer               in ~    63  out ~   800
-    Best path:     2,363 tokens ✓ within budget (6,000)
+    Analyst              in ~   500  out ~ 2,000
+    Reviewer             in ~   840  out ~ 1,000
+    Best path:     4,340 tokens ✓ within budget (10,000)
 
 Generated:
-  .claude/agents/researcher.md     ← agent definition
-  .claude/agents/writer.md         ← agent definition
-  .claude/hooks/researcher-to-writer.js  ← edge transform (Node.js)
-  .claude/CLAUDE.md                ← orchestration plan
-  .claude/settings.json            ← model routing + hooks
+  .claude/agents/analyst.md          ← agent definition
+  .claude/agents/reviewer.md         ← agent definition
+  .claude/hooks/analyst-to-reviewer.js  ← edge transform
+  .claude/CLAUDE.md                  ← orchestration plan
+  .claude/settings.json              ← model routing + hooks
 ```
 
-Open the project directory in Claude Code — it picks up the generated `.claude/` structure and runs the pipeline.
+### 4. Run in Claude Code
 
-## What Does Graft Generate?
+```bash
+# Create input
+echo '{"question": "What is Graft?"}' > .graft/session/input.json
+
+# Open in Claude Code
+claude
+```
+
+Then tell Claude Code:
+
+> `.claude/CLAUDE.md`의 실행 계획을 따라서 파이프라인을 실행해줘. 입력은 `.graft/session/input.json`에 있어.
+
+Claude Code reads the generated `.claude/` structure and runs the pipeline automatically.
+
+### 5. Check the results
+
+```bash
+cat .graft/session/node_outputs/reviewer.json
+```
+
+That's it. You have a working multi-agent pipeline.
+
+---
+
+## How It Works
+
+```
+.gft Source  →  Graft Compiler  →  .claude/ output  →  Claude Code runs it
+```
 
 | Graft Source | Generated Output | Purpose |
 |-------------|-----------------|---------|
@@ -81,8 +98,52 @@ Multi-agent systems waste tokens passing full context between agents. Graft fixe
 
 - **Edge transforms** extract only what the next agent needs (`select`, `drop`, `compact`, `filter`)
 - **Compile-time token analysis** catches budget overruns before you spend API credits
-- **Typed output schemas** enforce structured JSON communication between agents
+- **Typed output schemas** enforce structured JSON between agents
 - **Explicit `reads`** declarations prevent context leaks — the compiler verifies scope
+
+## Example: Code Review Pipeline
+
+```graft
+context PullRequest(max_tokens: 2k) {
+  diff: String
+  description: String
+}
+
+node SecurityReviewer(model: sonnet, budget: 4k/2k) {
+  reads: [PullRequest]
+  produces SecurityAnalysis {
+    vulnerabilities: List<String>
+    risk_level: enum(low, medium, high, critical)
+  }
+}
+
+node LogicReviewer(model: sonnet, budget: 4k/2k) {
+  reads: [PullRequest]
+  produces LogicAnalysis {
+    issues: List<String>
+    complexity: Int
+  }
+}
+
+node SeniorReviewer(model: opus, budget: 6k/3k) {
+  reads: [SecurityAnalysis, LogicAnalysis, PullRequest]
+  produces FinalReview {
+    approved: Bool
+    summary: String
+    action_items: List<String>
+  }
+}
+
+edge SecurityReviewer -> SeniorReviewer | select(vulnerabilities, risk_level) | compact
+edge LogicReviewer -> SeniorReviewer | select(issues) | compact
+
+graph CodeReview(input: PullRequest, output: FinalReview, budget: 25k) {
+  parallel { SecurityReviewer  LogicReviewer }
+  -> SeniorReviewer -> done
+}
+```
+
+This compiles to 3 agents running in parallel, with edge transforms that strip unnecessary data before the senior review.
 
 ## Language Features
 
@@ -153,8 +214,6 @@ A -> let score = A.risk_score * 2
    -> B -> done
 ```
 
-Supported: arithmetic (`+`, `-`, `*`, `/`, `%`), comparison (`>`, `>=`, `==`, `!=`), logical (`&&`, `||`), null coalescing (`??`), string interpolation, builtins (`len`, `max`, `min`, `abs`, `round`, `keys`, `str`).
-
 ### Type System
 
 ```
@@ -174,31 +233,22 @@ graft run <file.gft> --input <json> [--dry-run] [--verbose]  # Compile and execu
 graft init <name>                            # Scaffold a new project
 ```
 
-## Editor Support
-
-### VS Code
-
-The [Graft VS Code extension](editors/vscode/) provides:
-- Syntax highlighting (TextMate grammar)
-- Real-time diagnostics
-- Hover information (types, token budgets)
-- Go-to-definition, find references, rename
-- Completions (keywords, declarations, imports)
-- Code actions (auto-import)
-- Document symbols
-
 ## Programmatic API
 
 ```typescript
-import { compileToProgram, compile } from '@graft-lang/graft/compiler';
-import { Executor } from '@graft-lang/graft/runtime';
-import type { Program, GraftErrorCode } from '@graft-lang/graft/types';
+import { compile } from '@jsleekr/graft/compiler';
+import { Executor } from '@jsleekr/graft/runtime';
+import type { Program } from '@jsleekr/graft/types';
 
-const result = compileToProgram(source, 'pipeline.gft');
+const result = compile(source, 'pipeline.gft');
 if (result.success) {
   console.log(`Parsed ${result.program.nodes.length} nodes`);
 }
 ```
+
+## Editor Support
+
+The [Graft VS Code extension](editors/vscode/) provides syntax highlighting, real-time diagnostics, hover, go-to-definition, find references, rename, completions, and code actions.
 
 ## Development
 
@@ -206,29 +256,8 @@ if (result.success) {
 git clone https://github.com/JSLEEKR/graft.git
 cd graft && npm install
 npm run build         # Compile TypeScript
-npm test              # Run all 1,344 tests
+npm test              # Run all 1,574 tests
 ```
-
-## Version History
-
-| Version | Highlights |
-|---------|-----------|
-| **v5.3** | Parallel codegen test coverage, hook entry merging |
-| **v5.2** | Parallel→sequential edge transforms, agent input overrides, graceful hooks |
-| **v5.1** | Claude Code compatibility, `graft init`, CI/CD, README rewrite |
-| **v5.0** | Condition-to-Expr AST unification, strict equality, codegen expression display |
-| **v4.9** | Codegen expression display |
-| **v4.8** | LSP expression intelligence — hover, go-to-def, completions |
-| **v4.7** | Null coalescing (`??`), runtime expression hardening |
-| **v4.6** | Logical operators (`&&`, `||`), conditional type warnings |
-| **v4.5** | Comparison operators, conditional expressions |
-| **v4.4** | String interpolation, expression extraction |
-| **v4.0** | Variables, expressions, graph parameters, graph calls |
-| **v3.0** | Pluggable codegen backends, field-level writes, failure strategies |
-| **v2.0** | Import system, persistent memory |
-| **v1.0** | Full compiler pipeline, CLI |
-
-See [CHANGELOG.md](CHANGELOG.md) for full details.
 
 ## License
 
