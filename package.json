@@ -1,15 +1,22 @@
 {
-  "name": "@graft-lang/graft",
-  "version": "5.7.0",
+  "name": "@jsleekr/graft",
+  "version": "5.7.1",
   "description": "Graft compiler — compile .gft graph DSL to Claude Code harness structures",
   "type": "module",
   "license": "MIT",
   "author": "JSLEEKR",
   "repository": {
     "type": "git",
-    "url": "https://github.com/JSLEEKR/graft.git"
+    "url": "git+https://github.com/JSLEEKR/graft.git"
   },
-  "keywords": ["graft", "compiler", "dsl", "llm", "claude", "graph"],
+  "keywords": [
+    "graft",
+    "compiler",
+    "dsl",
+    "llm",
+    "claude",
+    "graph"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -44,8 +51,8 @@
     "LICENSE"
   ],
   "bin": {
-    "graft": "./dist/index.js",
-    "graft-lsp": "./dist/lsp/server.js"
+    "graft": "dist/index.js",
+    "graft-lsp": "dist/lsp/server.js"
   },
   "scripts": {
     "build": "tsc",

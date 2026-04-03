@@ -48,7 +48,7 @@ describe('packaging', () => {
       expect(pkg.files).toEqual(['dist/', 'README.md', 'LICENSE']);
 
       // other required fields
-      expect(pkg.name).toBe('@graft-lang/graft');
+      expect(pkg.name).toBe('@jsleekr/graft');
       expect(pkg.license).toBe('MIT');
       expect(pkg.main).toBe('./dist/index.js');
       expect(pkg.types).toBe('./dist/index.d.ts');
