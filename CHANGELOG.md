@@ -1,5 +1,20 @@
 # Changelog
 
+## v5.6.0 (2026-04-03)
+
+### Added
+- **3 new practical examples**: `content-pipeline.gft` (4-node with memory), `data-analysis.gft` (seq→par→seq), `pr-summarizer.gft` (minimal 2-node)
+- **5 new integration tests** for all examples (content-pipeline, data-analysis, pr-summarizer, adversarial-debate, debate-lite)
+- **Full CLI workflow verified**: `graft init` → `graft compile` → `graft run --dry-run`
+- All 9 examples (7 compilable + 2 library files) pass compilation + dry-run
+
+### Fixed
+- `.gitignore`: runtime output now ignored in subdirectories (`**/.graft/session/`)
+
+### Stats
+- 1,349 tests (15 new since v5.3), all passing
+- 9 example files demonstrating: sequential, parallel, seq→par→seq, memory, imports, retry, tools, 8-node debate
+
 ## v5.5.0 (2026-04-03)
 
 ### Added
