@@ -1,4 +1,4 @@
-import { Program, FlowNode, NodeDecl, Transform } from '../parser/ast.js';
+import { Program, FlowNode, NodeDecl, EdgeDecl, Transform } from '../parser/ast.js';
 import { TokenReport, NodeTokenReport } from '../analyzer/estimator.js';
 import { ProgramIndex } from '../program-index.js';
 import { formatExpr } from '../format.js';
@@ -15,13 +15,16 @@ export function generateOrchestration(program: Program, report: TokenReport): st
   const memoryNames = new Set(program.memories.map(m => m.name));
 
   const edgeMap = new Map<string, EdgeInfo>();
+  const conditionalEdgeMap = new Map<string, EdgeDecl>();
   for (const edge of program.edges) {
     if (edge.target.kind === 'direct' && edge.transforms.length > 0) {
       edgeMap.set(`${edge.source}->${edge.target.node}`, { transforms: edge.transforms });
+    } else if (edge.target.kind === 'conditional') {
+      conditionalEdgeMap.set(edge.source, edge);
     }
   }
 
-  const { text: steps } = generateSteps(graph.flow, report, edgeMap, 1, null, index.nodeMap, memoryNames);
+  const { text: steps } = generateSteps(graph.flow, report, edgeMap, conditionalEdgeMap, 1, null, index.nodeMap, memoryNames);
 
   // Memory preamble
   const memorySection = program.memories.length > 0
@@ -84,10 +87,56 @@ function describeTransforms(transforms: Transform[]): string {
   return parts.join(', then ');
 }
 
+function describeCondition(expr: import('../parser/ast.js').Expr): string {
+  if (expr.kind === 'binary') {
+    const left = expr.left.kind === 'field_access' ? `\`${expr.left.segments[0]}\`` : formatExpr(expr.left);
+    const right = expr.right.kind === 'literal' ? `\`${expr.right.value}\`` : formatExpr(expr.right);
+    return `${left} ${expr.op} ${right}`;
+  }
+  return formatExpr(expr);
+}
+
+function generateConditionalRoutingStep(
+  stepNum: number,
+  edge: EdgeDecl,
+  nodeMap: Map<string, NodeDecl>,
+  report: TokenReport,
+): string {
+  if (edge.target.kind !== 'conditional') return '';
+
+  const source = edge.source.toLowerCase();
+  const branches = edge.target.branches;
+
+  let text = `
+### Step ${stepNum}: Conditional routing from ${edge.source}
+- **Automatic**: Router hook evaluates conditions on ${edge.source}'s output
+- Routing file: \`.graft/session/routing/${source}_route.json\`
+- Read the \`target\` field and proceed accordingly:
+`;
+
+  for (const branch of branches) {
+    const label = branch.condition ? describeCondition(branch.condition) : 'else (default)';
+    if (branch.target === 'done') {
+      text += `  - If ${label}: **pipeline complete**\n`;
+    } else {
+      const nodeReport = report.nodes.find(n => n.name === branch.target);
+      const tokenInfo = nodeReport
+        ? ` (tokens: input ~${nodeReport.estimatedIn.toLocaleString('en-US')} / output ~${nodeReport.estimatedOut.toLocaleString('en-US')})`
+        : '';
+      text += `  - If ${label}: run **${branch.target}** agent${tokenInfo}\n`;
+    }
+  }
+
+  text += `- Each branch agent reads from \`.graft/session/node_outputs/${source}.json\`\n`;
+
+  return text;
+}
+
 function generateSteps(
   flow: FlowNode[],
   report: TokenReport,
   edgeMap: Map<string, EdgeInfo>,
+  conditionalEdgeMap: Map<string, EdgeDecl>,
   startStep: number,
   prevNode: string | null,
   nodeMap: Map<string, NodeDecl>,
@@ -172,9 +221,17 @@ function generateSteps(
 - Completion: \`===NODE_COMPLETE:${lowerName}===\`
 - Output: \`.graft/session/node_outputs/${lowerName}.json\`
 `;
+        stepNum++;
+
+        // Conditional routing after this node
+        const condEdge = conditionalEdgeMap.get(step.name);
+        if (condEdge && condEdge.target.kind === 'conditional') {
+          text += generateConditionalRoutingStep(stepNum, condEdge, nodeMap, report);
+          stepNum++;
+        }
+
         prev = step.name;
         prevParallelBranches = [];
-        stepNum++;
         break;
       }
 

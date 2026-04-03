@@ -31,14 +31,26 @@ export function generate(program: Program, report: TokenReport, sourceFile: stri
 
   // Hooks
   for (const edge of program.edges) {
-    const hook = be.generateHook(edge, ctx);
-    if (hook && edge.target.kind === 'direct') {
-      const source = edge.source.toLowerCase();
-      const target = edge.target.node.toLowerCase();
-      files.push({
-        path: `.claude/hooks/${source}-to-${target}.js`,
-        content: hook,
-      });
+    if (edge.target.kind === 'conditional') {
+      // Conditional edge → router hook
+      const hook = be.generateConditionalHook?.(edge, ctx);
+      if (hook) {
+        files.push({
+          path: `.claude/hooks/${edge.source.toLowerCase()}-router.js`,
+          content: hook,
+        });
+      }
+    } else {
+      // Direct edge → transform hook
+      const hook = be.generateHook(edge, ctx);
+      if (hook && edge.target.kind === 'direct') {
+        const source = edge.source.toLowerCase();
+        const target = edge.target.node.toLowerCase();
+        files.push({
+          path: `.claude/hooks/${source}-to-${target}.js`,
+          content: hook,
+        });
+      }
     }
   }
 
@@ -58,6 +70,12 @@ export function generate(program: Program, report: TokenReport, sourceFile: stri
   // Runtime scaffold
   files.push({ path: '.graft/session/node_outputs/.gitkeep', content: '' });
   files.push({ path: '.graft/token_log.txt', content: '' });
+
+  // Routing scaffold (only when conditional edges exist)
+  const hasConditionalEdges = program.edges.some(e => e.target.kind === 'conditional');
+  if (hasConditionalEdges) {
+    files.push({ path: '.graft/session/routing/.gitkeep', content: '' });
+  }
 
   // Memory scaffold — conditional
   if (program.memories.length > 0) {

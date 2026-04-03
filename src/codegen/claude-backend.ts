@@ -1,7 +1,7 @@
 import { NodeDecl, EdgeDecl } from '../parser/ast.js';
 import { CodegenBackend, CodegenContext } from './backend.js';
 import { generateAgent } from './agents.js';
-import { generateHook } from './hooks.js';
+import { generateHook, generateConditionalHook } from './hooks.js';
 import { generateOrchestration } from './orchestration.js';
 import { generateSettings } from './settings.js';
 
@@ -12,8 +12,9 @@ export class ClaudeCodeBackend implements CodegenBackend {
     // Compute input overrides: map produces names to actual file paths
     const inputOverrides = new Map<string, string>();
 
-    // 1. For edges with transforms: use the transformed output path
-    // 2. For edges without transforms: use the source's raw output path
+    // 1. For direct edges with transforms: use the transformed output path
+    // 2. For direct edges without transforms: use the source's raw output path
+    // 3. For conditional edges targeting this node: use the source's raw output path
     for (const edge of ctx.program.edges) {
       if (edge.target.kind === 'direct' && edge.target.node === node.name) {
         const sourceNode = ctx.program.nodes.find(n => n.name === edge.source);
@@ -23,6 +24,17 @@ export class ClaudeCodeBackend implements CodegenBackend {
             inputOverrides.set(producesName, `.graft/session/node_outputs/${edge.source.toLowerCase()}_to_${node.name.toLowerCase()}.json`);
           } else {
             inputOverrides.set(producesName, `.graft/session/node_outputs/${edge.source.toLowerCase()}.json`);
+          }
+        }
+      } else if (edge.target.kind === 'conditional') {
+        const isTarget = edge.target.branches.some(b => b.target === node.name);
+        if (isTarget) {
+          const sourceNode = ctx.program.nodes.find(n => n.name === edge.source);
+          if (sourceNode) {
+            const producesName = sourceNode.produces.name;
+            if (!inputOverrides.has(producesName)) {
+              inputOverrides.set(producesName, `.graft/session/node_outputs/${edge.source.toLowerCase()}.json`);
+            }
           }
         }
       }
@@ -43,6 +55,10 @@ export class ClaudeCodeBackend implements CodegenBackend {
 
   generateHook(edge: EdgeDecl, _ctx: CodegenContext): string | null {
     return generateHook(edge);
+  }
+
+  generateConditionalHook(edge: EdgeDecl, _ctx: CodegenContext): string | null {
+    return generateConditionalHook(edge);
   }
 
   generateOrchestration(ctx: CodegenContext): string {

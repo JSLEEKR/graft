@@ -80,15 +80,24 @@ export function generateSettings(program: Program, sourceFile: string, index?: P
   // Collect all hook commands, then merge into a single "Write" matcher entry
   const hookCommands: HookCommand[] = [];
   for (const edge of program.edges) {
-    if (edge.transforms.length === 0) continue;
-    if (edge.target.kind !== 'direct') continue;
-    const source = edge.source.toLowerCase();
-    const target = edge.target.node.toLowerCase();
-    hookCommands.push({
-      type: 'command',
-      command: `node .claude/hooks/${source}-to-${target}.js`,
-      if: `Write(.graft/session/node_outputs/${source}.json)`,
-    });
+    if (edge.target.kind === 'conditional') {
+      // Conditional edge → router hook
+      const source = edge.source.toLowerCase();
+      hookCommands.push({
+        type: 'command',
+        command: `node .claude/hooks/${source}-router.js`,
+        if: `Write(.graft/session/node_outputs/${source}.json)`,
+      });
+    } else if (edge.target.kind === 'direct' && edge.transforms.length > 0) {
+      // Direct edge with transforms → transform hook
+      const source = edge.source.toLowerCase();
+      const target = edge.target.node.toLowerCase();
+      hookCommands.push({
+        type: 'command',
+        command: `node .claude/hooks/${source}-to-${target}.js`,
+        if: `Write(.graft/session/node_outputs/${source}.json)`,
+      });
+    }
   }
 
   const hookEntries: HookEntry[] = [];
