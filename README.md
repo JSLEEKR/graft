@@ -58,7 +58,7 @@ $ graft compile hello.gft
 Generated:
   .claude/agents/researcher.md     ← agent definition
   .claude/agents/writer.md         ← agent definition
-  .claude/hooks/researcher-to-writer.sh  ← edge transform (jq)
+  .claude/hooks/researcher-to-writer.js  ← edge transform (Node.js)
   .claude/CLAUDE.md                ← orchestration plan
   .claude/settings.json            ← model routing + hooks
 ```
@@ -70,7 +70,7 @@ Open the project directory in Claude Code — it picks up the generated `.claude
 | Graft Source | Generated Output | Purpose |
 |-------------|-----------------|---------|
 | `node` | `.claude/agents/*.md` | Agent with model, tools, output schema |
-| `edge \| transform` | `.claude/hooks/*.sh` | jq data transform between nodes |
+| `edge \| transform` | `.claude/hooks/*.js` | Node.js data transform between nodes |
 | `graph` | `.claude/CLAUDE.md` | Step-by-step orchestration plan |
 | `memory` | `.graft/memory/*.json` | Persistent state across runs |
 | config | `.claude/settings.json` | Model routing, budget, hook registration |
@@ -171,6 +171,7 @@ Issue { file: FilePath, severity: ... }     // inline structs
 graft compile <file.gft> [--out-dir <dir>]   # Compile to .claude/ structure
 graft check <file.gft>                       # Parse + analyze only
 graft run <file.gft> --input <json> [--dry-run] [--verbose]  # Compile and execute
+graft init <name>                            # Scaffold a new project
 ```
 
 ## Editor Support
@@ -205,13 +206,16 @@ if (result.success) {
 git clone https://github.com/JSLEEKR/graft.git
 cd graft && npm install
 npm run build         # Compile TypeScript
-npm test              # Run all 1,334 tests
+npm test              # Run all 1,344 tests
 ```
 
 ## Version History
 
 | Version | Highlights |
 |---------|-----------|
+| **v5.3** | Parallel codegen test coverage, hook entry merging |
+| **v5.2** | Parallel→sequential edge transforms, agent input overrides, graceful hooks |
+| **v5.1** | Claude Code compatibility, `graft init`, CI/CD, README rewrite |
 | **v5.0** | Condition-to-Expr AST unification, strict equality, codegen expression display |
 | **v4.9** | Codegen expression display |
 | **v4.8** | LSP expression intelligence — hover, go-to-def, completions |
