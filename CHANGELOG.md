@@ -1,5 +1,26 @@
 # Changelog
 
+## v5.0.0 (2026-04-03)
+
+### Changed
+- **Condition→Expr AST unification**: removed legacy `Condition` interface and `conditionFieldName()` function. `ConditionalBranch.condition` and `Transform` filter now use binary `Expr`
+- **evaluateCondition/evalCondition removed**: conditional edge routing and filter transforms now use `evaluateExpr` with `Record→Map` conversion
+- **Strict equality**: `==` and `!=` in expressions now use `===`/`!==` (no cross-type coercion)
+- **formatExpr extraction**: moved to `src/format.ts` (single source of truth, re-exported from hover.ts)
+- **Exhaustive switch defaults**: all `Expr` switch dispatchers have `never` defaults for compile-time safety
+- **Ratchet archival**: v3.0-v3.9 + v4.0-v4.4 IMPL ratchets archived. `common_memory.md` reduced from 683 to 149 lines
+
+### Breaking
+- `Condition` type no longer exported from `ast.ts`
+- `evaluateCondition` no longer exported from `flow-runner.ts`
+- `evalCondition` no longer exported from `transforms.ts`
+- `conditionFieldName()` no longer exported from `ast.ts`
+- Equality operators use strict comparison (`"5" == 5` is now `false`)
+
+### Stats
+- 1,333 tests (57 new), ~30 ratchets (active), ~275 archived
+- 5 rounds: R1 AST unification, R2 function removal, R3 strict equality, R4 ratchet archival, R5 integration tests
+
 ## v4.9.0 (2026-04-02)
 
 ### Added
