@@ -2,7 +2,7 @@
   "name": "graft-lang",
   "displayName": "Graft",
   "description": "Language support for Graft (.gft) files",
-  "version": "5.4.0",
+  "version": "5.5.0",
   "publisher": "graft-lang",
   "repository": {
     "type": "git",

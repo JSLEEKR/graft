@@ -1,5 +1,18 @@
 # Changelog
 
+## v5.5.0 (2026-04-03)
+
+### Added
+- **VS Code extension packaging**: `vsce package` verified, 4KB .vsix output
+- LICENSE file added to editors/vscode/
+
+### Fixed
+- Removed missing icon.png reference from VS Code extension package.json
+
+### Stats
+- 1,344 tests, all passing
+- VS Code extension: builds, packages, ready for marketplace publish
+
 ## v5.4.0 (2026-04-03)
 
 ### Changed
