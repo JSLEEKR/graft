@@ -1,5 +1,16 @@
 # Changelog
 
+## v5.4.0 (2026-04-03)
+
+### Changed
+- **README**: hook references updated (.sh→.js), graft init in CLI section, test count, version history
+- **npm package**: source maps disabled (72KB vs 114KB), .npmignore cleaned
+- **M1 checklist**: M1-2 marked complete, e2e verification results documented
+
+### Stats
+- 1,344 tests, all passing
+- npm package: 95 files, 72KB compressed
+
 ## v5.3.0 (2026-04-03)
 
 ### Added
