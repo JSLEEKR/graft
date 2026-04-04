@@ -6,114 +6,52 @@
 
 **Infrastructure as Code for Claude Code multi-agent pipelines.**
 
-Graft is a domain-specific language that compiles `.gft` pipeline definitions into [Claude Code](https://docs.anthropic.com/en/docs/claude-code) harness structures — agents, hooks, orchestration plans, and settings — with compile-time token budget analysis.
+Write `.gft` files to define multi-agent pipelines. The compiler generates `.claude/` harness structures — agents, hooks, orchestration plans, settings — with compile-time token budget analysis.
 
-**[Documentation](https://jsleekr.github.io/graft/)** | **[Full User Guide](docs/guide.md)** | **[Examples](examples/)**
+**[Documentation](https://jsleekr.github.io/graft/)** | **[User Guide](docs/guide.md)** | **[Examples](examples/)**
 
-## Quick Start
+---
 
-### 1. Install
+## Getting Started (5 minutes)
+
+### Prerequisites
+
+- [Node.js 20+](https://nodejs.org)
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated
+
+### Step 1: Install Graft
 
 ```bash
 npm install -g @jsleekr/graft
 ```
 
-Requires Node.js 20+.
-
-### 2. Create a project
+### Step 2: Create a project
 
 ```bash
 graft init my-pipeline
 cd my-pipeline
 ```
 
-### 3. Compile
+This creates:
+- `pipeline.gft` — a starter two-node pipeline
+- `.claude/CLAUDE.md` — the .gft language spec, so Claude Code natively understands Graft
+
+### Step 3: Open Claude Code and just talk
 
 ```bash
-graft compile pipeline.gft
-```
-
-Output:
-
-```
-✓ Parse OK
-✓ Scope check OK
-✓ Type check OK
-✓ Token analysis:
-    Analyst              in ~   500  out ~ 2,000
-    Reviewer             in ~   840  out ~ 1,000
-    Best path:     4,340 tokens ✓ within budget (10,000)
-
-Generated:
-  .claude/agents/analyst.md          ← agent definition
-  .claude/agents/reviewer.md         ← agent definition
-  .claude/hooks/analyst-to-reviewer.js  ← edge transform
-  .claude/CLAUDE.md                  ← orchestration plan
-  .claude/settings.json              ← model routing + hooks
-```
-
-### 4. Run in Claude Code
-
-```bash
-# Create input
-echo '{"question": "What is Graft?"}' > .graft/session/input.json
-
-# Open in Claude Code
 claude
 ```
 
-Then tell Claude Code:
+Then say:
 
-> Follow the execution plan in `.claude/CLAUDE.md`. The input is at `.graft/session/input.json`.
+> "I want a code review pipeline where security, logic, and performance reviewers run in parallel, then a senior reviewer synthesizes everything."
 
-Claude Code reads the generated `.claude/` structure and runs the pipeline automatically.
+**Claude Code already knows .gft syntax** (from `.claude/CLAUDE.md`). It will:
+1. Write a `.gft` file for you
+2. Run `graft compile` to generate the harness
+3. You're done
 
-### 5. Check the results
-
-```bash
-cat .graft/session/node_outputs/reviewer.json
-```
-
-That's it. You have a working multi-agent pipeline. See the [full guide](docs/guide.md) for details on writing `.gft` files, edge transforms, conditional routing, memory, and more.
-
----
-
-## How It Works
-
-```
-.gft Source  →  Graft Compiler  →  .claude/ output  →  Claude Code runs it
-```
-
-| Graft Source | Generated Output | Purpose |
-|-------------|-----------------|---------|
-| `node` | `.claude/agents/*.md` | Agent with model, tools, output schema |
-| `edge \| transform` | `.claude/hooks/*.js` | Node.js data transform between nodes |
-| `graph` | `.claude/CLAUDE.md` | Step-by-step orchestration plan |
-| `memory` | `.graft/memory/*.json` | Persistent state across runs |
-| config | `.claude/settings.json` | Model routing, budget, hook registration |
-
-## How Execution Works
-
-Graft is a **compiler**, not a runtime orchestrator. It generates static files that Claude Code interprets:
-
-1. **`.claude/CLAUDE.md`** is a natural-language execution plan. Claude Code reads it as instructions — it's a prompt, not a state machine.
-2. **`.claude/hooks/*.js`** are PostToolUse hooks that fire automatically when Claude Code writes to specific paths. These handle edge transforms deterministically.
-3. **`.claude/settings.json`** configures model routing and hook registration.
-
-`graft run` compiles the pipeline and spawns a `claude` CLI subprocess for each node. In `--dry-run` mode, it simulates execution without subprocess calls.
-
-**Important**: The orchestration plan relies on Claude Code's instruction-following. Unlike LangGraph or CrewAI which use deterministic state machines, Graft's execution depends on the LLM correctly interpreting the plan. The hooks and settings are deterministic; the orchestration is not.
-
-## Why Graft?
-
-For Claude Code users building multi-agent workflows, Graft solves specific problems:
-
-- **Edge transforms** extract only what the next agent needs (`select`, `drop`, `compact`, `filter`)
-- **Compile-time token analysis** catches budget overruns before you spend API credits
-- **Typed output schemas** enforce structured JSON between agents
-- **Explicit `reads`** declarations prevent context leaks — the compiler verifies scope
-
-## Example: Code Review Pipeline
+### Step 4: Or write .gft yourself
 
 ```graft
 context PullRequest(max_tokens: 2k) {
@@ -125,7 +63,7 @@ node SecurityReviewer(model: sonnet, budget: 4k/2k) {
   reads: [PullRequest]
   produces SecurityAnalysis {
     vulnerabilities: List<String>
-    risk_level: enum(low, medium, high, critical)
+    risk_level: String
   }
 }
 
@@ -155,9 +93,62 @@ graph CodeReview(input: PullRequest, output: FinalReview, budget: 25k) {
 }
 ```
 
-This compiles to 3 agents running in parallel, with edge transforms that strip unnecessary data before the senior review.
+Compile it:
 
-## Language Features
+```bash
+graft compile code-review.gft
+```
+
+The compiler generates agents, hooks, orchestration plan, and settings — ready for Claude Code.
+
+---
+
+## How It Works
+
+```
+You describe what you want (natural language or .gft)
+    ↓
+Claude Code writes/edits .gft files (it knows the syntax from CLAUDE.md)
+    ↓
+graft compile → .claude/ output (agents, hooks, settings)
+    ↓
+Claude Code reads the .claude/ structure and runs the pipeline
+```
+
+| Graft Source | Generated Output | Purpose |
+|-------------|-----------------|---------|
+| `node` | `.claude/agents/*.md` | Agent with model, tools, output schema |
+| `edge \| transform` | `.claude/hooks/*.js` | Data transform between nodes |
+| `graph` | `.claude/CLAUDE.md` | Step-by-step orchestration plan |
+| `memory` | `.graft/memory/*.json` | Persistent state across runs |
+| config | `.claude/settings.json` | Model routing, budget, hook registration |
+
+## Why Graft?
+
+**For humans**: Write 72 lines of `.gft` instead of manually maintaining 9 generated files (13KB+). ~8x compression ratio.
+
+**For LLMs**: Claude Code reads 400 tokens of `.gft` instead of 3,300 tokens of scattered config. Modifications are single-file edits with compiler-guaranteed consistency.
+
+- **Edge transforms** — extract only what the next agent needs (`select`, `drop`, `compact`, `filter`)
+- **Compile-time token analysis** — catches budget overruns before you spend API credits
+- **Typed output schemas** — enforce structured JSON between agents
+- **Scope checking** — the compiler verifies every `reads` reference at compile time
+
+## CLI
+
+```bash
+graft init <name>                            # Scaffold project + inject CLAUDE.md spec
+graft compile <file.gft> [--out-dir <dir>]   # Compile to .claude/ harness
+graft check <file.gft>                       # Parse + analyze only
+graft run <file.gft> --input <json>          # Compile and execute
+graft test <file.gft> [--input <json>]       # Test with mock data
+graft fmt <file.gft> [-w]                    # Format .gft source
+graft generate <desc> [--output <file>]      # Generate .gft via Claude Code CLI
+graft watch <file.gft>                       # Watch and recompile on changes
+graft visualize <file.gft>                   # Pipeline DAG as Mermaid diagram
+```
+
+## Language Reference
 
 ### Contexts and Nodes
 
@@ -207,84 +198,35 @@ graph Pipeline(input: TaskSpec, output: Report, budget: 35k) {
 }
 ```
 
-Also supports: `foreach`, `let` variables with expressions, parameterized sub-graphs.
+Also supports: `foreach`, `let` variables with expressions, parameterized sub-graphs, `import`.
 
-### Imports and Memory
+### Memory
 
 ```graft
-import { UserMessage, SystemConfig } from "./shared.gft"
-
 memory ConversationLog(max_tokens: 2k, storage: file) {
   turns: List<Turn { role: String, content: String }>
   summary: Optional<String>
 }
-
-node Responder(model: sonnet, budget: 4k/2k) {
-  reads: [UserMessage, SystemConfig, ConversationLog]
-  writes: [ConversationLog.turns]
-  produces Response { reply: String }
-}
 ```
 
-### Expressions
+## Execution Model
 
-```graft
-A -> let score = A.risk_score * 2
-   -> let label = "Found ${len(A.items)} items"
-   -> let safe = score >= 50 && score <= 100
-   -> let fallback = A.name ?? "unknown"
-   -> B -> done
-```
+Graft is a **compiler**, not a runtime orchestrator.
 
-### Type System
+1. **`.claude/CLAUDE.md`** — natural-language execution plan. Claude Code reads it as instructions.
+2. **`.claude/hooks/*.js`** — PostToolUse hooks that fire automatically. Edge transforms run deterministically.
+3. **`.claude/settings.json`** — model routing and hook registration.
 
-```
-String, Int, Float, Float(0..1), Bool       // primitives
-List<T>, Map<K, V>, Optional<T>             // collections
-TokenBounded<String, 100>                   // token-bounded types
-enum(low, medium, high)                     // inline enums
-Issue { file: FilePath, severity: ... }     // inline structs
-```
-
-## CLI
-
-```bash
-graft compile <file.gft> [--out-dir <dir>] [--backend <name>]  # Compile to harness structure
-graft check <file.gft>                       # Parse + analyze only
-graft run <file.gft> --input <json> [--dry-run] [--verbose]    # Compile and execute
-graft test <file.gft> [--input <json>] [--verbose]             # Test with mock data + validation
-graft fmt <file.gft> [-w] [--check]          # Format .gft source
-graft generate <desc> [--output <file>] [--model <m>]  # Generate .gft from natural language
-graft init <name>                            # Scaffold a new project
-graft watch <file.gft> [--out-dir <dir>]     # Watch and recompile on changes
-graft visualize <file.gft>                   # Output pipeline DAG as Mermaid diagram
-```
-
-## Programmatic API
-
-```typescript
-import { compile } from '@jsleekr/graft/compiler';
-import { Executor } from '@jsleekr/graft/runtime';
-import type { Program } from '@jsleekr/graft/types';
-
-const result = compile(source, 'pipeline.gft');
-if (result.success) {
-  console.log(`Parsed ${result.program.nodes.length} nodes`);
-}
-```
-
-## Editor Support
-
-The [Graft VS Code extension](editors/vscode/) provides syntax highlighting, real-time diagnostics, hover, go-to-definition, find references, rename, completions, and code actions.
+`graft run` spawns Claude Code subprocesses per node. The orchestration depends on Claude Code's instruction-following — unlike LangGraph or CrewAI which use deterministic state machines.
 
 ## Limitations
 
-- **Non-deterministic orchestration**: The execution plan in `CLAUDE.md` is an LLM prompt. Claude Code usually follows it, but there's no guarantee of exact execution order.
-- **Claude Code dependency**: Graft generates `.claude/` structures. If Claude Code's format changes, the codegen must be updated. There is no standalone runtime.
-- **Single provider**: Only Anthropic Claude models (haiku, sonnet, opus) are supported. Multi-provider support is planned but not implemented.
-- **Memory backends**: Only JSON file storage is implemented. Other backends (database, in-memory) are specified but not built.
+- **Non-deterministic orchestration** — `CLAUDE.md` is an LLM prompt, not a state machine
+- **Claude Code dependency** — generates `.claude/` structures only
+- **Single provider** — Anthropic models only (multi-provider planned)
+- **Memory** — JSON file storage only (other backends planned)
 
-For features that are planned but not yet implemented, see `SPECIFICATION.md` Section 12 (Future Extensions).
+See `SPECIFICATION.md` for planned features.
 
 ## Development
 
