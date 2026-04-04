@@ -254,6 +254,7 @@ graft check <file.gft>                       # Parse + analyze only
 graft run <file.gft> --input <json> [--dry-run] [--verbose]    # Compile and execute
 graft test <file.gft> [--input <json>] [--verbose]             # Test with mock data + validation
 graft fmt <file.gft> [-w] [--check]          # Format .gft source
+graft generate <desc> [--output <file>] [--model <m>]  # Generate .gft from natural language
 graft init <name>                            # Scaffold a new project
 graft watch <file.gft> [--out-dir <dir>]     # Watch and recompile on changes
 graft visualize <file.gft>                   # Output pipeline DAG as Mermaid diagram
@@ -291,7 +292,7 @@ For features that are planned but not yet implemented, see `SPECIFICATION.md` Se
 git clone https://github.com/JSLEEKR/graft.git
 cd graft && npm install
 npm run build         # Compile TypeScript
-npm test              # Run all 1,668 tests
+npm test              # Run all 1,684 tests
 ```
 
 ## License

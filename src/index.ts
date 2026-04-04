@@ -443,6 +443,41 @@ program
     console.log('');
   });
 
+program
+  .command('generate')
+  .description('Generate .gft from a natural language description (requires ANTHROPIC_API_KEY)')
+  .argument('<description>', 'what the pipeline should do')
+  .option('--output <file>', 'write .gft to file (default: stdout)')
+  .option('--model <model>', 'Anthropic model to use', 'claude-sonnet-4-20250514')
+  .action(async (description: string, opts: { output?: string; model?: string }) => {
+    const { generateGft } = await import('./generator.js');
+
+    try {
+      const result = await generateGft(description, { model: opts.model, output: opts.output });
+
+      if (result.errors.length > 0) {
+        console.error('\nGeneration completed with validation errors:\n');
+        for (const err of result.errors) {
+          console.error(err.format(result.source, 'generated.gft'));
+          console.error('');
+        }
+        console.error('--- Raw output (fix manually) ---\n');
+        console.log(result.source);
+        process.exit(1);
+      }
+
+      if (opts.output) {
+        fs.writeFileSync(path.resolve(opts.output), result.source, 'utf-8');
+        console.error(`✓ Generated ${opts.output}`);
+      } else {
+        process.stdout.write(result.source);
+      }
+    } catch (e) {
+      console.error(`Error: ${e instanceof Error ? e.message : String(e)}`);
+      process.exit(1);
+    }
+  });
+
 function formatExprForMermaid(expr: import('./parser/ast.js').Expr): string {
   if (expr.kind === 'binary') {
     const left = expr.left.kind === 'field_access' ? expr.left.segments[0] : '?';
