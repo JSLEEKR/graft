@@ -1,19 +1,17 @@
 /**
- * graft generate — natural language to .gft pipeline generation via Anthropic API.
+ * graft generate — natural language to .gft pipeline generation via Claude Code subprocess.
  */
-import Anthropic from '@anthropic-ai/sdk';
+import { spawnClaude } from './runtime/subprocess.js';
 import { compileToProgram, ProgramResult } from './compiler.js';
 import { GraftError } from './errors/diagnostics.js';
 
-/** Function that calls the LLM API. Injectable for testing. */
+/** Function that calls the LLM. Injectable for testing. */
 export type LLMCaller = (params: {
-  model: string;
   system: string;
   userMessage: string;
 }) => Promise<string>;
 
 export interface GenerateOptions {
-  model?: string;
   output?: string;
   /** Override the LLM caller (for testing). */
   llmCaller?: LLMCaller;
@@ -210,7 +208,6 @@ export function buildSystemPrompt(): string {
 
 /**
  * Validate generated .gft source using the Graft compiler.
- * Returns errors or empty array on success.
  */
 function validateSource(source: string): GraftError[] {
   try {
@@ -218,41 +215,32 @@ function validateSource(source: string): GraftError[] {
     if (!result.success) return result.errors;
     return [];
   } catch (e) {
-    // Unexpected internal error — treat as validation failure
     const msg = e instanceof Error ? e.message : String(e);
     return [new GraftError(msg, { line: 0, column: 0, offset: 0 }, 'error')];
   }
 }
 
 /**
- * Generate a .gft file from a natural language description.
- */
-/**
- * Default LLM caller using the Anthropic SDK.
+ * Default LLM caller using Claude Code subprocess.
  */
 function createDefaultCaller(): LLMCaller {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      'ANTHROPIC_API_KEY environment variable is required.\n' +
-      'Set it with: export ANTHROPIC_API_KEY=your-key-here',
-    );
-  }
-
-  const client = new Anthropic({ apiKey });
-
-  return async ({ model, system, userMessage }) => {
-    const response = await client.messages.create({
-      model,
-      max_tokens: 4096,
-      system,
-      messages: [{ role: 'user', content: userMessage }],
+  return async ({ system, userMessage }) => {
+    const prompt = `${system}\n\n---\n\nUser request: ${userMessage}`;
+    const result = await spawnClaude({
+      args: ['--print', '--output-format', 'text', prompt],
+      cwd: process.cwd(),
+      timeoutMs: 120_000,
     });
 
-    return response.content
-      .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-      .map(block => block.text)
-      .join('\n');
+    if (result.exitCode !== 0) {
+      throw new Error(
+        `Claude Code exited with code ${result.exitCode}.\n` +
+        `Make sure Claude Code is installed: npm install -g @anthropic-ai/claude-code\n` +
+        (result.stderr ? `stderr: ${result.stderr.slice(0, 500)}` : ''),
+      );
+    }
+
+    return result.stdout;
   };
 }
 
@@ -263,8 +251,6 @@ export async function generateGft(
   description: string,
   options?: GenerateOptions,
 ): Promise<GenerateResult> {
-  const model = options?.model ?? 'claude-sonnet-4-20250514';
-
   if (!description.trim()) {
     throw new Error('Description cannot be empty.');
   }
@@ -276,7 +262,7 @@ export async function generateGft(
   let userMessage = description;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    const text = await callLLM({ model, system: SYSTEM_PROMPT, userMessage });
+    const text = await callLLM({ system: SYSTEM_PROMPT, userMessage });
 
     const source = extractGftSource(text);
     const errors = validateSource(source);

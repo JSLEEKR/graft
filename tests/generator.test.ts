@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { extractGftSource, buildSystemPrompt, generateGft, LLMCaller } from '../src/generator.js';
 
 describe('extractGftSource', () => {
@@ -61,16 +61,6 @@ describe('buildSystemPrompt', () => {
 });
 
 describe('generateGft', () => {
-  it('throws on missing API key (no llmCaller)', async () => {
-    const saved = process.env.ANTHROPIC_API_KEY;
-    delete process.env.ANTHROPIC_API_KEY;
-    try {
-      await expect(generateGft('test')).rejects.toThrow('ANTHROPIC_API_KEY');
-    } finally {
-      if (saved) process.env.ANTHROPIC_API_KEY = saved;
-    }
-  });
-
   it('throws on empty description', async () => {
     const caller: LLMCaller = vi.fn();
     await expect(generateGft('', { llmCaller: caller })).rejects.toThrow('empty');
@@ -142,17 +132,5 @@ graph Pipeline(input: Input, output: Output, budget: 10k) {
     const result = await generateGft('impossible pipeline', { llmCaller: caller });
     expect(result.errors.length).toBeGreaterThan(0);
     expect(caller).toHaveBeenCalledTimes(3); // 1 + 2 retries
-  });
-
-  it('passes model to caller', async () => {
-    const validGft = `context X(max_tokens: 1k) { a: String }
-node N(model: opus, budget: 4k/2k) { reads: [X] produces Y { b: String } }
-graph G(input: X, output: Y, budget: 10k) { N -> done }`;
-
-    const caller: LLMCaller = vi.fn().mockResolvedValue('```gft\n' + validGft + '\n```');
-
-    await generateGft('test', { model: 'claude-opus-4-20250514', llmCaller: caller });
-    const call = (caller as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(call[0].model).toBe('claude-opus-4-20250514');
   });
 });

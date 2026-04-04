@@ -445,15 +445,14 @@ program
 
 program
   .command('generate')
-  .description('Generate .gft from a natural language description (requires ANTHROPIC_API_KEY)')
+  .description('Generate .gft from a natural language description (requires Claude Code CLI)')
   .argument('<description>', 'what the pipeline should do')
   .option('--output <file>', 'write .gft to file (default: stdout)')
-  .option('--model <model>', 'Anthropic model to use', 'claude-sonnet-4-20250514')
-  .action(async (description: string, opts: { output?: string; model?: string }) => {
+  .action(async (description: string, opts: { output?: string }) => {
     const { generateGft } = await import('./generator.js');
 
     try {
-      const result = await generateGft(description, { model: opts.model, output: opts.output });
+      const result = await generateGft(description, { output: opts.output });
 
       if (result.errors.length > 0) {
         console.error('\nGeneration completed with validation errors:\n');
