@@ -5,8 +5,20 @@ import * as path from 'node:path';
 import { compile, compileAndWrite, compileToProgram } from './compiler.js';
 import { VERSION } from './version.js';
 import { formatTokenReport } from './format.js';
+import { formatProgram } from './formatter.js';
+import { CodegenBackend } from './codegen/backend.js';
+import { ClaudeCodeBackend } from './codegen/claude-backend.js';
+import { GenericBackend } from './codegen/generic-backend.js';
 
-const KNOWN_BACKENDS = new Set(['claude']);
+const KNOWN_BACKENDS = new Set(['claude', 'generic']);
+
+function resolveBackend(name: string): CodegenBackend {
+  switch (name) {
+    case 'claude': return new ClaudeCodeBackend();
+    case 'generic': return new GenericBackend();
+    default: throw new Error(`Unknown backend: ${name}`);
+  }
+}
 
 const program = new Command();
 
@@ -27,10 +39,11 @@ program
       process.exit(1);
     }
     const source = readSource(file);
+    const backend = resolveBackend(opts.backend);
 
     let result;
     try {
-      result = compileAndWrite(source, path.resolve(file), path.resolve(opts.outDir));
+      result = compileAndWrite(source, path.resolve(file), path.resolve(opts.outDir), backend);
     } catch (e) {
       console.error(`Error: ${e instanceof Error ? e.message : String(e)}`);
       process.exit(1);
@@ -313,6 +326,121 @@ program
     }
 
     console.log(lines.join('\n'));
+  });
+
+program
+  .command('fmt')
+  .description('Format .gft source file')
+  .argument('<file>', '.gft source file')
+  .option('--check', 'check if file is already formatted (exit 1 if not)')
+  .option('-w, --write', 'write formatted output back to the file')
+  .action((file: string, opts: { check?: boolean; write?: boolean }) => {
+    const source = readSource(file);
+    const result = compileToProgram(source, path.resolve(file));
+
+    if (!result.success || !result.program) {
+      console.error('\n✗ Parse failed:\n');
+      for (const err of result.errors) {
+        console.error(err.format(source, file));
+        console.error('');
+      }
+      process.exit(1);
+    }
+
+    const formatted = formatProgram(result.program);
+
+    if (opts.check) {
+      if (source === formatted) {
+        console.log(`✓ ${file} is already formatted`);
+      } else {
+        console.log(`✗ ${file} needs formatting`);
+        process.exit(1);
+      }
+      return;
+    }
+
+    if (opts.write) {
+      fs.writeFileSync(path.resolve(file), formatted, 'utf-8');
+      console.log(`✓ Formatted ${file}`);
+      return;
+    }
+
+    // Default: print to stdout
+    process.stdout.write(formatted);
+  });
+
+program
+  .command('test')
+  .description('Test a .gft pipeline with mock data (dry-run + validation)')
+  .argument('<file>', '.gft source file')
+  .option('--input <json>', 'input JSON string or file path')
+  .option('--verbose', 'print detailed node outputs')
+  .action(async (file: string, opts: { input?: string; verbose?: boolean }) => {
+    const { runTest } = await import('./test-runner.js');
+    const source = readSource(file);
+
+    let input: Record<string, unknown> | undefined;
+    if (opts.input) {
+      // Try as JSON string first, then as file path
+      try {
+        input = JSON.parse(opts.input);
+      } catch {
+        const inputPath = path.resolve(opts.input);
+        if (fs.existsSync(inputPath)) {
+          try {
+            input = JSON.parse(fs.readFileSync(inputPath, 'utf-8'));
+          } catch (e) {
+            console.error(`Error: failed to parse input file: ${e instanceof Error ? e.message : String(e)}`);
+            process.exit(1);
+          }
+        } else {
+          console.error(`Error: --input is not valid JSON and file not found: ${opts.input}`);
+          process.exit(1);
+        }
+      }
+    }
+
+    const result = await runTest({
+      source,
+      sourceFile: path.resolve(file),
+      input,
+      verbose: opts.verbose,
+    });
+
+    if (result.compileErrors.length > 0) {
+      console.error('\nCompilation failed:');
+      for (const err of result.compileErrors) console.error(`  ${err}`);
+      process.exit(1);
+    }
+
+    console.log(`\nTest input: ${JSON.stringify(result.inputUsed)}`);
+    console.log('');
+
+    let allPassed = true;
+    for (const nr of result.nodeResults) {
+      const status = nr.passed ? 'PASS' : 'FAIL';
+      const icon = nr.passed ? '+' : 'x';
+      console.log(`  [${icon}] ${nr.node.padEnd(20)} ${status}`);
+      if (!nr.passed) {
+        allPassed = false;
+        for (const err of nr.validationErrors) {
+          console.log(`      ${err}`);
+        }
+      }
+      if (opts.verbose && nr.output) {
+        console.log(`      output: ${JSON.stringify(nr.output)}`);
+      }
+    }
+
+    console.log('');
+    if (allPassed) {
+      console.log(`All ${result.nodeResults.length} nodes passed validation.`);
+    } else {
+      const failed = result.nodeResults.filter(r => !r.passed).length;
+      console.log(`${failed} of ${result.nodeResults.length} nodes failed validation.`);
+      process.exit(1);
+    }
+    console.log('');
   });
 
 function formatExprForMermaid(expr: import('./parser/ast.js').Expr): string {

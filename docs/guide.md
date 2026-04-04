@@ -283,6 +283,35 @@ graph TD
 
 Paste into GitHub README/docs for rendered diagrams, or use [Mermaid Live Editor](https://mermaid.live) to preview.
 
+### graft fmt — Format .gft Source
+
+```bash
+graft fmt pipeline.gft          # Print formatted output to stdout
+graft fmt pipeline.gft -w       # Write formatted output back to file
+graft fmt pipeline.gft --check  # Check if already formatted (exit 1 if not)
+```
+
+Parses the `.gft` file and pretty-prints it with consistent indentation, spacing, and ordering.
+
+### graft test — Pipeline Testing
+
+```bash
+graft test pipeline.gft                          # Auto-generate test input
+graft test pipeline.gft --input '{"question":"hi"}'  # Explicit input
+graft test pipeline.gft --verbose                # Show node outputs
+```
+
+Runs the pipeline in dry-run mode and validates all node outputs against their `produces` schemas. If no `--input` is provided, generates minimal valid test data from the graph's input context schema.
+
+### Multi-Backend Compilation
+
+```bash
+graft compile pipeline.gft --backend claude     # Default: Claude Code harness
+graft compile pipeline.gft --backend generic    # Tool-agnostic output
+```
+
+The `generic` backend produces tool-agnostic markdown agents and documentation, useful as a starting point for adapting to other AI coding assistants.
+
 ---
 
 ## 7. Generated File Details

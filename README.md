@@ -8,7 +8,7 @@
 
 Graft is a domain-specific language that compiles `.gft` pipeline definitions into [Claude Code](https://docs.anthropic.com/en/docs/claude-code) harness structures — agents, hooks, orchestration plans, and settings — with compile-time token budget analysis.
 
-**[Full User Guide](docs/guide.md)** | **[Examples](examples/)**
+**[Documentation](https://jsleekr.github.io/graft/)** | **[Full User Guide](docs/guide.md)** | **[Examples](examples/)**
 
 ## Quick Start
 
@@ -249,9 +249,11 @@ Issue { file: FilePath, severity: ... }     // inline structs
 ## CLI
 
 ```bash
-graft compile <file.gft> [--out-dir <dir>]   # Compile to .claude/ structure
+graft compile <file.gft> [--out-dir <dir>] [--backend <name>]  # Compile to harness structure
 graft check <file.gft>                       # Parse + analyze only
-graft run <file.gft> --input <json> [--dry-run] [--verbose]  # Compile and execute
+graft run <file.gft> --input <json> [--dry-run] [--verbose]    # Compile and execute
+graft test <file.gft> [--input <json>] [--verbose]             # Test with mock data + validation
+graft fmt <file.gft> [-w] [--check]          # Format .gft source
 graft init <name>                            # Scaffold a new project
 graft watch <file.gft> [--out-dir <dir>]     # Watch and recompile on changes
 graft visualize <file.gft>                   # Output pipeline DAG as Mermaid diagram
@@ -289,7 +291,7 @@ For features that are planned but not yet implemented, see `SPECIFICATION.md` Se
 git clone https://github.com/JSLEEKR/graft.git
 cd graft && npm install
 npm run build         # Compile TypeScript
-npm test              # Run all 1,614 tests
+npm test              # Run all 1,668 tests
 ```
 
 ## License

@@ -7,7 +7,7 @@
 
 - **Goal**: Graft — graph-native language for AI agent harness engineering
 - **Language**: TypeScript (hand-written recursive descent parser)
-- **Current Version**: v5.8.0
+- **Current Version**: v5.9.0
 - **Phase**: Productization (M2: real-world validation)
 - **Roadmap**: `docs/superpowers/specs/2026-04-03-graft-v6-productization-roadmap.md`
 - **Milestone Tracking**: `harness/milestones/M{N}/checklist.md`

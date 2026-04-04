@@ -74,6 +74,8 @@ Optional<T>               // nullable type
 
 ### 3.3 Token-Aware Types (Graft-specific)
 
+> **Status: Partial** — `TokenBounded<T, max>` is parsed and formatted, but runtime enforcement (compile-time warning on violation, automatic compression) is not implemented.
+
 ```
 TokenBounded<T, max: Int>
 // The serialized form of a value of type T must not exceed max tokens.
@@ -85,6 +87,8 @@ summary: TokenBounded<AnalysisResult, 500> // must serialize within 500 tokens
 ```
 
 ### 3.4 Agent Output Type
+
+> **Status: Planned** — Not yet implemented. Node outputs use the `produces` schema directly; there is no wrapping `AgentOutput` type with confidence/reasoning_trace/token_cost fields.
 
 ```
 AgentOutput<Schema> {
@@ -144,6 +148,8 @@ context <Name> : <ContextType> {
 
 ### 4.2 Context Types
 
+> **Status: Partial** — All contexts are parsed as flat field-based declarations. The context type qualifiers (`Structured`, `Sequential`, `Indexed`) are not distinguished in the AST or runtime. Sequential windowing/compression and Indexed retrieval strategies are not implemented.
+
 #### Structured
 Structured data with a schema. Most token-efficient.
 
@@ -185,6 +191,8 @@ context DomainKnowledge : Indexed {
 
 ### 4.3 Lifetime
 
+> **Status: Planned** — Not yet implemented. The `lifetime` property is not parsed or tracked; all contexts are effectively `graph`-scoped.
+
 | Lifetime | Scope | Description |
 |----------|-------|-------------|
 | `graph` | Single graph execution | Discarded when execution completes |
@@ -192,6 +200,8 @@ context DomainKnowledge : Indexed {
 | `persistent` | Permanent storage | Stored in the knowledge graph |
 
 ### 4.4 Retrieval Strategies
+
+> **Status: Planned** — Not yet implemented. Retrieval strategies are not parsed or available at runtime.
 
 ```
 semantic_search(top_k: Int)                    // semantic similarity search
@@ -225,6 +235,8 @@ model: claude-sonnet-4-20250514  // specific version
 model: gpt-4o                    // other providers (future support)
 model: local(ollama, "llama3")   // local models (future support)
 ```
+
+> **Status: Partial** — Model names are parsed and passed through to codegen, but only Anthropic Claude models are actually supported at runtime. `gpt-4o` and `local(...)` syntax is accepted by the parser but has no provider routing.
 
 ### 5.3 Context Reference (reads)
 
@@ -268,6 +280,8 @@ budget { input: 4000, output: 2000 }
 ```
 
 ### 5.7 Failure Strategy
+
+> **Status: Partial** — Parsing works for all failure strategy forms. Runtime handles `retry`, `fallback`, `skip`, and `abort`. The compound form `retry(max: N, then: fallback(...))` is parsed but runtime support is basic.
 
 ```
 on_failure: retry(max: 2)                          // retry
@@ -354,6 +368,8 @@ edge Analyzer -> Reviewer {
 
 ### 7.1 Syntax
 
+> **Status: Partial** — Graph declaration is fully parsed and compiled. `shared_context` is not implemented (not parsed or tracked). `on_complete` hooks are not implemented (see section 7.4).
+
 ```
 graph <Name> {
   input: <Type>
@@ -390,6 +406,9 @@ flow {
 ```
 
 #### Foreach (iteration)
+
+> **Status: Partial** — Parsing works. Codegen generates basic sequential steps. Runtime executes foreach loops, but iteration variable binding (`current: step`) is simplified.
+
 ```
 flow {
   Planner
@@ -413,6 +432,9 @@ flow {
 ```
 
 #### Loop (retry loop)
+
+> **Status: Partial** — Conditional edges are parsed, codegen generates routing hooks, and runtime evaluates conditions. However, true retry-loop semantics (re-entering a previously executed node with retry counters) are not fully implemented.
+
 ```
 flow {
   Implementer
@@ -449,6 +471,8 @@ flow {
 
 ### 7.3 Budget Constraint
 
+> **Status: Partial** — Graph-level `budget` is parsed and the token estimator performs static analysis of token flow. The `constraint` keyword is not parsed or enforced.
+
 ```
 graph Pipeline {
   budget: 25000 tokens
@@ -463,6 +487,8 @@ graph Pipeline {
 ```
 
 ### 7.4 Post-Execution Hooks
+
+> **Status: Planned** — Not yet implemented. `on_complete` blocks are not parsed or executed. Memory storage after graph completion is done via the memory system, but declarative `store`/`emit`/`run` hooks do not exist.
 
 ```
 on_complete {
@@ -492,6 +518,8 @@ memory <Name> {
 
 ### 8.2 Backend Types
 
+> **Status: Partial** — Only `json_file` backend is implemented. `neo4j`, `sqlite`, and `in_memory` backends are parsed but have no runtime implementation.
+
 ```
 backend: neo4j                    // Neo4j graph database
 backend: sqlite                   // SQLite (lightweight)
@@ -500,6 +528,8 @@ backend: json_file                // JSON file (for prototyping)
 ```
 
 ### 8.3 Ontology
+
+> **Status: Planned** — Not yet implemented. Ontology declarations are not parsed or used.
 
 ```
 ontology {
@@ -515,6 +545,8 @@ ontology {
 
 ### 8.4 Learning Rules
 
+> **Status: Planned** — Not yet implemented. `learn_from` blocks are not parsed or executed.
+
 ```
 learn_from {
   graph CodeReviewPipeline {
@@ -526,6 +558,8 @@ learn_from {
 
 ### 8.5 Query Interface
 
+> **Status: Planned** — Not yet implemented. Memory query declarations are not parsed or available at runtime.
+
 ```
 query {
   semantic_search(embedding_model: text-embedding-3-small)
@@ -535,6 +569,8 @@ query {
 ```
 
 ## 9. Import System
+
+> **Status: Partial** — Import parsing is implemented but uses `import { Name } from "path"` syntax (without kind qualifiers like `memory`, `node`, `graph`). The resolver can inline imported declarations. Subgraph invocation via import is parsed but codegen for composed graphs is basic.
 
 ```
 // Import memory
@@ -570,6 +606,8 @@ The compiler analyzes all possible execution paths in the graph:
 - `shared_context` is accessible by all nodes (explicit sharing)
 
 ### 10.3 Graph Optimization
+
+> **Status: Planned** — Not yet implemented. No automatic parallelization detection, dead context elimination, edge transform chaining, or model routing optimization.
 
 - Automatic identification of parallelizable nodes with no dependencies
 - Dead context elimination (removing unnecessary context passing)
@@ -644,6 +682,8 @@ on_failure: retry(max: 2, then: fallback(SimpleAnalyzer))
 ## 12. Future Extensions (Planned)
 
 ### 12.1 Multi-Provider Support
+
+> **Status: Planned** — Not yet implemented.
 ```
 node Analyzer {
   model: provider(anthropic, "claude-sonnet") 
@@ -653,6 +693,8 @@ node Analyzer {
 ```
 
 ### 12.2 Streaming Edges
+
+> **Status: Planned** — Not yet implemented.
 ```
 edge Analyzer ->stream-> Reviewer {
   // real-time streaming delivery
@@ -661,6 +703,8 @@ edge Analyzer ->stream-> Reviewer {
 ```
 
 ### 12.3 Graph Composition
+
+> **Status: Partial** — Subgraph references are parsed via imports, but codegen for composed graph invocation is basic.
 ```
 graph MainPipeline {
   flow {
@@ -673,6 +717,8 @@ graph MainPipeline {
 ```
 
 ### 12.4 Dynamic Budget Reallocation
+
+> **Status: Planned** — Not yet implemented.
 ```
 graph AdaptivePipeline {
   budget: 30000 tokens
@@ -681,6 +727,8 @@ graph AdaptivePipeline {
 ```
 
 ### 12.5 Eval Integration
+
+> **Status: Planned** — Not yet implemented.
 ```
 eval CodeReviewQuality {
   graph: CodeReviewPipeline

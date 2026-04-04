@@ -1,0 +1,9 @@
+title: Graft
+description: Infrastructure as Code for Claude Code multi-agent pipelines
+theme: jekyll-theme-cayman
+baseurl: /graft
+url: https://jsleekr.github.io
+
+exclude:
+  - node_modules
+  - vendor

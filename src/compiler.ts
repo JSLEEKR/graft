@@ -9,6 +9,7 @@ import { generate, GeneratedFile, writeFiles } from './codegen/codegen.js';
 import { GraftError } from './errors/diagnostics.js';
 import { Program } from './parser/ast.js';
 import { ProgramIndex } from './program-index.js';
+import { CodegenBackend } from './codegen/backend.js';
 
 export interface ProgramResult {
   success: boolean;
@@ -91,7 +92,7 @@ export function compileToProgram(source: string, sourceFile: string): ProgramRes
   return { success: true, program, index, report, errors, warnings };
 }
 
-export function compileAndGenerate(source: string, sourceFile: string): CompileResult {
+export function compileAndGenerate(source: string, sourceFile: string, backend?: CodegenBackend): CompileResult {
   const result = compileToProgram(source, sourceFile);
 
   if (!result.success || !result.program) {
@@ -111,18 +112,18 @@ export function compileAndGenerate(source: string, sourceFile: string): CompileR
   }
 
   // Generate
-  const files = generate(result.program, result.report!, sourceFile, result.index);
+  const files = generate(result.program, result.report!, sourceFile, result.index, backend);
 
   return { ...result, files };
 }
 
 /** Backward-compatible alias for compileAndGenerate */
-export function compile(source: string, sourceFile: string): CompileResult {
-  return compileAndGenerate(source, sourceFile);
+export function compile(source: string, sourceFile: string, backend?: CodegenBackend): CompileResult {
+  return compileAndGenerate(source, sourceFile, backend);
 }
 
-export function compileAndWrite(source: string, sourceFile: string, outDir: string): CompileResult {
-  const result = compile(source, sourceFile);
+export function compileAndWrite(source: string, sourceFile: string, outDir: string, backend?: CodegenBackend): CompileResult {
+  const result = compile(source, sourceFile, backend);
   if (result.success && result.files) {
     writeFiles(result.files, outDir);
   }
