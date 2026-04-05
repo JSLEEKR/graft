@@ -7,51 +7,107 @@ title: Graft
 
 **Infrastructure as Code for Claude Code multi-agent pipelines.**
 
-Graft is a domain-specific language that compiles `.gft` pipeline definitions into [Claude Code](https://docs.anthropic.com/en/docs/claude-code) harness structures — agents, hooks, orchestration plans, and settings — with compile-time token budget analysis.
+Write `.gft` files — or just describe what you want in natural language — and Graft compiles them into [Claude Code](https://docs.anthropic.com/en/docs/claude-code) harness structures with compile-time token budget analysis, runtime quality validation, and automatic fix suggestions.
 
-## Install
+**77% fewer tokens, 200x faster than manual configuration. [Benchmarks](https://github.com/JSLEEKR/graft/tree/master/benchmarks)**
+
+## Getting Started (2 minutes)
 
 ```bash
-npm install -g @jsleekr/graft
+npm install -g @jsleekr/graft    # Install (Node.js 20+)
+graft init my-project            # Scaffold project
+cd my-project
+claude                           # Open Claude Code — it already knows .gft
 ```
 
-Requires Node.js 20+.
+Then just say:
 
-## Quick Example
+> *"Make a code review pipeline with security, logic, and performance reviewers running in parallel, then a senior reviewer."*
+
+**Claude Code writes the `.gft` file, compiles it, done.** No DSL learning required — `graft init` injects the full `.gft` syntax spec into `.claude/CLAUDE.md`.
+
+## Or Write .gft Yourself
 
 ```graft
-context Question(max_tokens: 500) {
-  text: String
+context PullRequest(max_tokens: 2k) {
+  diff: String
+  description: String
 }
 
-node Analyst(model: sonnet, budget: 4k/2k) {
-  reads: [Question]
-  produces Analysis { answer: String, confidence: Float(0..1) }
+node SecurityReviewer(model: sonnet, budget: 4k/2k) {
+  reads: [PullRequest]
+  produces SecurityAnalysis {
+    vulnerabilities: List<String>
+    risk_level: String
+  }
 }
 
-graph QA(input: Question, output: Analysis, budget: 10k) {
-  Analyst -> done
+node SeniorReviewer(model: opus, budget: 6k/3k) {
+  reads: [SecurityAnalysis, PullRequest]
+  produces FinalReview {
+    approved: Bool
+    summary: String
+  }
+}
+
+edge SecurityReviewer -> SeniorReviewer | select(vulnerabilities, risk_level) | compact
+
+graph Review(input: PullRequest, output: FinalReview, budget: 25k) {
+  SecurityReviewer -> SeniorReviewer -> done
 }
 ```
 
 ```bash
-graft compile qa.gft
+graft compile review.gft    # Generate .claude/ harness
+graft run review.gft --dry-run  # Validate with quality checks
 ```
 
-This generates `.claude/agents/analyst.md`, `.claude/CLAUDE.md`, and `.claude/settings.json` — ready for Claude Code to execute.
+## The Closed Loop
 
-## Documentation
+```
+Describe what you want (natural language)
+  → Claude Code writes .gft
+  → graft compile → graft run
+  → Formatted results + quality validation
+  → Automatic fix suggestions
+  → Apply fixes → rerun
+```
 
-- **[User Guide](guide.html)** — full walkthrough of the language, CLI, and workflow
-- **[Examples](https://github.com/JSLEEKR/graft/tree/master/examples)** — runnable `.gft` pipelines
-- **[Language Specification](https://github.com/JSLEEKR/graft/blob/master/SPECIFICATION.md)** — formal grammar and semantics
-- **[npm package](https://www.npmjs.com/package/@jsleekr/graft)** — `@jsleekr/graft`
-- **[GitHub](https://github.com/JSLEEKR/graft)** — source code
+After execution, `graft run` automatically:
+1. **Formats results** — node table with model, timing, token usage bar
+2. **Validates quality** — schema, type, range, empty field, and budget checks
+3. **Suggests fixes** — concrete `.gft` modifications for each issue
+
+```
+── Quality Check ─────────────────────────────────
+  ✓ findings OK [Analyzer.findings]
+  ⚠ Field 'recommendations' is empty [Writer.recommendations]
+  ✓ Token budget OK: 74%
+────────────────────────────────────────────────
+Quality: 75% (3/4 checks passed)
+
+── Suggestions ───────────────────────────────────
+  ⚠ Field 'recommendations' is empty.
+    → Increase Writer output budget: budget: 10k/10k
+────────────────────────────────────────────────
+```
+
+## Why Graft?
+
+| | Manual (natural language) | Graft (.gft) |
+|---|---|---|
+| Total tokens | ~3,162 | ~716 (**77% less**) |
+| Files to manage | ~9 | 1 |
+| Time | ~30 seconds | ~148ms (**200x faster**) |
+| Quality validation | None | Automatic |
+| Consistency guarantee | None | Compiler-enforced |
 
 ## How It Works
 
 ```
-.gft Source  ->  Graft Compiler  ->  .claude/ output  ->  Claude Code runs it
+.gft Source  →  Graft Compiler  →  .claude/ output  →  Claude Code runs it
+                    ↓
+            Scope + Type + Budget analysis (compile-time)
 ```
 
 | Graft Source | Generated Output | Purpose |
@@ -62,16 +118,27 @@ This generates `.claude/agents/analyst.md`, `.claude/CLAUDE.md`, and `.claude/se
 | `memory` | `.graft/memory/*.json` | Persistent state across runs |
 | config | `.claude/settings.json` | Model routing, budget, hook registration |
 
+## Documentation
+
+- **[User Guide](guide.html)** — full walkthrough of the language, CLI, and workflow
+- **[Examples](https://github.com/JSLEEKR/graft/tree/master/examples)** — 8 runnable `.gft` pipelines
+- **[Benchmarks](https://github.com/JSLEEKR/graft/tree/master/benchmarks)** — NL vs .gft comparison data
+- **[Language Specification](https://github.com/JSLEEKR/graft/blob/master/SPECIFICATION.md)** — formal grammar and semantics
+- **[npm package](https://www.npmjs.com/package/@jsleekr/graft)** — `@jsleekr/graft`
+- **[GitHub](https://github.com/JSLEEKR/graft)** — source code
+
 ## CLI
 
 ```bash
-graft compile <file.gft>    # Compile to harness structure
-graft check <file.gft>      # Parse + analyze only
-graft run <file.gft>         # Compile and execute
-graft fmt <file.gft>         # Format .gft source
-graft init <name>            # Scaffold a new project
-graft watch <file.gft>       # Watch and recompile on changes
-graft visualize <file.gft>   # Output pipeline DAG as Mermaid
+graft init <name>              # Scaffold project + inject CLAUDE.md spec
+graft compile <file.gft>      # Compile to .claude/ harness
+graft check <file.gft>        # Parse + analyze only
+graft run <file.gft>          # Compile, execute, validate, suggest fixes
+graft test <file.gft>         # Test with mock data
+graft fmt <file.gft> [-w]     # Format .gft source
+graft generate <desc>         # Generate .gft from natural language
+graft watch <file.gft>        # Watch and recompile on changes
+graft visualize <file.gft>    # Pipeline DAG as Mermaid diagram
 ```
 
 ## License

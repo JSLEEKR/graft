@@ -32,8 +32,23 @@ cd my-project
 Creates:
 ```
 my-project/
-  pipeline.gft     ← Two-node pipeline template
+  pipeline.gft       ← Two-node pipeline template
+  .claude/CLAUDE.md   ← Full .gft syntax spec (so Claude Code understands Graft)
 ```
+
+### 2.1 Claude Code Native Integration
+
+The generated `.claude/CLAUDE.md` contains the complete `.gft` language reference. Any Claude Code session in this project **automatically understands Graft syntax**.
+
+```bash
+claude    # Open Claude Code
+```
+
+Then just say what you want:
+
+> *"Make a data analysis pipeline where a classifier runs first, then statistical and trend analyzers run in parallel, then a report writer combines everything."*
+
+Claude Code will write the `.gft` file and run `graft compile` — no DSL learning required.
 
 ---
 
@@ -237,7 +252,7 @@ graft check pipeline.gft
 
 Parses, scope-checks, type-checks, and analyzes tokens without generating files. Useful in CI.
 
-### graft run — Compile + Execute
+### graft run — Compile + Execute + Validate
 
 ```bash
 graft run pipeline.gft --input input.json --dry-run
@@ -245,6 +260,7 @@ graft run pipeline.gft --input input.json --dry-run
 
 - `--input`: Input JSON file
 - `--dry-run`: Simulate execution without spawning subprocesses
+- `--json`: Machine-readable JSON output
 - `--verbose`: Print execution details
 - `--timeout <seconds>`: Subprocess timeout (default: 300)
 
@@ -255,8 +271,49 @@ graft run pipeline.gft --input input.json --dry-run
 3. Each subprocess gets the agent's prompt, reads its input, and produces JSON output
 4. Edge transforms run between nodes (same JavaScript hooks as in compiled output)
 5. Conditional routing is evaluated after each node completes
+6. **Result formatter** shows human-readable summary with node table and token usage bar
+7. **Quality validator** checks every node output against the `.gft` schema
+8. **Feedback engine** suggests concrete `.gft` modifications for any issues found
 
 In `--dry-run` mode, no subprocesses are spawned — the pipeline structure is validated and execution is simulated with placeholder outputs.
+
+**Example output:**
+
+```
+Graph 'DataAnalysis' completed in 15.2s
+
+  ✓ Classifier       haiku    1.2s    1,200 tok
+  ✓ StatAnalyzer     sonnet   3.4s    5,420 tok
+  ✓ TrendAnalyzer    sonnet   3.1s    5,420 tok
+  ✓ ReportWriter     opus     7.5s   15,520 tok
+
+Token usage: 27,560 / 40,000 (69%)
+  [████████████████████░░░░░░░░░░]
+
+── Quality Check ─────────────────────────────────
+  ✓ executive_summary OK [ReportWriter.executive_summary]
+  ✓ findings OK [ReportWriter.findings]
+  ⚠ Field 'recommendations' is empty [ReportWriter.recommendations]
+  ✓ Token budget OK: 69%
+────────────────────────────────────────────────
+Quality: 75% (3/4 checks passed)
+
+── Suggestions ───────────────────────────────────
+  ⚠ Field 'recommendations' is empty.
+    → Increase ReportWriter output budget: budget: 10k/10k
+────────────────────────────────────────────────
+```
+
+### graft generate — Natural Language to .gft
+
+```bash
+graft generate "code review pipeline with parallel security and logic reviewers"
+graft generate "chatbot with conversation memory" --output chatbot.gft
+```
+
+Calls Claude Code as a subprocess to generate a `.gft` file from a natural language description. Validates the output with the Graft compiler and retries up to 2 times on parse failure.
+
+For environments with Claude Code already open, just describe what you want in conversation — `graft init` has already injected the syntax spec.
 
 ### graft watch — File Watcher + Auto-Recompile
 
@@ -516,7 +573,48 @@ if (result.success) {
 
 ---
 
-## 12. Execution Model and Limitations
+## 12. The Result Loop
+
+After every `graft run`, three modules process the results automatically:
+
+### 12.1 Result Formatter
+
+Converts raw execution data into a human-readable summary:
+- Node table with status icon, model, duration, and token count
+- Token usage bar with percentage and warnings at 80%/90%/95%
+- Final output field summary (arrays show count, strings truncated)
+
+Use `--json` for machine-readable output.
+
+### 12.2 Quality Validator
+
+Checks every node's output against the `.gft` schema:
+
+| Check | What it validates |
+|-------|-------------------|
+| Schema | Are all declared `produces` fields present? |
+| Type | Is a `String` actually a string? Is a `List` actually an array? |
+| Range | Is `Float(0..1)` actually between 0 and 1? |
+| Empty | Are lists or strings unexpectedly empty? |
+| Budget | Did token usage exceed 80% (warn) or 95% (fail)? |
+
+### 12.3 Feedback Engine
+
+When quality issues are found, suggests specific `.gft` modifications:
+
+| Problem | Suggestion |
+|---------|-----------|
+| Empty field | Increase node output budget |
+| Budget exhaustion | Add edge transforms (`truncate`, `compact`) |
+| Node failure | Add `on_failure: retry(2)` |
+| Type mismatch | Check produces schema |
+| Missing field | Check node prompt or input data |
+
+The feedback maps to concrete `.gft` changes you can apply directly, then rerun.
+
+---
+
+## 13. Execution Model and Limitations
 
 ### How Graft Differs from Runtime Orchestrators
 
@@ -545,7 +643,7 @@ In other words: **the data pipeline is deterministic; the orchestration is best-
 - **Memory**: Only JSON file storage works. Database backends are specified but not implemented.
 - **Conditional edge codegen**: Router hooks evaluate conditions correctly, but the orchestration plan may need Claude Code to read the routing file manually in complex cases.
 
-## 13. Troubleshooting
+## 14. Troubleshooting
 
 ### Compile error: "is not declared"
 
