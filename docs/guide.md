@@ -22,7 +22,9 @@ graft --version
 
 ---
 
-## 2. Create a Project
+## 2. Create or Configure a Project
+
+### New project
 
 ```bash
 graft init my-project
@@ -35,6 +37,15 @@ my-project/
   pipeline.gft       ← Two-node pipeline template
   .claude/CLAUDE.md   ← Full .gft syntax spec (so Claude Code understands Graft)
 ```
+
+### Existing project
+
+```bash
+cd your-existing-project
+graft init
+```
+
+This adds `.claude/CLAUDE.md` with the Graft spec. If `.claude/CLAUDE.md` already exists, the Graft section is appended. Your existing files are untouched.
 
 ### 2.1 Claude Code Native Integration
 

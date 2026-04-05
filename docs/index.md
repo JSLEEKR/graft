@@ -131,7 +131,7 @@ Quality: 75% (3/4 checks passed)
 ## CLI
 
 ```bash
-graft init <name>              # Scaffold project + inject CLAUDE.md spec
+graft init [name]              # New project, or add Graft to existing project
 graft compile <file.gft>      # Compile to .claude/ harness
 graft check <file.gft>        # Parse + analyze only
 graft run <file.gft>          # Compile, execute, validate, suggest fixes

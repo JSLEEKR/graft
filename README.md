@@ -137,7 +137,7 @@ Claude Code reads the .claude/ structure and runs the pipeline
 ## CLI
 
 ```bash
-graft init <name>                            # Scaffold project + inject CLAUDE.md spec
+graft init [name]                            # New project, or add Graft to current dir
 graft compile <file.gft> [--out-dir <dir>]   # Compile to .claude/ harness
 graft check <file.gft>                       # Parse + analyze only
 graft run <file.gft> --input <json>          # Compile and execute
