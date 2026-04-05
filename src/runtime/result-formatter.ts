@@ -111,7 +111,8 @@ function formatNodeTokens(nr: NodeResult): string {
 }
 
 function renderBar(fraction: number, width: number): string {
-  const filled = Math.round(fraction * width);
+  const clamped = Math.max(0, Math.min(1, fraction));
+  const filled = Math.round(clamped * width);
   const empty = width - filled;
   const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(empty);
   return `[${bar}]`;
