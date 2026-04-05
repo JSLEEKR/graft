@@ -1,0 +1,104 @@
+
+{
+  "success": true,
+  "graph": "AdversarialDebate",
+  "duration_ms": 12,
+  "nodes": [
+    {
+      "node": "Architect",
+      "success": true,
+      "duration_ms": 1
+    },
+    {
+      "node": "Pragmatist",
+      "success": true,
+      "duration_ms": 1
+    },
+    {
+      "node": "Skeptic",
+      "success": true,
+      "duration_ms": 0
+    },
+    {
+      "node": "Specialist",
+      "success": true,
+      "duration_ms": 1
+    },
+    {
+      "node": "Critic",
+      "success": true,
+      "duration_ms": 1
+    },
+    {
+      "node": "Converger",
+      "success": true,
+      "duration_ms": 1
+    },
+    {
+      "node": "Implementer",
+      "success": true,
+      "duration_ms": 1
+    },
+    {
+      "node": "Reviewer",
+      "success": true,
+      "duration_ms": 1
+    },
+    {
+      "node": "Implementer",
+      "success": true,
+      "duration_ms": 1
+    }
+  ],
+  "token_usage": {
+    "budget": 120000,
+    "consumed": 145000,
+    "fraction": 1.2083333333333333,
+    "perNode": [
+      {
+        "node": "Architect",
+        "estimated": 15000
+      },
+      {
+        "node": "Pragmatist",
+        "estimated": 12000
+      },
+      {
+        "node": "Skeptic",
+        "estimated": 12000
+      },
+      {
+        "node": "Specialist",
+        "estimated": 12000
+      },
+      {
+        "node": "Critic",
+        "estimated": 18000
+      },
+      {
+        "node": "Converger",
+        "estimated": 15000
+      },
+      {
+        "node": "Implementer",
+        "estimated": 23000
+      },
+      {
+        "node": "Reviewer",
+        "estimated": 15000
+      },
+      {
+        "node": "Implementer",
+        "estimated": 23000
+      }
+    ]
+  },
+  "output": {
+    "verdict": "<string>",
+    "issues": [
+      "<string>"
+    ],
+    "approved": false
+  },
+  "errors": []
+}

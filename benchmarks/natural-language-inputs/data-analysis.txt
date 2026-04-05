@@ -1,0 +1,31 @@
+Create a 4-node data analysis pipeline:
+
+Input: RawData with dataset_description (string), sample_rows (list of strings), question (string). Max 4k tokens.
+
+1. "Classifier" — claude-haiku, 3k/1k budget
+   - Reads: RawData
+   - Produces Classification: data_type (string), columns (list of strings), row_count (int), quality_issues (list of strings)
+
+2. "StatAnalyzer" — claude-sonnet, 6k/3k budget
+   - Reads: RawData, Classification
+   - Produces StatResults: summary_stats (string), distributions (list of strings), outliers (list of strings)
+
+3. "TrendAnalyzer" — claude-sonnet, 6k/3k budget
+   - Reads: RawData, Classification
+   - Produces TrendResults: trends (list of strings), correlations (list of strings), predictions (list of strings)
+
+4. "ReportWriter" — claude-opus, 10k/5k budget
+   - Reads: RawData, Classification, StatResults, TrendResults
+   - Produces AnalysisReport: executive_summary (string), findings (list of strings), recommendations (list of strings), visualizations_suggested (list of strings)
+
+Flow: Classifier -> parallel(StatAnalyzer, TrendAnalyzer) -> ReportWriter -> done.
+
+Edges:
+- Classifier -> StatAnalyzer: select(data_type, columns), compact
+- Classifier -> TrendAnalyzer: select(data_type, columns), compact
+- StatAnalyzer -> ReportWriter: select(summary_stats, outliers), compact
+- TrendAnalyzer -> ReportWriter: select(trends, correlations), compact
+
+Total budget: 50,000 tokens.
+
+Generate: 4 agent files, 4 hooks, CLAUDE.md, settings.json.

@@ -1,0 +1,42 @@
+
+Graph 'ContentPipeline' completed in 0.0s
+
+  ✓ Researcher           sonnet     0.0s  
+  ✓ Drafter              sonnet     0.0s  
+  ✓ Editor               opus       0.0s  
+  ✓ MetadataExtractor    haiku      0.0s  
+
+Token usage: 39,000 / 40,000 (98%)
+  [█████████████████████████████░]
+  ⚠ WARNING: >90% of budget consumed
+
+── Final Output (ArticleMetadata) ─────────────────────────
+  title: <string>
+  summary: <string>
+  tags: 1 items
+────────────────────────────────────────────────
+
+── Quality Check ─────────────────────────────────
+  ✓ key_points OK [Researcher.key_points]
+  ✓ sources OK [Researcher.sources]
+  ✓ angle OK [Researcher.angle]
+  ✓ avoid_topics OK [Researcher.avoid_topics]
+  ✓ title OK [Drafter.title]
+  ✓ body OK [Drafter.body]
+  ✓ word_count OK [Drafter.word_count]
+  ✓ title OK [Editor.title]
+  ✓ body OK [Editor.body]
+  ✓ word_count OK [Editor.word_count]
+  ✓ edit_notes OK [Editor.edit_notes]
+  ✓ title OK [MetadataExtractor.title]
+  ✓ summary OK [MetadataExtractor.summary]
+  ✓ tags OK [MetadataExtractor.tags]
+  ✗ Token budget nearly exhausted: 98%
+────────────────────────────────────────────────
+Quality: 93% (14/15 checks passed)
+
+── Suggestions ───────────────────────────────────
+  ✗ Token budget nearly exhausted.
+    → Add edge transforms to reduce token flow. Example:
+  edge Researcher -> ... | truncate(500)
+────────────────────────────────────────────────

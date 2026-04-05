@@ -1,0 +1,20 @@
+Create a Claude Code multi-agent pipeline with 2 nodes:
+
+1. A "Researcher" agent using claude-sonnet with 2k input / 1k output token budget.
+   - It reads a user question (string, max 500 tokens)
+   - It produces: findings (list of strings) and confidence (float between 0 and 1)
+
+2. A "Writer" agent using claude-haiku with 1500 input / 800 output token budget.
+   - It reads only the findings from the Researcher (not the confidence score)
+   - It produces: response (string)
+
+The data flow: Researcher -> Writer. Between them, select only the findings field and compact the output.
+
+Total pipeline budget: 6,000 tokens.
+
+Generate the following files:
+- .claude/agents/researcher.md (agent definition with model, tools, output schema)
+- .claude/agents/writer.md
+- .claude/hooks/researcher-to-writer.js (PostToolUse hook that extracts and transforms data)
+- .claude/CLAUDE.md (orchestration plan with step-by-step instructions)
+- .claude/settings.json (model routing, hook registration)

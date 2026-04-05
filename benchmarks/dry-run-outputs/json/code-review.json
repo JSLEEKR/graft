@@ -1,0 +1,62 @@
+
+{
+  "success": true,
+  "graph": "AdversarialReview",
+  "duration_ms": 5,
+  "nodes": [
+    {
+      "node": "SecurityReviewer",
+      "success": true,
+      "duration_ms": 1
+    },
+    {
+      "node": "LogicReviewer",
+      "success": true,
+      "duration_ms": 1
+    },
+    {
+      "node": "PerformanceReviewer",
+      "success": true,
+      "duration_ms": 0
+    },
+    {
+      "node": "SeniorReviewer",
+      "success": true,
+      "duration_ms": 1
+    }
+  ],
+  "token_usage": {
+    "budget": 40000,
+    "consumed": 39000,
+    "fraction": 0.975,
+    "perNode": [
+      {
+        "node": "SecurityReviewer",
+        "estimated": 9000
+      },
+      {
+        "node": "LogicReviewer",
+        "estimated": 9000
+      },
+      {
+        "node": "PerformanceReviewer",
+        "estimated": 6000
+      },
+      {
+        "node": "SeniorReviewer",
+        "estimated": 15000
+      }
+    ]
+  },
+  "output": {
+    "approved": false,
+    "blocking_issues": [
+      "<string>"
+    ],
+    "suggestions": [
+      "<string>"
+    ],
+    "summary": "<string>"
+  },
+  "errors": []
+}

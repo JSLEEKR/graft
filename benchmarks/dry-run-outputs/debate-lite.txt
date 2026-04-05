@@ -1,0 +1,36 @@
+
+Graph 'DebateLite' completed in 0.0s
+
+  ✓ Pragmatist           sonnet     0.0s  
+  ✓ Skeptic              sonnet     0.0s  
+  ✓ Converger            opus       0.0s  
+
+Token usage: 30,000 / 30,000 (100%)
+  [██████████████████████████████]
+  ⚠ WARNING: >90% of budget consumed
+
+── Final Output (FinalDesign) ─────────────────────────────
+  approach: <string>
+  code: <string>
+  risk_mitigations: 1 items
+────────────────────────────────────────────────
+
+── Quality Check ─────────────────────────────────
+  ✓ approach OK [Pragmatist.approach]
+  ✓ code OK [Pragmatist.code]
+  ✓ rationale OK [Pragmatist.rationale]
+  ✓ risks OK [Skeptic.risks]
+  ✓ alternatives OK [Skeptic.alternatives]
+  ✓ verdict OK [Skeptic.verdict]
+  ✓ approach OK [Converger.approach]
+  ✓ code OK [Converger.code]
+  ✓ risk_mitigations OK [Converger.risk_mitigations]
+  ✗ Token budget nearly exhausted: 100%
+────────────────────────────────────────────────
+Quality: 90% (9/10 checks passed)
+
+── Suggestions ───────────────────────────────────
+  ✗ Token budget nearly exhausted.
+    → Add edge transforms to reduce token flow. Example:
+  edge Pragmatist -> ... | truncate(500)
+────────────────────────────────────────────────

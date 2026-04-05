@@ -1,0 +1,26 @@
+Create a lightweight 3-node debate pipeline:
+
+Input: Task with description (string), constraints (optional string). Max 1k tokens.
+
+1. "Pragmatist" — claude-sonnet, 6k/3k budget
+   - Reads: Task
+   - Produces QuickProposal: approach (string), code (string), rationale (string)
+
+2. "Skeptic" — claude-sonnet, 6k/3k budget
+   - Reads: Task, QuickProposal
+   - Produces Challenge: risks (list of strings), alternatives (list of strings), verdict (string)
+
+3. "Converger" — claude-opus, 8k/4k budget
+   - Reads: QuickProposal, Challenge, Task
+   - Produces FinalDesign: approach (string), code (string), risk_mitigations (list of strings)
+
+Flow: Pragmatist -> Skeptic -> Converger -> done.
+
+Edges:
+- Pragmatist -> Skeptic: select(approach, code, rationale)
+- Skeptic -> Converger: compact
+- Pragmatist -> Converger: select(approach, code)
+
+Total budget: 30,000 tokens.
+
+Generate: 3 agent files, 3 hooks, CLAUDE.md, settings.json.

@@ -1,0 +1,68 @@
+
+Graph 'AdversarialDebate' completed in 0.0s
+
+  ✓ Architect            opus       0.0s  
+  ✓ Pragmatist           sonnet     0.0s  
+  ✓ Skeptic              sonnet     0.0s  
+  ✓ Specialist           sonnet     0.0s  
+  ✓ Critic               opus       0.0s  
+  ✓ Converger            opus       0.0s  
+  ✓ Implementer          sonnet     0.0s  
+  ✓ Reviewer             opus       0.0s  
+  ✓ Implementer          sonnet     0.0s  
+
+Token usage: 145,000 / 120,000 (121%)
+  [██████████████████████████████]
+  ⚠ WARNING: >90% of budget consumed
+
+── Final Output (ReviewResult) ────────────────────────────
+  verdict: <string>
+  issues: 1 items
+  approved: false
+────────────────────────────────────────────────
+
+── Quality Check ─────────────────────────────────
+  ✓ approach OK [Architect.approach]
+  ✓ code OK [Architect.code]
+  ✓ tradeoffs OK [Architect.tradeoffs]
+  ✓ convergence_score OK [Architect.convergence_score]
+  ✓ approach OK [Pragmatist.approach]
+  ✓ code OK [Pragmatist.code]
+  ✓ tradeoffs OK [Pragmatist.tradeoffs]
+  ✓ convergence_score OK [Pragmatist.convergence_score]
+  ✓ approach OK [Skeptic.approach]
+  ✓ code OK [Skeptic.code]
+  ✓ edge_cases OK [Skeptic.edge_cases]
+  ✓ failure_modes OK [Skeptic.failure_modes]
+  ✓ convergence_score OK [Skeptic.convergence_score]
+  ✓ approach OK [Specialist.approach]
+  ✓ code OK [Specialist.code]
+  ✓ domain_insights OK [Specialist.domain_insights]
+  ✓ convergence_score OK [Specialist.convergence_score]
+  ✓ strongest_approach OK [Critic.strongest_approach]
+  ✓ weaknesses_found OK [Critic.weaknesses_found]
+  ✓ forced_dissent OK [Critic.forced_dissent]
+  ✓ revised_recommendation OK [Critic.revised_recommendation]
+  ✓ adopted_approach OK [Converger.adopted_approach]
+  ✓ final_code OK [Converger.final_code]
+  ✓ test_plan OK [Converger.test_plan]
+  ✓ locked_decisions OK [Converger.locked_decisions]
+  ✓ dissent_rulings OK [Converger.dissent_rulings]
+  ✓ files_changed OK [Implementer.files_changed]
+  ✓ tests_added OK [Implementer.tests_added]
+  ✓ test_results OK [Implementer.test_results]
+  ✓ verdict OK [Reviewer.verdict]
+  ✓ issues OK [Reviewer.issues]
+  ✓ approved OK [Reviewer.approved]
+  ✓ files_changed OK [Implementer.files_changed]
+  ✓ tests_added OK [Implementer.tests_added]
+  ✓ test_results OK [Implementer.test_results]
+  ✗ Token budget nearly exhausted: 121%
+────────────────────────────────────────────────
+Quality: 97% (35/36 checks passed)
+
+── Suggestions ───────────────────────────────────
+  ✗ Token budget nearly exhausted.
+    → Add edge transforms to reduce token flow. Example:
+  edge Architect -> ... | truncate(500)
+────────────────────────────────────────────────

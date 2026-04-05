@@ -1,0 +1,40 @@
+
+{
+  "success": true,
+  "graph": "PRSummarizer",
+  "duration_ms": 5,
+  "nodes": [
+    {
+      "node": "Analyzer",
+      "success": true,
+      "duration_ms": 1
+    },
+    {
+      "node": "Formatter",
+      "success": true,
+      "duration_ms": 1
+    }
+  ],
+  "token_usage": {
+    "budget": 15000,
+    "consumed": 12000,
+    "fraction": 0.8,
+    "perNode": [
+      {
+        "node": "Analyzer",
+        "estimated": 9000
+      },
+      {
+        "node": "Formatter",
+        "estimated": 3000
+      }
+    ]
+  },
+  "output": {
+    "title": "<string>",
+    "one_liner": "<string>",
+    "detailed_summary": "<string>",
+    "risk_badge": "<string>"
+  },
+  "errors": []
+}

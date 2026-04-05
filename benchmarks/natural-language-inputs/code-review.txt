@@ -1,0 +1,39 @@
+Create a Claude Code multi-agent pipeline for adversarial code review with 4 nodes:
+
+Input context: PullRequest with diff (string), description (string), files_changed (list of strings). Max 3k tokens.
+
+1. "SecurityReviewer" — claude-sonnet, 6k/3k budget
+   - Reads: PullRequest
+   - Produces SecurityAnalysis: vulnerabilities (list of strings), severity (string), recommendation (string)
+
+2. "LogicReviewer" — claude-sonnet, 6k/3k budget
+   - Reads: PullRequest
+   - Produces LogicAnalysis: bugs (list of strings), edge_cases (list of strings), correctness (string)
+
+3. "PerformanceReviewer" — claude-haiku, 4k/2k budget
+   - Reads: PullRequest
+   - Produces PerfAnalysis: hotspots (list of strings), complexity_concerns (list of strings), impact (string)
+
+4. "SeniorReviewer" — claude-opus, 10k/5k budget
+   - Reads: PullRequest, SecurityAnalysis, LogicAnalysis, PerfAnalysis
+   - Produces FinalReview: approved (boolean), blocking_issues (list of strings), suggestions (list of strings), summary (string)
+
+Data flow:
+- SecurityReviewer, LogicReviewer, PerformanceReviewer run in PARALLEL
+- All three feed into SeniorReviewer
+- SecurityReviewer -> SeniorReviewer: select(vulnerabilities, severity), compact
+- LogicReviewer -> SeniorReviewer: select(bugs, edge_cases), compact
+- PerformanceReviewer -> SeniorReviewer: select(hotspots, complexity_concerns), compact
+
+Total pipeline budget: 40,000 tokens.
+
+Generate:
+- .claude/agents/securityreviewer.md
+- .claude/agents/logicreviewer.md
+- .claude/agents/performancereviewer.md
+- .claude/agents/seniorreviewer.md
+- .claude/hooks/securityreviewer-to-seniorreviewer.js
+- .claude/hooks/logicreviewer-to-seniorreviewer.js
+- .claude/hooks/performancereviewer-to-seniorreviewer.js
+- .claude/CLAUDE.md (orchestration with parallel execution)
+- .claude/settings.json

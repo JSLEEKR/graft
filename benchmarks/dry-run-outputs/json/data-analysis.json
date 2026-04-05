@@ -1,0 +1,64 @@
+
+{
+  "success": true,
+  "graph": "DataAnalysis",
+  "duration_ms": 5,
+  "nodes": [
+    {
+      "node": "Classifier",
+      "success": true,
+      "duration_ms": 1
+    },
+    {
+      "node": "StatAnalyzer",
+      "success": true,
+      "duration_ms": 0
+    },
+    {
+      "node": "TrendAnalyzer",
+      "success": true,
+      "duration_ms": 1
+    },
+    {
+      "node": "ReportWriter",
+      "success": true,
+      "duration_ms": 1
+    }
+  ],
+  "token_usage": {
+    "budget": 50000,
+    "consumed": 37000,
+    "fraction": 0.74,
+    "perNode": [
+      {
+        "node": "Classifier",
+        "estimated": 4000
+      },
+      {
+        "node": "StatAnalyzer",
+        "estimated": 9000
+      },
+      {
+        "node": "TrendAnalyzer",
+        "estimated": 9000
+      },
+      {
+        "node": "ReportWriter",
+        "estimated": 15000
+      }
+    ]
+  },
+  "output": {
+    "executive_summary": "<string>",
+    "findings": [
+      "<string>"
+    ],
+    "recommendations": [
+      "<string>"
+    ],
+    "visualizations_suggested": [
+      "<string>"
+    ]
+  },
+  "errors": []
+}

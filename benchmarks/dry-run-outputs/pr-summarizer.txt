@@ -1,0 +1,29 @@
+
+Graph 'PRSummarizer' completed in 0.0s
+
+  ✓ Analyzer             sonnet     0.0s  
+  ✓ Formatter            haiku      0.0s  
+
+Token usage: 12,000 / 15,000 (80%)
+  [████████████████████████░░░░░░]
+
+── Final Output (PRSummary) ───────────────────────────────
+  title: <string>
+  one_liner: <string>
+  detailed_summary: <string>
+  risk_badge: <string>
+────────────────────────────────────────────────
+
+── Quality Check ─────────────────────────────────
+  ✓ summary OK [Analyzer.summary]
+  ✓ changes_by_area OK [Analyzer.changes_by_area]
+  ✓ risk_level OK [Analyzer.risk_level]
+  ✓ breaking_changes OK [Analyzer.breaking_changes]
+  ✓ review_suggestions OK [Analyzer.review_suggestions]
+  ✓ title OK [Formatter.title]
+  ✓ one_liner OK [Formatter.one_liner]
+  ✓ detailed_summary OK [Formatter.detailed_summary]
+  ✓ risk_badge OK [Formatter.risk_badge]
+  ✓ Token budget OK: 80%
+────────────────────────────────────────────────
+Quality: 100% (10/10 checks passed)

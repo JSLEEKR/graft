@@ -1,0 +1,60 @@
+Create an 8-node adversarial debate pipeline with memory and conditional routing:
+
+Memory: DebateHistory (max 4k tokens, file storage) with locked_decisions (list of strings), failed_approaches (list of strings), iteration_count (int).
+
+Input: Task with description (string), codebase_context (string), existing_code (optional string). Max 2k tokens.
+
+Phase 1 — Independent Analysis (4 agents in parallel):
+1. "Architect" — claude-opus, 10k/5k budget
+   - Reads: Task, DebateHistory
+   - Produces ArchitectProposal: approach (string), code (string), tradeoffs (string), convergence_score (int)
+
+2. "Pragmatist" — claude-sonnet, 8k/4k budget
+   - Reads: Task, DebateHistory
+   - Produces PragmatistProposal: approach (string), code (string), tradeoffs (string), convergence_score (int)
+
+3. "Skeptic" — claude-sonnet, 8k/4k budget
+   - Reads: Task, DebateHistory
+   - Produces SkepticProposal: approach (string), code (string), edge_cases (list of strings), failure_modes (list of strings), convergence_score (int)
+
+4. "Specialist" — claude-sonnet, 8k/4k budget
+   - Reads: Task, DebateHistory
+   - Produces SpecialistProposal: approach (string), code (string), domain_insights (list of strings), convergence_score (int)
+
+Phase 2 — Cross-Critique:
+5. "Critic" — claude-opus, 12k/6k budget
+   - Reads: ArchitectProposal, PragmatistProposal, SkepticProposal, SpecialistProposal
+   - Produces Critique: strongest_approach (string), weaknesses_found (list of strings), forced_dissent (string), revised_recommendation (string)
+
+Phase 3 — Convergence:
+6. "Converger" — claude-opus, 10k/5k budget
+   - Reads: all 4 proposals + Critique
+   - Produces ConvergedDesign: adopted_approach (string), final_code (string), test_plan (string), locked_decisions (list of strings), dissent_rulings (list of strings)
+
+Phase 4 — Implementation:
+7. "Implementer" — claude-sonnet, 15k/8k budget
+   - Reads: ConvergedDesign, Task
+   - Tools: file_read, file_write, terminal
+   - On failure: retry(2)
+   - Produces Implementation: files_changed (list of strings), tests_added (list of strings), test_results (string)
+
+Phase 5 — Review:
+8. "Reviewer" — claude-opus, 10k/5k budget
+   - Reads: ConvergedDesign, Implementation
+   - Produces ReviewResult: verdict (string), issues (list of strings), approved (boolean)
+
+Edges:
+- Architect -> Critic: select(approach, tradeoffs, convergence_score)
+- Pragmatist -> Critic: select(approach, tradeoffs, convergence_score)
+- Skeptic -> Critic: select(approach, edge_cases, failure_modes, convergence_score)
+- Specialist -> Critic: select(approach, domain_insights, convergence_score)
+- Critic -> Converger: compact
+- Converger -> Implementer: select(adopted_approach, final_code, test_plan)
+- Implementer -> Reviewer: compact
+- Conditional: Reviewer -> Implementer when approved == false, else -> Converger
+
+Flow: parallel(Architect, Pragmatist, Skeptic, Specialist) -> Critic -> Converger -> Implementer -> Reviewer -> done.
+
+Total budget: 120,000 tokens.
+
+Generate: 8 agent files, 8+ hooks (including conditional router), CLAUDE.md with 5-phase orchestration, settings.json, memory directory.

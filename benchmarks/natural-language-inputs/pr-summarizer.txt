@@ -1,0 +1,17 @@
+Create a Claude Code 2-node pipeline for PR summarization:
+
+Input: PullRequest context with title (string), diff (string), files_changed (list of strings), author (string). Max 4k tokens.
+
+1. "Analyzer" — claude-sonnet, 6k/3k budget
+   - Reads: PullRequest
+   - Produces PRAnalysis: summary (string), changes_by_area (list of strings), risk_level (string), breaking_changes (list of strings), review_suggestions (list of strings)
+
+2. "Formatter" — claude-haiku, 2k/1k budget
+   - Reads: PullRequest, PRAnalysis
+   - Produces PRSummary: title (string), one_liner (string), detailed_summary (string), risk_badge (string)
+
+Edge: Analyzer -> Formatter, select(summary, risk_level, breaking_changes), compact.
+
+Total budget: 15,000 tokens.
+
+Generate: 2 agent files, 1 hook, CLAUDE.md orchestration, settings.json.

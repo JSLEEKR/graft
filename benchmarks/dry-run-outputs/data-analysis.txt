@@ -1,0 +1,36 @@
+
+Graph 'DataAnalysis' completed in 0.0s
+
+  ✓ Classifier           haiku      0.0s  
+  ✓ StatAnalyzer         sonnet     0.0s  
+  ✓ TrendAnalyzer        sonnet     0.0s  
+  ✓ ReportWriter         opus       0.0s  
+
+Token usage: 37,000 / 50,000 (74%)
+  [██████████████████████░░░░░░░░]
+
+── Final Output (AnalysisReport) ──────────────────────────
+  executive_summary: <string>
+  findings: 1 items
+  recommendations: 1 items
+  visualizations_suggested: 1 items
+────────────────────────────────────────────────
+
+── Quality Check ─────────────────────────────────
+  ✓ data_type OK [Classifier.data_type]
+  ✓ columns OK [Classifier.columns]
+  ✓ row_count OK [Classifier.row_count]
+  ✓ quality_issues OK [Classifier.quality_issues]
+  ✓ summary_stats OK [StatAnalyzer.summary_stats]
+  ✓ distributions OK [StatAnalyzer.distributions]
+  ✓ outliers OK [StatAnalyzer.outliers]
+  ✓ trends OK [TrendAnalyzer.trends]
+  ✓ correlations OK [TrendAnalyzer.correlations]
+  ✓ predictions OK [TrendAnalyzer.predictions]
+  ✓ executive_summary OK [ReportWriter.executive_summary]
+  ✓ findings OK [ReportWriter.findings]
+  ✓ recommendations OK [ReportWriter.recommendations]
+  ✓ visualizations_suggested OK [ReportWriter.visualizations_suggested]
+  ✓ Token budget OK: 74%
+────────────────────────────────────────────────
+Quality: 100% (15/15 checks passed)

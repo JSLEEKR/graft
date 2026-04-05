@@ -1,0 +1,33 @@
+Create a 4-node content creation pipeline with memory:
+
+Memory: PublishedArticles (max 3k tokens, file storage) with titles (list of strings), topics_covered (list of strings).
+
+Input: Brief with topic (string), audience (string), tone (string), max_words (int). Max 800 tokens.
+
+1. "Researcher" — claude-sonnet, 6k/3k budget
+   - Reads: Brief, PublishedArticles
+   - Produces ResearchNotes: key_points (list of strings), sources (list of strings), angle (string), avoid_topics (list of strings)
+
+2. "Drafter" — claude-sonnet, 8k/4k budget
+   - Reads: Brief, ResearchNotes
+   - Produces Draft: title (string), body (string), word_count (int)
+
+3. "Editor" — claude-opus, 10k/5k budget
+   - Reads: Brief, Draft
+   - Produces FinalArticle: title (string), body (string), word_count (int), edit_notes (list of strings)
+
+4. "MetadataExtractor" — claude-haiku, 2k/1k budget
+   - Reads: FinalArticle
+   - Writes to: PublishedArticles
+   - Produces ArticleMetadata: title (string), summary (string), tags (list of strings)
+
+Flow: Researcher -> Drafter -> Editor -> MetadataExtractor -> done.
+
+Edges:
+- Researcher -> Drafter: select(key_points, angle), compact
+- Drafter -> Editor: select(title, body)
+- Editor -> MetadataExtractor: select(title), compact
+
+Total budget: 40,000 tokens.
+
+Generate: 4 agent files, 3 hooks, CLAUDE.md, settings.json, memory directory.

@@ -1,0 +1,14 @@
+Create a single-node chatbot pipeline:
+
+Import shared contexts UserMessage and SystemConfig from shared.gft.
+
+Memory: ConversationLog (max 2k tokens, file storage) with turns (list of {role: string, content: string}) and summary (optional string).
+
+1. "Responder" — claude-sonnet, 4k/2k budget
+   - Reads: UserMessage, SystemConfig, ConversationLog
+   - Writes to: ConversationLog
+   - Produces Response: reply (string), updated_turns (list of {role: string, content: string}), summary (optional string)
+
+Graph: Responder -> done. Total budget: 8k tokens.
+
+Generate: 1 agent file, CLAUDE.md, settings.json, memory directory.

@@ -1,0 +1,37 @@
+
+{
+  "success": true,
+  "graph": "SimpleQA",
+  "duration_ms": 9,
+  "nodes": [
+    {
+      "node": "Researcher",
+      "success": true,
+      "duration_ms": 1
+    },
+    {
+      "node": "Writer",
+      "success": true,
+      "duration_ms": 0
+    }
+  ],
+  "token_usage": {
+    "budget": 6000,
+    "consumed": 5300,
+    "fraction": 0.8833333333333333,
+    "perNode": [
+      {
+        "node": "Researcher",
+        "estimated": 3000
+      },
+      {
+        "node": "Writer",
+        "estimated": 2300
+      }
+    ]
+  },
+  "output": {
+    "response": "<string>"
+  },
+  "errors": []
+}

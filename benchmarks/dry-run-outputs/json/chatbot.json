@@ -1,0 +1,35 @@
+
+{
+  "success": true,
+  "graph": "Chat",
+  "duration_ms": 3,
+  "nodes": [
+    {
+      "node": "Responder",
+      "success": true,
+      "duration_ms": 1
+    }
+  ],
+  "token_usage": {
+    "budget": 8000,
+    "consumed": 6000,
+    "fraction": 0.75,
+    "perNode": [
+      {
+        "node": "Responder",
+        "estimated": 6000
+      }
+    ]
+  },
+  "output": {
+    "reply": "<string>",
+    "updated_turns": [
+      {
+        "role": "<string>",
+        "content": "<string>"
+      }
+    ],
+    "summary": "<string>"
+  },
+  "errors": []
+}

@@ -1,0 +1,59 @@
+
+{
+  "success": true,
+  "graph": "ContentPipeline",
+  "duration_ms": 6,
+  "nodes": [
+    {
+      "node": "Researcher",
+      "success": true,
+      "duration_ms": 1
+    },
+    {
+      "node": "Drafter",
+      "success": true,
+      "duration_ms": 1
+    },
+    {
+      "node": "Editor",
+      "success": true,
+      "duration_ms": 1
+    },
+    {
+      "node": "MetadataExtractor",
+      "success": true,
+      "duration_ms": 0
+    }
+  ],
+  "token_usage": {
+    "budget": 40000,
+    "consumed": 39000,
+    "fraction": 0.975,
+    "perNode": [
+      {
+        "node": "Researcher",
+        "estimated": 9000
+      },
+      {
+        "node": "Drafter",
+        "estimated": 12000
+      },
+      {
+        "node": "Editor",
+        "estimated": 15000
+      },
+      {
+        "node": "MetadataExtractor",
+        "estimated": 3000
+      }
+    ]
+  },
+  "output": {
+    "title": "<string>",
+    "summary": "<string>",
+    "tags": [
+      "<string>"
+    ]
+  },
+  "errors": []
+}

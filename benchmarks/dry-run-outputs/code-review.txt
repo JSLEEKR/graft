@@ -1,0 +1,42 @@
+
+Graph 'AdversarialReview' completed in 0.0s
+
+  ✓ SecurityReviewer     sonnet     0.0s  
+  ✓ LogicReviewer        sonnet     0.0s  
+  ✓ PerformanceReviewer  haiku      0.0s  
+  ✓ SeniorReviewer       opus       0.0s  
+
+Token usage: 39,000 / 40,000 (98%)
+  [█████████████████████████████░]
+  ⚠ WARNING: >90% of budget consumed
+
+── Final Output (FinalReview) ─────────────────────────────
+  approved: false
+  blocking_issues: 1 items
+  suggestions: 1 items
+  summary: <string>
+────────────────────────────────────────────────
+
+── Quality Check ─────────────────────────────────
+  ✓ vulnerabilities OK [SecurityReviewer.vulnerabilities]
+  ✓ severity OK [SecurityReviewer.severity]
+  ✓ recommendation OK [SecurityReviewer.recommendation]
+  ✓ bugs OK [LogicReviewer.bugs]
+  ✓ edge_cases OK [LogicReviewer.edge_cases]
+  ✓ correctness OK [LogicReviewer.correctness]
+  ✓ hotspots OK [PerformanceReviewer.hotspots]
+  ✓ complexity_concerns OK [PerformanceReviewer.complexity_concerns]
+  ✓ impact OK [PerformanceReviewer.impact]
+  ✓ approved OK [SeniorReviewer.approved]
+  ✓ blocking_issues OK [SeniorReviewer.blocking_issues]
+  ✓ suggestions OK [SeniorReviewer.suggestions]
+  ✓ summary OK [SeniorReviewer.summary]
+  ✗ Token budget nearly exhausted: 98%
+────────────────────────────────────────────────
+Quality: 93% (13/14 checks passed)
+
+── Suggestions ───────────────────────────────────
+  ✗ Token budget nearly exhausted.
+    → Add edge transforms to reduce token flow. Example:
+  edge SecurityReviewer -> ... | truncate(500)
+────────────────────────────────────────────────

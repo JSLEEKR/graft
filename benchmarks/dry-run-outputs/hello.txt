@@ -1,0 +1,24 @@
+
+Graph 'SimpleQA' completed in 0.0s
+
+  ✓ Researcher           sonnet     0.0s  
+  ✓ Writer               haiku      0.0s  
+
+Token usage: 5,300 / 6,000 (88%)
+  [███████████████████████████░░░]
+
+── Final Output (Answer) ──────────────────────────────────
+  response: <string>
+────────────────────────────────────────────────
+
+── Quality Check ─────────────────────────────────
+  ✓ findings OK [Researcher.findings]
+  ✓ confidence OK [Researcher.confidence]
+  ✓ response OK [Writer.response]
+  ⚠ Token budget high: 88%
+────────────────────────────────────────────────
+Quality: 75% (3/4 checks passed)
+
+── Suggestions ───────────────────────────────────
+  ⚠ Token budget usage is high. Consider adding compact or truncate transforms.
+────────────────────────────────────────────────

@@ -1,0 +1,42 @@
+{
+  "model": "claude-sonnet-4-20250514",
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write",
+      "Edit",
+      "Bash",
+      "Skill"
+    ]
+  },
+  "graft": {
+    "version": "6.0.1",
+    "source": "C:\\Users\\user\\OneDrive\\Documents\\Graft\\examples\\pr-summarizer.gft",
+    "compiled_at": "2026-04-05T01:53:08.863Z",
+    "budget": {
+      "total": 15000,
+      "warning_threshold": 0.8,
+      "critical_threshold": 0.9
+    },
+    "model_routing": {
+      "default": "claude-sonnet-4-20250514",
+      "overrides": {
+        "formatter": "claude-haiku-4-5-20251001"
+      }
+    }
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/analyzer-to-formatter.js",
+            "if": "Write(.graft/session/node_outputs/analyzer.json)"
+          }
+        ]
+      }
+    ]
+  }
+}

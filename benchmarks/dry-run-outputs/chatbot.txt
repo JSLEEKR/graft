@@ -1,0 +1,21 @@
+
+Graph 'Chat' completed in 0.0s
+
+  ✓ Responder            sonnet     0.0s  
+
+Token usage: 6,000 / 8,000 (75%)
+  [███████████████████████░░░░░░░]
+
+── Final Output (Response) ────────────────────────────────
+  reply: <string>
+  updated_turns: 1 items
+  summary: <string>
+────────────────────────────────────────────────
+
+── Quality Check ─────────────────────────────────
+  ✓ reply OK [Responder.reply]
+  ✓ updated_turns OK [Responder.updated_turns]
+  ✓ summary OK [Responder.summary]
+  ✓ Token budget OK: 75%
+────────────────────────────────────────────────
+Quality: 100% (4/4 checks passed)
