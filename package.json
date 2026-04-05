@@ -15,7 +15,17 @@
     "dsl",
     "llm",
     "claude",
-    "graph"
+    "claude-code",
+    "multi-agent",
+    "pipeline",
+    "infrastructure-as-code",
+    "ai-agents",
+    "token-optimization",
+    "orchestration",
+    "graph",
+    "code-generation",
+    "developer-tools",
+    "automation"
   ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
