@@ -407,6 +407,50 @@ program
   });
 
 program
+  .command('import')
+  .description('Import existing .claude/ harness structure into a .gft file')
+  .argument('[dir]', 'project directory (default: current directory)', '.')
+  .option('-o, --output <file>', 'output .gft file path')
+  .action(async (dir: string, opts: { output?: string }) => {
+    const resolved = path.resolve(dir);
+    const claudeDir = path.join(resolved, '.claude');
+
+    if (!fs.existsSync(claudeDir)) {
+      console.error(`Error: no .claude/ directory found in ${resolved}`);
+      process.exit(1);
+    }
+
+    const agentsDir = path.join(claudeDir, 'agents');
+    if (!fs.existsSync(agentsDir) || fs.readdirSync(agentsDir).filter(f => f.endsWith('.md')).length === 0) {
+      console.error(`Error: no agent definitions found in .claude/agents/`);
+      process.exit(1);
+    }
+
+    const { importHarness } = await import('./importer.js');
+    const gft = importHarness(resolved);
+
+    const outFile = opts.output || path.join(resolved, 'pipeline.gft');
+
+    if (fs.existsSync(outFile)) {
+      console.error(`Error: ${path.relative('.', outFile)} already exists. Use -o to specify a different output file.`);
+      process.exit(1);
+    }
+
+    fs.writeFileSync(outFile, gft);
+    console.log(`\n✓ Imported ${path.relative('.', outFile)}`);
+
+    // Count what was imported
+    const agentCount = fs.readdirSync(agentsDir).filter(f => f.endsWith('.md')).length;
+    const hooksDir = path.join(claudeDir, 'hooks');
+    const hookCount = fs.existsSync(hooksDir) ? fs.readdirSync(hooksDir).filter(f => f.endsWith('.js')).length : 0;
+    console.log(`  ${agentCount} agents, ${hookCount} edges imported`);
+    console.log(`\nNext steps:`);
+    console.log(`  1. Review and edit ${path.relative('.', outFile)} (fill in TODO fields)`);
+    console.log(`  2. graft check ${path.relative('.', outFile)}`);
+    console.log(`  3. graft compile ${path.relative('.', outFile)}`);
+  });
+
+program
   .command('fmt')
   .description('Format .gft source file')
   .argument('<file>', '.gft source file')
