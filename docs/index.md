@@ -9,7 +9,7 @@ title: Graft
 
 Write `.gft` files — or just describe what you want in natural language — and Graft compiles them into [Claude Code](https://docs.anthropic.com/en/docs/claude-code) harness structures with compile-time token budget analysis, runtime quality validation, and automatic fix suggestions.
 
-> **Best for:** Natural-language I/O pipelines — code review, ideation, content generation, data analysis, debate architectures. Agents exchange structured JSON, not filesystem side effects.
+> **Best for:** Natural-language I/O pipelines — code review, ideation, content generation, data analysis, debate architectures. In coding workflows, use Graft for the NL sub-steps (review, analysis, planning) while running code execution directly.
 
 **77% fewer tokens, 200x faster than manual configuration. [Benchmarks](https://github.com/JSLEEKR/graft/tree/master/benchmarks)**
 
@@ -129,6 +129,18 @@ Quality: 75% (3/4 checks passed)
 - **[Language Specification](https://github.com/JSLEEKR/graft/blob/master/SPECIFICATION.md)** — formal grammar and semantics
 - **[npm package](https://www.npmjs.com/package/@jsleekr/graft)** — `@jsleekr/graft`
 - **[GitHub](https://github.com/JSLEEKR/graft)** — source code
+
+## Using Graft in Coding Workflows
+
+Graft handles NL sub-steps within a larger coding workflow:
+
+```
+Manual: Plan → Code (direct) → graft run review.gft → Fix (direct) → Done
+                                       ↑
+                              Graft handles this part
+```
+
+Use Graft for review, analysis, planning, and ideation steps. Run code execution through direct Claude Code sessions.
 
 ## CLI
 

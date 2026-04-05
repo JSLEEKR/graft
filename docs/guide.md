@@ -1,6 +1,6 @@
 # Graft User Guide
 
-Graft compiles `.gft` files into multi-agent pipeline structures that Claude Code can execute directly. Best for natural-language I/O pipelines — code review, ideation, content generation, data analysis — where agents exchange structured JSON.
+Graft compiles `.gft` files into multi-agent pipeline structures that Claude Code can execute directly. Best for natural-language I/O pipelines — code review, ideation, content generation, data analysis — where agents exchange structured JSON. In coding workflows, use Graft for the NL sub-steps (review, analysis, planning) while running code execution directly.
 
 ```
 Write .gft file → graft compile → .claude/ structure generated → Run in Claude Code
@@ -625,7 +625,67 @@ The feedback maps to concrete `.gft` changes you can apply directly, then rerun.
 
 ---
 
-## 13. Execution Model and Limitations
+## 13. Using Graft in Coding Workflows
+
+Coding tasks mix natural-language steps (planning, review, analysis) with code execution steps (writing files, running tests). Graft handles the NL parts:
+
+```
+Plan (NL) → Code (direct) → Review (NL) → Fix (direct) → Final Review (NL)
+  ↑                            ↑                              ↑
+  optional                   Graft                          Graft
+```
+
+**The pattern:**
+
+1. **Plan** — optionally use a Graft pipeline to generate a structured plan
+2. **Code** — run code execution directly through Claude Code (file writes, tests, builds)
+3. **Review** — use a Graft review pipeline (`graft run review.gft`) with parallel reviewers
+4. **Fix** — apply fixes directly through Claude Code
+5. **Final Review** — run the Graft pipeline again to validate
+
+**Example: code review after implementation**
+
+```graft
+// review.gft — run after code is written
+context CodeChanges(max_tokens: 3k) {
+  diff: String
+  description: String
+}
+
+node SecurityReviewer(model: sonnet, budget: 6k/3k) {
+  reads: [CodeChanges]
+  produces SecurityAnalysis { vulnerabilities: List<String>, severity: String }
+}
+
+node LogicReviewer(model: sonnet, budget: 6k/3k) {
+  reads: [CodeChanges]
+  produces LogicAnalysis { bugs: List<String>, edge_cases: List<String> }
+}
+
+node SeniorReviewer(model: opus, budget: 8k/4k) {
+  reads: [CodeChanges, SecurityAnalysis, LogicAnalysis]
+  produces FinalReview { approved: Bool, action_items: List<String> }
+}
+
+edge SecurityReviewer -> SeniorReviewer | select(vulnerabilities, severity) | compact
+edge LogicReviewer -> SeniorReviewer | select(bugs, edge_cases) | compact
+
+graph Review(input: CodeChanges, output: FinalReview, budget: 30k) {
+  parallel { SecurityReviewer  LogicReviewer }
+  -> SeniorReviewer -> done
+}
+```
+
+```bash
+# After writing code, run the review pipeline
+graft run review.gft --input '{"diff": "...", "description": "..."}'
+```
+
+This gives you structured, parallel code review with token budget control — while the actual coding stays in direct Claude Code sessions.
+
+---
+
+## 14. Execution Model and Limitations
 
 ### How Graft Differs from Runtime Orchestrators
 
@@ -654,7 +714,7 @@ In other words: **the data pipeline is deterministic; the orchestration is best-
 - **Memory**: Only JSON file storage works. Database backends are specified but not implemented.
 - **Conditional edge codegen**: Router hooks evaluate conditions correctly, but the orchestration plan may need Claude Code to read the routing file manually in complex cases.
 
-## 14. Troubleshooting
+## 15. Troubleshooting
 
 ### Compile error: "is not declared"
 

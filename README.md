@@ -8,7 +8,7 @@
 
 Write `.gft` files to define natural-language I/O pipelines — code review, ideation, content generation, data analysis, debate architectures. The compiler generates `.claude/` harness structures — agents, hooks, orchestration plans, settings — with compile-time token budget analysis.
 
-> **Best for:** Pipelines where agents exchange structured JSON (reviews, analyses, reports). Not designed for coding automation where the primary output is filesystem side effects.
+> **Best for:** Pipelines where agents exchange structured JSON (reviews, analyses, reports). In coding workflows, use Graft for the NL sub-steps (review, analysis, planning) while running code execution manually.
 
 **[Documentation](https://jsleekr.github.io/graft/)** | **[Playground](https://jsleekr.github.io/graft/playground/)** | **[User Guide](docs/guide.md)** | **[Examples](examples/)**
 
@@ -222,9 +222,21 @@ Graft is a **compiler**, not a runtime orchestrator.
 
 `graft run` spawns Claude Code subprocesses per node. The orchestration depends on Claude Code's instruction-following — unlike LangGraph or CrewAI which use deterministic state machines.
 
+## Using Graft in Coding Workflows
+
+Graft handles the NL sub-steps within a larger coding workflow. The pattern:
+
+```
+Manual: Plan → Code (direct) → graft run review.gft → Fix (direct) → Done
+                                       ↑
+                              Graft handles this part
+```
+
+Use Graft for review, analysis, planning, and ideation steps — where agents exchange structured JSON. Run code execution (file writes, tests, builds) manually or through direct Claude Code sessions.
+
 ## Limitations
 
-- **Natural-language pipelines only** — designed for agents that exchange structured JSON (reviews, analyses, reports). Not suited for coding automation where the primary output is filesystem side effects.
+- **Natural-language I/O only** — Graft orchestrates agents that exchange structured JSON. For code execution (filesystem writes, test runs), use direct Claude Code sessions alongside Graft.
 - **Non-deterministic orchestration** — `orchestration.md` is an LLM prompt, not a state machine
 - **Claude Code dependency** — generates `.claude/` structures only
 - **Single provider** — Anthropic models only (multi-provider planned)

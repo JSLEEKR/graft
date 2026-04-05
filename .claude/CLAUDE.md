@@ -8,7 +8,7 @@
 - **Goal**: Graft — IaC for natural-language I/O multi-agent pipelines
 - **Language**: TypeScript (hand-written recursive descent parser)
 - **Current Version**: v6.2.0
-- **Scope**: NL pipelines (code review, ideation, content, data analysis). Not for coding automation.
+- **Scope**: NL pipelines (code review, ideation, content, data analysis). In coding workflows, use for NL sub-steps (review, analysis, planning).
 - **User Guide**: `docs/guide.md`
 - **Dev Notes**: `C:\Users\user\OneDrive\Documents\GraftDevNotes\graft-v1-development-notes.md`
 - **Blog**: `JSLEEKR/jslee-homepage` → `content/blog/`
