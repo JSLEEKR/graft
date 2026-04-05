@@ -87,7 +87,7 @@ describe('Codegen — let and graph_call', () => {
     `;
     const result = compile(source, 'test.gft');
     expect(result.success).toBe(true);
-    const orch = result.files?.find(f => f.path.includes('CLAUDE.md'));
+    const orch = result.files?.find(f => f.path.includes('orchestration.md'));
     expect(orch).toBeDefined();
     expect(orch!.content).toContain('data binding');
     expect(orch!.content).toContain('let s');
@@ -109,7 +109,7 @@ describe('Codegen — let and graph_call', () => {
     `;
     const result = compile(source, 'test.gft');
     expect(result.success).toBe(true);
-    const orch = result.files?.find(f => f.path.includes('CLAUDE.md'));
+    const orch = result.files?.find(f => f.path.includes('orchestration.md'));
     expect(orch).toBeDefined();
     expect(orch!.content).toContain('sub-pipeline');
     expect(orch!.content).toContain('Sub');
@@ -128,7 +128,7 @@ describe('Codegen — let and graph_call', () => {
     `;
     const result = compile(source, 'test.gft');
     expect(result.success).toBe(true);
-    const orch = result.files?.find(f => f.path.includes('CLAUDE.md'));
+    const orch = result.files?.find(f => f.path.includes('orchestration.md'));
     expect(orch).toBeDefined();
     expect(orch!.content).toContain('Parameters');
     expect(orch!.content).toContain('count: Int');
@@ -149,7 +149,7 @@ describe('Codegen — let and graph_call', () => {
     `;
     const result = compile(source, 'test.gft');
     expect(result.success).toBe(true);
-    const orch = result.files?.find(f => f.path.includes('CLAUDE.md'));
+    const orch = result.files?.find(f => f.path.includes('orchestration.md'));
     expect(orch).toBeDefined();
     // No params section for parameterless graph
     expect(orch!.content).not.toContain('Parameters');

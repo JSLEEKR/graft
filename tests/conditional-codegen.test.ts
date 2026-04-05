@@ -119,19 +119,19 @@ describe('Conditional edge codegen', () => {
 
   describe('orchestration', () => {
     it('includes conditional routing step', () => {
-      const orch = result.files!.find(f => f.path === '.claude/CLAUDE.md')!;
+      const orch = result.files!.find(f => f.path === '.claude/orchestration.md')!;
       expect(orch.content).toContain('Conditional routing from RiskAssessor');
     });
 
     it('describes each branch target', () => {
-      const orch = result.files!.find(f => f.path === '.claude/CLAUDE.md')!;
+      const orch = result.files!.find(f => f.path === '.claude/orchestration.md')!;
       expect(orch.content).toContain('DetailedReviewer');
       expect(orch.content).toContain('StandardReviewer');
       expect(orch.content).toContain('AutoApprove');
     });
 
     it('describes conditions', () => {
-      const orch = result.files!.find(f => f.path === '.claude/CLAUDE.md')!;
+      const orch = result.files!.find(f => f.path === '.claude/orchestration.md')!;
       expect(orch.content).toContain('risk_score');
       expect(orch.content).toContain('> `0.7`');
       expect(orch.content).toContain('> `0.3`');
@@ -139,7 +139,7 @@ describe('Conditional edge codegen', () => {
     });
 
     it('references routing file path', () => {
-      const orch = result.files!.find(f => f.path === '.claude/CLAUDE.md')!;
+      const orch = result.files!.find(f => f.path === '.claude/orchestration.md')!;
       expect(orch.content).toContain('.graft/session/routing/riskassessor_route.json');
     });
   });
@@ -227,7 +227,7 @@ graph Pipeline(input: Input, output: Output, budget: 8k) {
   });
 
   it('orchestration mentions pipeline complete for done', () => {
-    const orch = result.files!.find(f => f.path === '.claude/CLAUDE.md')!;
+    const orch = result.files!.find(f => f.path === '.claude/orchestration.md')!;
     expect(orch.content).toContain('pipeline complete');
   });
 });

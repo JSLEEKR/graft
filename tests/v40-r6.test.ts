@@ -270,7 +270,7 @@ describe('Regression: existing flow patterns unchanged', () => {
     expect(result.report!.bestCase).toBeGreaterThan(0);
     // No params section in output
     const compiled = compile(source, 'test.gft');
-    const orch = compiled.files?.find(f => f.path.includes('CLAUDE.md'));
+    const orch = compiled.files?.find(f => f.path.includes('orchestration.md'));
     expect(orch!.content).not.toContain('Parameters');
   });
 });
@@ -349,7 +349,7 @@ describe('Scale: complex pipeline with variables + graph calls + conditionals', 
     const result = compile(source, 'test.gft');
     expect(result.success).toBe(true);
     expect(result.files).toBeDefined();
-    const orch = result.files!.find(f => f.path.includes('CLAUDE.md'));
+    const orch = result.files!.find(f => f.path.includes('orchestration.md'));
     expect(orch).toBeDefined();
     // Verify all features present in output
     expect(orch!.content).toContain('data binding');

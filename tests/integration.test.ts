@@ -51,7 +51,7 @@ describe('end-to-end compilation', () => {
     const result = compile(HELLO_GFT, 'hello.gft');
     const filePaths = result.files!.map(f => f.path).sort();
 
-    expect(filePaths).toContain('.claude/CLAUDE.md');
+    expect(filePaths).toContain('.claude/orchestration.md');
     expect(filePaths).toContain('.claude/agents/researcher.md');
     expect(filePaths).toContain('.claude/agents/writer.md');
     expect(filePaths).toContain('.claude/hooks/researcher-to-writer.js');
@@ -272,7 +272,7 @@ describe('v2.0 features', () => {
   it('generates orchestration with Persistent Memory section', () => {
     const result = compile(MEMORY_SOURCE, 'test.gft');
     expect(result.success).toBe(true);
-    const claudeMd = result.files!.find(f => f.path === '.claude/CLAUDE.md');
+    const claudeMd = result.files!.find(f => f.path === '.claude/orchestration.md');
     expect(claudeMd).toBeDefined();
     expect(claudeMd!.content).toContain('Persistent Memory');
     expect(claudeMd!.content).toContain('.graft/memory/log.json');
@@ -369,7 +369,7 @@ graph G(input: Foo, output: Out, budget: 2k) { N -> done }
     expect(result.success).toBe(true);
     expect(result.program!.nodes).toHaveLength(4);
     // Parallel step in orchestration
-    const claudeMd = result.files!.find(f => f.path === '.claude/CLAUDE.md');
+    const claudeMd = result.files!.find(f => f.path === '.claude/orchestration.md');
     expect(claudeMd!.content).toContain('[parallel]');
     expect(claudeMd!.content).toContain('Dispatch all 2 agents');
     // ReportWriter has transformed inputs from parallel branches
@@ -395,7 +395,7 @@ graph G(input: Foo, output: Out, budget: 2k) { N -> done }
     expect(result.program!.nodes).toHaveLength(8);
     expect(result.program!.memories).toHaveLength(1);
     // 4-agent parallel dispatch
-    const claudeMd = result.files!.find(f => f.path === '.claude/CLAUDE.md');
+    const claudeMd = result.files!.find(f => f.path === '.claude/orchestration.md');
     expect(claudeMd!.content).toContain('Dispatch all 4 agents');
     // Edge transforms from parallel to Critic
     expect(claudeMd!.content).toContain('architect_to_critic.json');
@@ -435,7 +435,7 @@ graph G(input: Foo, output: Out, budget: 2k) { N -> done }
     expect(filePaths).toContain('.claude/hooks/performancereviewer-to-seniorreviewer.js');
 
     // CLAUDE.md should have parallel dispatch + edge transforms
-    const claudeMd = result.files!.find(f => f.path === '.claude/CLAUDE.md');
+    const claudeMd = result.files!.find(f => f.path === '.claude/orchestration.md');
     expect(claudeMd!.content).toContain('Dispatch all 3 agents concurrently');
     expect(claudeMd!.content).toContain('Agent tool');
     expect(claudeMd!.content).toContain('securityreviewer_to_seniorreviewer.json');

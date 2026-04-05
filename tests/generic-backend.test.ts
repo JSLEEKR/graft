@@ -58,7 +58,7 @@ describe('GenericBackend', () => {
       const paths = files.map(f => f.path);
       expect(paths).toContain('.claude/agents/analyst.md');
       expect(paths).toContain('.claude/agents/reviewer.md');
-      expect(paths).toContain('.claude/CLAUDE.md');
+      expect(paths).toContain('.claude/orchestration.md');
       expect(paths).toContain('.claude/settings.json');
       expect(paths).toContain('.graft/session/node_outputs/.gitkeep');
     });

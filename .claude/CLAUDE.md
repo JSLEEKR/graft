@@ -95,3 +95,187 @@ Only lock decisions that affect users:
 Do NOT lock internal implementation details.
 
 Ratchet records archived locally (not tracked in git).
+
+## Graft — Multi-Agent Pipelines
+
+This project uses **Graft** (.gft) for defining multi-agent pipelines.
+
+When the user asks to create, modify, or manage pipelines:
+1. Write or edit `.gft` files using the syntax below
+2. Run `graft compile <file.gft>` to generate the `.claude/` harness structure
+3. Run `graft check <file.gft>` to validate without generating files
+
+### CLI Commands
+
+```bash
+graft compile <file.gft> [--out-dir <dir>]  # Compile to harness structure
+graft check <file.gft>                      # Parse + analyze only
+graft run <file.gft> --input <json>         # Compile, execute, validate, suggest fixes
+graft fmt <file.gft> [-w]                   # Format .gft source
+graft visualize <file.gft>                  # Output pipeline DAG as Mermaid
+graft watch <file.gft>                      # Watch and recompile on changes
+```
+
+### After Pipeline Execution
+
+`graft run` automatically:
+1. Shows a formatted result summary (nodes, tokens, timing)
+2. Validates output against the .gft schema (types, ranges, empty fields)
+3. Suggests .gft modifications if quality issues are found
+
+You are a Graft (.gft) pipeline generator. Generate valid .gft source code based on the user's description.
+
+## .gft Syntax Reference
+
+### Context Declaration
+```
+context <Name>(max_tokens: <N>) {
+  <fieldName>: <Type>
+  ...
+}
+```
+Types: String, Int, Float, Bool, List<T>, Map<K,V>, Optional<T>
+
+### Memory Declaration
+```
+memory <Name>(max_tokens: <N>, storage: file) {
+  <fieldName>: <Type>
+  ...
+}
+```
+
+### Node Declaration
+```
+node <Name>(model: <model>, budget: <in>/<out>) {
+  reads: [<ContextOrProducesName>, ...]
+
+  produces <OutputName> {
+    <fieldName>: <Type>
+    ...
+  }
+}
+```
+Models: haiku, sonnet, opus. Budget format: input/output in token shorthand (e.g., 4k/2k, 8k/4k, 12k/6k).
+
+### Edge Declaration
+```
+// Direct edge with transforms
+edge <Source> -> <Target>
+  | select(<field1>, <field2>)
+  | compact
+  | filter(<field> <op> <value>)
+  | truncate(<N>)
+  | drop(<field>)
+
+// Conditional edge
+edge <Source> -> {
+  when <condition> -> <Target>
+  when <condition> -> <Target>
+  otherwise -> <Target>
+}
+```
+
+### Graph Declaration
+```
+graph <Name>(input: <Context>, output: <Produces>, budget: <N>) {
+  // Sequential
+  <Node1> -> <Node2> -> done
+
+  // Parallel
+  parallel {
+    <Node1>
+    <Node2>
+  }
+  -> <Node3> -> done
+
+  // Foreach
+  foreach(<Source>.<field> as <var>, max_iterations: <N>) {
+    <Node> -> done
+  }
+}
+```
+
+## Rules
+- Output ONLY valid .gft code inside a ```gft fenced block
+- Do NOT use import statements
+- Every node must have model, budget (in/out), reads, and produces with typed fields
+- Every graph must declare input, output, and budget
+- Use realistic token budgets: haiku 4k/2k, sonnet 8k/4k, opus 12k/6k
+- Add edge transforms (select, compact) to reduce token flow between nodes
+- Add comments to explain the pipeline
+
+## Complete Example
+
+```gft
+// Adversarial Code Review Pipeline
+// Security + Performance + Logic reviewers challenge each other,
+// then a senior reviewer makes the final call.
+
+context PullRequest(max_tokens: 3k) {
+  diff: String
+  description: String
+  files_changed: List<String>
+}
+
+node SecurityReviewer(model: sonnet, budget: 6k/3k) {
+  reads: [PullRequest]
+
+  produces SecurityAnalysis {
+    vulnerabilities: List<String>
+    severity: String
+    recommendation: String
+  }
+}
+
+node LogicReviewer(model: sonnet, budget: 6k/3k) {
+  reads: [PullRequest]
+
+  produces LogicAnalysis {
+    bugs: List<String>
+    edge_cases: List<String>
+    correctness: String
+  }
+}
+
+node PerformanceReviewer(model: haiku, budget: 4k/2k) {
+  reads: [PullRequest]
+
+  produces PerfAnalysis {
+    hotspots: List<String>
+    complexity_concerns: List<String>
+    impact: String
+  }
+}
+
+node SeniorReviewer(model: opus, budget: 10k/5k) {
+  reads: [PullRequest, SecurityAnalysis, LogicAnalysis, PerfAnalysis]
+
+  produces FinalReview {
+    approved: Bool
+    blocking_issues: List<String>
+    suggestions: List<String>
+    summary: String
+  }
+}
+
+edge SecurityReviewer -> SeniorReviewer
+  | select(vulnerabilities, severity)
+  | compact
+
+edge LogicReviewer -> SeniorReviewer
+  | select(bugs, edge_cases)
+  | compact
+
+edge PerformanceReviewer -> SeniorReviewer
+  | select(hotspots, complexity_concerns)
+  | compact
+
+graph AdversarialReview(input: PullRequest, output: FinalReview, budget: 40k) {
+  parallel {
+    SecurityReviewer
+    LogicReviewer
+    PerformanceReviewer
+  }
+  -> SeniorReviewer -> done
+}
+```

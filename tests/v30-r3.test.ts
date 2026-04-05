@@ -138,7 +138,7 @@ describe('v3.0-R3: backend-aware generate()', () => {
     const report = estimator.estimate();
     const files = generate(program, report, 'test.gft', index);
     expect(files.some(f => f.path.includes('agents/'))).toBe(true);
-    expect(files.some(f => f.path === '.claude/CLAUDE.md')).toBe(true);
+    expect(files.some(f => f.path === '.claude/orchestration.md')).toBe(true);
     expect(files.some(f => f.path === '.claude/settings.json')).toBe(true);
   });
 
@@ -159,7 +159,7 @@ describe('v3.0-R3: backend-aware generate()', () => {
     expect(calls).toContain('agent');
     expect(calls).toContain('orchestration');
     expect(calls).toContain('settings');
-    expect(files.find(f => f.path === '.claude/CLAUDE.md')!.content).toBe('# mock orchestration');
+    expect(files.find(f => f.path === '.claude/orchestration.md')!.content).toBe('# mock orchestration');
   });
 
   it('produces same output via backend as direct generate', () => {
@@ -202,7 +202,7 @@ describe('v3.0-R3: integration', () => {
   it('compileAndGenerate uses backend-aware generate', () => {
     const result = compileAndGenerate(BASIC_SOURCE, 'test.gft');
     expect(result.success).toBe(true);
-    expect(result.files!.some(f => f.path === '.claude/CLAUDE.md')).toBe(true);
+    expect(result.files!.some(f => f.path === '.claude/orchestration.md')).toBe(true);
   });
 
   it('CONFIG_UNKNOWN_BACKEND error code exists', async () => {

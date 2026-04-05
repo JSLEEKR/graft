@@ -9,7 +9,7 @@ describe('Codegen: let binding expressions in orchestration', () => {
     const result = compile(source, 'test.gft');
     expect(result.success).toBe(true);
     const files = generate(result.program!, result.report!, 'test.gft');
-    const orch = files.find(f => f.path.includes('CLAUDE.md'));
+    const orch = files.find(f => f.path.includes('orchestration.md'));
     return orch?.content ?? '';
   }
 
@@ -114,7 +114,7 @@ describe('Regression: codegen flow types', () => {
     const result = compile(source, 'test.gft');
     expect(result.success).toBe(true);
     const files = generate(result.program!, result.report!, 'test.gft');
-    const orch = files.find(f => f.path.includes('CLAUDE.md'));
+    const orch = files.find(f => f.path.includes('orchestration.md'));
     expect(orch?.content).toContain('Step');
   });
 
@@ -133,7 +133,7 @@ describe('Regression: codegen flow types', () => {
     const files = generate(result.program!, result.report!, 'test.gft');
     expect(files.length).toBeGreaterThan(0);
     const paths = files.map(f => f.path);
-    expect(paths.some(p => p.includes('CLAUDE.md'))).toBe(true);
+    expect(paths.some(p => p.includes('orchestration.md'))).toBe(true);
     expect(paths.some(p => p.includes('agents'))).toBe(true);
   });
 });

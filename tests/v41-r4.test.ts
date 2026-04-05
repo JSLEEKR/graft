@@ -190,7 +190,7 @@ describe('Scale: full pipeline compilation', () => {
     const result = compile(source, 'test.gft');
     expect(result.success).toBe(true);
     expect(result.errors).toHaveLength(0);
-    const orch = result.files?.find(f => f.path.includes('CLAUDE.md'));
+    const orch = result.files?.find(f => f.path.includes('orchestration.md'));
     expect(orch).toBeDefined();
     expect(orch!.content).toContain('data binding');
     expect(orch!.content).toContain('sub-pipeline');

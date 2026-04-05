@@ -54,9 +54,9 @@ export function generate(program: Program, report: TokenReport, sourceFile: stri
     }
   }
 
-  // Orchestration
+  // Orchestration (separate file — does not overwrite CLAUDE.md)
   files.push({
-    path: '.claude/CLAUDE.md',
+    path: '.claude/orchestration.md',
     content: be.generateOrchestration(ctx),
   });
 
