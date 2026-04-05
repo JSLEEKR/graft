@@ -1,6 +1,6 @@
 {
   "name": "@jsleekr/graft",
-  "version": "6.0.1",
+  "version": "6.0.2",
   "description": "Graft compiler — compile .gft graph DSL to Claude Code harness structures",
   "type": "module",
   "license": "MIT",
