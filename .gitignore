@@ -5,11 +5,11 @@
 **/.graft/token_log.txt
 !.graft/knowledge/.gitkeep
 
-# Legacy development artifacts (archived locally)
-harness/tasks/
-harness/transitions/
-harness/archived_ratchets.md
-harness/common_memory.md
+# Internal development artifacts (not shipped)
+harness/
+docs/superpowers/
+.claude/agents/
+.claude/settings.json
 COMPILATION_TARGET.md
 editors/
 marketing/
