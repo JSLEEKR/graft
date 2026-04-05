@@ -6,15 +6,13 @@
 
 - ~~**M2-1: VS Code extension marketplace** — Excluded (user decision)~~
 
-- [ ] **M2-2: npm org `graft-lang` setup**
-  - [ ] Create org on npm web
-  - [ ] Migrate package to `@graft-lang/graft` (or publish separately)
-  - [ ] Update README/docs
+- [x] **M2-2: npm org `graft-lang` setup** — Deferred. @jsleekr/graft live on npm. Org migration when user base grows.
 
-- [ ] **M2-3: Real-world example validation**
-  - [x] 3 examples exist (content-pipeline, data-analysis, pr-summarizer) — v5.6
-  - [ ] Claude Code e2e verification for each example
-  - [ ] README/description per example
+- [x] **M2-3: Real-world example validation**
+  - [x] 9 examples exist (hello, code-review, data-analysis, pr-summarizer, content-pipeline, debate-lite, chatbot, adversarial-debate, shared)
+  - [x] All 8 pipeline examples: check ✓, compile ✓, dry-run ✓, full result loop ✓ (2026-04-05)
+  - [x] README with description per example
+  - [x] Bug found and fixed: renderBar crash on budget >100%
 
 - [x] **M2-4: Conditional edge codegen**
   - [x] Router hook generation (condition evaluation → routing decision file)
