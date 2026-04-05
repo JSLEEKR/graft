@@ -161,21 +161,25 @@ program
 
 program
   .command('init')
-  .description('Scaffold a new Graft project')
-  .argument('<name>', 'project name')
-  .action(async (name: string) => {
-    const dir = path.resolve(name);
-    if (fs.existsSync(dir)) {
-      console.error(`Error: directory '${name}' already exists`);
-      process.exit(1);
+  .description('Scaffold a new Graft project, or add Graft to an existing project')
+  .argument('[name]', 'project name (omit to set up current directory)')
+  .action(async (name?: string) => {
+    const isExisting = !name;
+    const dir = name ? path.resolve(name) : process.cwd();
+
+    if (name) {
+      if (fs.existsSync(dir)) {
+        console.error(`Error: directory '${name}' already exists`);
+        process.exit(1);
+      }
+      fs.mkdirSync(dir, { recursive: true });
     }
 
-    fs.mkdirSync(dir, { recursive: true });
-
-    const baseName = path.basename(name);
+    const baseName = path.basename(dir);
     const safeName = baseName.replace(/[^a-zA-Z0-9]/g, '_').replace(/^_+|_+$/g, '') || 'pipeline';
 
-    // Generate pipeline.gft starter template
+    // Generate pipeline.gft starter template (only for new projects)
+    if (!isExisting) {
     fs.writeFileSync(path.join(dir, 'pipeline.gft'), `// ${safeName} — a simple two-node pipeline
 
 context Input(max_tokens: 500) {
@@ -205,25 +209,33 @@ graph ${safeName}(input: Input, output: Output, budget: 10k) {
 }
 `);
 
-    // Generate .claude/CLAUDE.md with .gft spec so Claude Code natively understands Graft
+    }
+
+    // Generate or append .claude/CLAUDE.md with .gft spec
     const claudeDir = path.join(dir, '.claude');
     fs.mkdirSync(claudeDir, { recursive: true });
 
     const { buildSystemPrompt } = await import('./generator.js');
     const gftSpec = buildSystemPrompt();
 
-    fs.writeFileSync(path.join(claudeDir, 'CLAUDE.md'), `# ${safeName}
+    const claudeMdPath = path.join(claudeDir, 'CLAUDE.md');
+    const existingClaudeMd = fs.existsSync(claudeMdPath) ? fs.readFileSync(claudeMdPath, 'utf-8') : '';
+
+    if (existingClaudeMd && existingClaudeMd.includes('graft compile')) {
+      console.log(`  .claude/CLAUDE.md already contains Graft config — skipped`);
+    } else {
+
+    const graftSection = `
+## Graft — Multi-Agent Pipelines
 
 This project uses **Graft** (.gft) for defining multi-agent pipelines.
-
-## Working with .gft files
 
 When the user asks to create, modify, or manage pipelines:
 1. Write or edit \`.gft\` files using the syntax below
 2. Run \`graft compile <file.gft>\` to generate the \`.claude/\` harness structure
 3. Run \`graft check <file.gft>\` to validate without generating files
 
-## CLI Commands
+### CLI Commands
 
 \`\`\`bash
 graft compile <file.gft> [--out-dir <dir>]  # Compile to harness structure
@@ -234,31 +246,41 @@ graft visualize <file.gft>                  # Output pipeline DAG as Mermaid
 graft watch <file.gft>                      # Watch and recompile on changes
 \`\`\`
 
-## After Pipeline Execution
+### After Pipeline Execution
 
-When a pipeline run completes, \`graft run\` automatically:
+\`graft run\` automatically:
 1. Shows a formatted result summary (nodes, tokens, timing)
 2. Validates output against the .gft schema (types, ranges, empty fields)
 3. Suggests .gft modifications if quality issues are found
 
-If the quality report shows issues:
-- Empty fields → suggest increasing node output budget
-- Budget exhaustion → suggest adding edge transforms (select, compact, truncate)
-- Node failures → suggest adding on_failure: retry(N)
-- Type mismatches → check the node's prompt and produces schema
-
-Apply the suggested fixes to the .gft file, then run \`graft compile\` and \`graft run\` again.
-
 ${gftSpec}
-`);
+`;
 
-    console.log(`\nCreated ${name}/`);
-    console.log(`  pipeline.gft       — starter pipeline template`);
-    console.log(`  .claude/CLAUDE.md  — Graft spec for Claude Code`);
-    console.log(`\nNext steps:`);
-    console.log(`  cd ${name}`);
-    console.log(`  graft compile pipeline.gft`);
-    console.log(`  # Open in Claude Code — it already knows .gft syntax`);
+    if (existingClaudeMd) {
+      // Append Graft section to existing CLAUDE.md
+      fs.writeFileSync(claudeMdPath, existingClaudeMd.trimEnd() + '\n\n' + graftSection.trim() + '\n');
+    } else {
+      // Create new CLAUDE.md with Graft header
+      fs.writeFileSync(claudeMdPath, `# ${safeName}\n` + graftSection);
+    }
+
+    } // end else (not already configured)
+
+    if (isExisting) {
+      console.log(`\nGraft added to current project.`);
+      console.log(`  .claude/CLAUDE.md  — Graft spec injected`);
+      console.log(`\nNext steps:`);
+      console.log(`  # Write a .gft file, or open Claude Code — it already knows .gft syntax`);
+      console.log(`  graft compile <file.gft>`);
+    } else {
+      console.log(`\nCreated ${name}/`);
+      console.log(`  pipeline.gft       — starter pipeline template`);
+      console.log(`  .claude/CLAUDE.md  — Graft spec for Claude Code`);
+      console.log(`\nNext steps:`);
+      console.log(`  cd ${name}`);
+      console.log(`  graft compile pipeline.gft`);
+      console.log(`  # Open in Claude Code — it already knows .gft syntax`);
+    }
     console.log('');
   });
 
