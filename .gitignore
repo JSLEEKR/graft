@@ -3,12 +3,16 @@
 .graft/token_log.txt
 **/.graft/session/
 **/.graft/token_log.txt
-
-# Keep harness agent definitions in .claude/
-# (compiled output goes to target project, not here)
-
-# Keep knowledge base templates
 !.graft/knowledge/.gitkeep
+
+# Legacy development artifacts (archived locally)
+harness/tasks/
+harness/transitions/
+harness/archived_ratchets.md
+harness/common_memory.md
+COMPILATION_TARGET.md
+editors/
+marketing/
 
 # OS
 .DS_Store

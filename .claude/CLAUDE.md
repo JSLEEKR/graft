@@ -1,6 +1,6 @@
 # Graft — Productization Harness
 
-> v1.0-v5.0: Compiler built via adversarial debate (archived in `harness/tasks/`).
+> v1.0-v5.0: Compiler built via adversarial debate.
 > v5.1-v5.8+: Product-focused Ship-Verify-Iterate process.
 
 ## Project Info
@@ -34,7 +34,7 @@ Only for:
 
 For everything else (features, fixes, docs, deployment): direct implementation with TDD.
 
-Legacy debate harness docs preserved in `harness/tasks/` and `harness/common_memory.md`.
+Legacy debate harness docs archived locally (not tracked in git).
 
 ## Current Milestone: M2 — "Prove it works in real scenarios"
 
@@ -94,5 +94,4 @@ Only lock decisions that affect users:
 
 Do NOT lock internal implementation details.
 
-Active ratchets: `harness/common_memory.md`
-Archived: `harness/archived_ratchets.md`
+Ratchet records archived locally (not tracked in git).
