@@ -2,8 +2,16 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { compile } from './compiler.js';
 import { Executor, RunResult, RunOptions, SpawnerFn } from './runtime/executor.js';
+import { Program } from './parser/ast.js';
 
 export type { RunResult, RunOptions, SpawnerFn } from './runtime/executor.js';
+
+let _lastProgram: Program | undefined;
+
+/** Get the Program from the last run() call (for validation/feedback). */
+export function getProgram(): Program | undefined {
+  return _lastProgram;
+}
 
 export interface RunInput {
   sourceFile: string;
@@ -26,9 +34,11 @@ export async function run(opts: RunInput): Promise<RunResult> {
 
   const compileResult = compile(source, sourceFile);
   if (!compileResult.success || !compileResult.program) {
+    _lastProgram = undefined;
     return { success: false, graph: '', nodeResults: [], finalOutput: null, totalDurationMs: 0, errors: compileResult.errors.map(e => e.message) };
   }
 
+  _lastProgram = compileResult.program;
   const programIndex = compileResult.index;
 
   let input: Record<string, unknown>;

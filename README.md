@@ -234,7 +234,7 @@ See `SPECIFICATION.md` for planned features.
 git clone https://github.com/JSLEEKR/graft.git
 cd graft && npm install
 npm run build         # Compile TypeScript
-npm test              # Run all 1,684 tests
+npm test              # Run all 1,712 tests
 ```
 
 ## License

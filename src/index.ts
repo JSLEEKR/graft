@@ -119,10 +119,15 @@ program
   .option('--input <file>', 'input JSON file')
   .option('--dry-run', 'simulate execution without spawning subprocesses')
   .option('--verbose', 'print execution details')
+  .option('--json', 'output results as JSON')
   .option('--timeout <seconds>', 'subprocess timeout in seconds', '300')
   .option('--work-dir <dir>', 'working directory for execution')
-  .action(async (file: string, opts: { input?: string; dryRun?: boolean; verbose?: boolean; timeout: string; workDir?: string }) => {
-    const { run } = await import('./runner.js');
+  .action(async (file: string, opts: { input?: string; dryRun?: boolean; verbose?: boolean; json?: boolean; timeout: string; workDir?: string }) => {
+    const { run, getProgram } = await import('./runner.js');
+    const { formatRunResult } = await import('./runtime/result-formatter.js');
+    const { validateResult, formatQualityReport } = await import('./runtime/result-validator.js');
+    const { generateFeedback, formatSuggestions } = await import('./runtime/feedback.js');
+
     const result = await run({
       sourceFile: file,
       inputFile: opts.input,
@@ -131,22 +136,27 @@ program
       verbose: opts.verbose,
       timeoutMs: parseInt(opts.timeout, 10) * 1000,
     });
+
+    // Get the program for validation
+    const prog = getProgram();
+
+    // Format result
+    console.log('\n' + formatRunResult(result, prog, { json: opts.json, verbose: opts.verbose }));
+
+    // Quality validation + feedback (skip for JSON mode)
+    if (!opts.json && prog) {
+      const report = validateResult(result, prog);
+      console.log('\n' + formatQualityReport(report));
+
+      const suggestions = generateFeedback(report, prog);
+      if (suggestions.length > 0) {
+        console.log(formatSuggestions(suggestions));
+      }
+    }
+
     if (!result.success) {
-      console.error('\nExecution failed:');
-      for (const err of result.errors) console.error(`  ${err}`);
       process.exit(1);
     }
-    console.log(`\nGraph '${result.graph}' completed in ${result.totalDurationMs}ms`);
-    console.log(`Nodes executed: ${result.nodeResults.length}`);
-    for (const nr of result.nodeResults) {
-      const status = nr.success ? 'OK' : 'FAILED';
-      console.log(`  ${nr.node.padEnd(20)} ${status.padEnd(8)} ${nr.durationMs}ms`);
-    }
-    if (result.finalOutput !== null) {
-      console.log('\nFinal output:');
-      console.log(JSON.stringify(result.finalOutput, null, 2));
-    }
-    console.log('');
   });
 
 program
@@ -218,10 +228,26 @@ When the user asks to create, modify, or manage pipelines:
 \`\`\`bash
 graft compile <file.gft> [--out-dir <dir>]  # Compile to harness structure
 graft check <file.gft>                      # Parse + analyze only
+graft run <file.gft> --input <json>         # Compile, execute, validate, suggest fixes
 graft fmt <file.gft> [-w]                   # Format .gft source
 graft visualize <file.gft>                  # Output pipeline DAG as Mermaid
 graft watch <file.gft>                      # Watch and recompile on changes
 \`\`\`
+
+## After Pipeline Execution
+
+When a pipeline run completes, \`graft run\` automatically:
+1. Shows a formatted result summary (nodes, tokens, timing)
+2. Validates output against the .gft schema (types, ranges, empty fields)
+3. Suggests .gft modifications if quality issues are found
+
+If the quality report shows issues:
+- Empty fields → suggest increasing node output budget
+- Budget exhaustion → suggest adding edge transforms (select, compact, truncate)
+- Node failures → suggest adding on_failure: retry(N)
+- Type mismatches → check the node's prompt and produces schema
+
+Apply the suggested fixes to the .gft file, then run \`graft compile\` and \`graft run\` again.
 
 ${gftSpec}
 `);
