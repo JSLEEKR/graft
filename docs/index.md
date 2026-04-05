@@ -120,6 +120,7 @@ Quality: 75% (3/4 checks passed)
 
 ## Documentation
 
+- **[Playground](playground/)** — try `.gft` in your browser with live compilation
 - **[User Guide](guide.html)** — full walkthrough of the language, CLI, and workflow
 - **[Examples](https://github.com/JSLEEKR/graft/tree/master/examples)** — 8 runnable `.gft` pipelines
 - **[Benchmarks](https://github.com/JSLEEKR/graft/tree/master/benchmarks)** — NL vs .gft comparison data

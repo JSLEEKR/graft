@@ -59,6 +59,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "tsc --noEmit",
+    "build:playground": "npx esbuild src/playground-entry.ts --bundle --format=iife --global-name=GraftCompiler --outfile=docs/playground/graft-compiler.js --platform=browser --alias:node:path=./scripts/playground-shims/node-path.js --alias:node:fs=./scripts/playground-shims/node-fs.js --alias:node:module=./scripts/playground-shims/node-module.js --alias:node:child_process=./scripts/playground-shims/node-fs.js --alias:node:url=./scripts/playground-shims/node-fs.js --footer:js=\"if(typeof window!=='undefined')window.Graft=GraftCompiler;\"",
     "prepublishOnly": "npm run build && npm test"
   },
   "engines": {

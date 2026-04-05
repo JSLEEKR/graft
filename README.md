@@ -8,7 +8,7 @@
 
 Write `.gft` files to define multi-agent pipelines. The compiler generates `.claude/` harness structures — agents, hooks, orchestration plans, settings — with compile-time token budget analysis.
 
-**[Documentation](https://jsleekr.github.io/graft/)** | **[User Guide](docs/guide.md)** | **[Examples](examples/)**
+**[Documentation](https://jsleekr.github.io/graft/)** | **[Playground](https://jsleekr.github.io/graft/playground/)** | **[User Guide](docs/guide.md)** | **[Examples](examples/)**
 
 ---
 

@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Graft Playground — Try .gft in Your Browser</title>
+<meta name="description" content="Interactive playground for the Graft DSL. Write .gft pipeline definitions and see real-time compile results, token analysis, and generated files.">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #1e1e2e;
+    --surface: #181825;
+    --border: #313244;
+    --text: #cdd6f4;
+    --subtext: #a6adc8;
+    --green: #a6e3a1;
+    --red: #f38ba8;
+    --yellow: #f9e2af;
+    --blue: #89b4fa;
+    --mauve: #cba6f7;
+    --teal: #94e2d5;
+  }
+  body {
+    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { font-size: 16px; font-weight: 600; }
+  header h1 span { color: var(--mauve); }
+  header .links { display: flex; gap: 16px; font-size: 13px; }
+  header a { color: var(--blue); text-decoration: none; }
+  header a:hover { text-decoration: underline; }
+  .examples-bar {
+    display: flex;
+    gap: 6px;
+    padding: 6px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    font-size: 12px;
+  }
+  .examples-bar button {
+    background: var(--bg);
+    color: var(--subtext);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .examples-bar button:hover { background: var(--border); color: var(--text); }
+  .examples-bar button.active { background: var(--mauve); color: var(--bg); border-color: var(--mauve); }
+  .main {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+  }
+  .editor-pane, .output-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .editor-pane { border-right: 1px solid var(--border); }
+  .pane-header {
+    padding: 6px 12px;
+    font-size: 12px;
+    color: var(--subtext);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .status { font-size: 11px; }
+  .status.ok { color: var(--green); }
+  .status.err { color: var(--red); }
+  .status.warn { color: var(--yellow); }
+  #editor-container { flex: 1; }
+  .output-tabs {
+    display: flex;
+    gap: 0;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .output-tabs button {
+    background: none;
+    border: none;
+    color: var(--subtext);
+    padding: 6px 14px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    border-bottom: 2px solid transparent;
+  }
+  .output-tabs button:hover { color: var(--text); }
+  .output-tabs button.active { color: var(--mauve); border-bottom-color: var(--mauve); }
+  .output-content {
+    flex: 1;
+    overflow: auto;
+    padding: 12px;
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .output-content .file-header {
+    color: var(--blue);
+    font-weight: 600;
+    margin-top: 12px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .output-content .file-header:first-child { margin-top: 0; }
+  .output-content .file-content { color: var(--subtext); margin-bottom: 8px; }
+  .token-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0;
+  }
+  .token-bar .bar {
+    flex: 1;
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .token-bar .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s;
+  }
+  .error-line { color: var(--red); }
+  .warning-line { color: var(--yellow); }
+  .node-row { display: flex; gap: 12px; align-items: center; }
+  .node-icon { width: 16px; text-align: center; }
+  .node-name { flex: 1; min-width: 120px; }
+  .node-model { color: var(--subtext); width: 60px; }
+  .node-tokens { color: var(--subtext); width: 80px; text-align: right; }
+  @media (max-width: 768px) {
+    .main { flex-direction: column; }
+    .editor-pane { border-right: none; border-bottom: 1px solid var(--border); height: 45vh; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span>Graft</span> Playground</h1>
+  <div class="links">
+    <a href="https://jsleekr.github.io/graft/">Docs</a>
+    <a href="https://github.com/JSLEEKR/graft">GitHub</a>
+    <a href="https://www.npmjs.com/package/@jsleekr/graft">npm</a>
+  </div>
+</header>
+
+<div class="examples-bar" id="examples-bar"></div>
+
+<div class="main">
+  <div class="editor-pane">
+    <div class="pane-header">
+      <span>playground.gft</span>
+      <span class="status" id="status"></span>
+    </div>
+    <div id="editor-container"></div>
+  </div>
+  <div class="output-pane">
+    <div class="output-tabs" id="output-tabs">
+      <button class="active" data-tab="analysis">Analysis</button>
+      <button data-tab="files">Generated Files</button>
+      <button data-tab="errors">Diagnostics</button>
+    </div>
+    <div class="output-content" id="output-content"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+<script src="graft-compiler.js"></script>
+<script>
+// --- Examples ---
+const EXAMPLES = {
+  'hello': `// Simple Q&A Pipeline
+context UserRequest(max_tokens: 500) {
+  question: String
+}
+
+node Researcher(model: sonnet, budget: 2k/1k) {
+  reads: [UserRequest]
+  produces Research {
+    findings: List<String>
+    confidence: Float(0..1)
+  }
+}
+
+node Writer(model: haiku, budget: 1500/800) {
+  reads: [Research.findings]
+  produces Answer {
+    response: String
+  }
+}
+
+edge Researcher -> Writer | select(findings) | compact
+
+graph SimpleQA(input: UserRequest, output: Answer, budget: 6k) {
+  Researcher -> Writer -> done
+}`,
+  'code-review': `// Adversarial Code Review
+context PullRequest(max_tokens: 3k) {
+  diff: String
+  description: String
+  files_changed: List<String>
+}
+
+node SecurityReviewer(model: sonnet, budget: 6k/3k) {
+  reads: [PullRequest]
+  produces SecurityAnalysis {
+    vulnerabilities: List<String>
+    severity: String
+    recommendation: String
+  }
+}
+
+node LogicReviewer(model: sonnet, budget: 6k/3k) {
+  reads: [PullRequest]
+  produces LogicAnalysis {
+    bugs: List<String>
+    edge_cases: List<String>
+    correctness: String
+  }
+}
+
+node PerformanceReviewer(model: haiku, budget: 4k/2k) {
+  reads: [PullRequest]
+  produces PerfAnalysis {
+    hotspots: List<String>
+    complexity_concerns: List<String>
+    impact: String
+  }
+}
+
+node SeniorReviewer(model: opus, budget: 10k/5k) {
+  reads: [PullRequest, SecurityAnalysis, LogicAnalysis, PerfAnalysis]
+  produces FinalReview {
+    approved: Bool
+    blocking_issues: List<String>
+    suggestions: List<String>
+    summary: String
+  }
+}
+
+edge SecurityReviewer -> SeniorReviewer | select(vulnerabilities, severity) | compact
+edge LogicReviewer -> SeniorReviewer | select(bugs, edge_cases) | compact
+edge PerformanceReviewer -> SeniorReviewer | select(hotspots, complexity_concerns) | compact
+
+graph AdversarialReview(input: PullRequest, output: FinalReview, budget: 40k) {
+  parallel { SecurityReviewer  LogicReviewer  PerformanceReviewer }
+  -> SeniorReviewer -> done
+}`,
+  'data-analysis': `// Data Analysis Pipeline
+context RawData(max_tokens: 4k) {
+  dataset_description: String
+  sample_rows: List<String>
+  question: String
+}
+
+node Classifier(model: haiku, budget: 3k/1k) {
+  reads: [RawData]
+  produces Classification {
+    data_type: String
+    columns: List<String>
+    row_count: Int
+    quality_issues: List<String>
+  }
+}
+
+node StatAnalyzer(model: sonnet, budget: 6k/3k) {
+  reads: [RawData, Classification]
+  produces StatResults {
+    summary_stats: String
+    distributions: List<String>
+    outliers: List<String>
+  }
+}
+
+node TrendAnalyzer(model: sonnet, budget: 6k/3k) {
+  reads: [RawData, Classification]
+  produces TrendResults {
+    trends: List<String>
+    correlations: List<String>
+    predictions: List<String>
+  }
+}
+
+node ReportWriter(model: opus, budget: 10k/5k) {
+  reads: [RawData, Classification, StatResults, TrendResults]
+  produces AnalysisReport {
+    executive_summary: String
+    findings: List<String>
+    recommendations: List<String>
+    visualizations_suggested: List<String>
+  }
+}
+
+edge Classifier -> StatAnalyzer | select(data_type, columns) | compact
+edge Classifier -> TrendAnalyzer | select(data_type, columns) | compact
+edge StatAnalyzer -> ReportWriter | select(summary_stats, outliers) | compact
+edge TrendAnalyzer -> ReportWriter | select(trends, correlations) | compact
+
+graph DataAnalysis(input: RawData, output: AnalysisReport, budget: 50k) {
+  Classifier
+  -> parallel { StatAnalyzer, TrendAnalyzer }
+  -> ReportWriter -> done
+}`,
+  'chatbot': `// Single-Node Chatbot with Memory
+context UserMessage(max_tokens: 500) {
+  text: String
+}
+
+context SystemConfig(max_tokens: 200) {
+  personality: String
+  temperature: Float(0..1)
+}
+
+memory ConversationLog(max_tokens: 2k, storage: file) {
+  turns: List<Turn { role: String, content: String }>
+  summary: Optional<String>
+}
+
+node Responder(model: sonnet, budget: 4k/2k) {
+  reads: [UserMessage, SystemConfig, ConversationLog]
+  writes: [ConversationLog]
+  produces Response {
+    reply: String
+    updated_turns: List<Turn { role: String, content: String }>
+    summary: Optional<String>
+  }
+}
+
+graph Chat(input: UserMessage, output: Response, budget: 8k) {
+  Responder -> done
+}`,
+  'debate-lite': `// Lightweight Debate (3 agents)
+context Task(max_tokens: 1k) {
+  description: String
+  constraints: Optional<String>
+}
+
+node Pragmatist(model: sonnet, budget: 6k/3k) {
+  reads: [Task]
+  produces QuickProposal {
+    approach: String
+    code: String
+    rationale: String
+  }
+}
+
+node Skeptic(model: sonnet, budget: 6k/3k) {
+  reads: [Task, QuickProposal]
+  produces Challenge {
+    risks: List<String>
+    alternatives: List<String>
+    verdict: String
+  }
+}
+
+node Converger(model: opus, budget: 8k/4k) {
+  reads: [QuickProposal, Challenge, Task]
+  produces FinalDesign {
+    approach: String
+    code: String
+    risk_mitigations: List<String>
+  }
+}
+
+edge Pragmatist -> Skeptic | select(approach, code, rationale)
+edge Skeptic -> Converger | compact
+edge Pragmatist -> Converger | select(approach, code)
+
+graph DebateLite(input: Task, output: FinalDesign, budget: 30k) {
+  Pragmatist -> Skeptic -> Converger -> done
+}`,
+  'pr-summarizer': `// PR Summarizer
+context PullRequest(max_tokens: 4k) {
+  title: String
+  diff: String
+  files_changed: List<String>
+  author: String
+}
+
+node Analyzer(model: sonnet, budget: 6k/3k) {
+  reads: [PullRequest]
+  produces PRAnalysis {
+    summary: String
+    changes_by_area: List<String>
+    risk_level: String
+    breaking_changes: List<String>
+    review_suggestions: List<String>
+  }
+}
+
+node Formatter(model: haiku, budget: 2k/1k) {
+  reads: [PullRequest, PRAnalysis]
+  produces PRSummary {
+    title: String
+    one_liner: String
+    detailed_summary: String
+    risk_badge: String
+  }
+}
+
+edge Analyzer -> Formatter | select(summary, risk_level, breaking_changes) | compact
+
+graph PRSummarizer(input: PullRequest, output: PRSummary, budget: 15k) {
+  Analyzer -> Formatter -> done
+}`,
+};
+
+// --- State ---
+let currentTab = 'analysis';
+let currentExample = 'hello';
+let editor = null;
+let lastResult = null;
+
+// --- Examples bar ---
+const exBar = document.getElementById('examples-bar');
+for (const [key, _] of Object.entries(EXAMPLES)) {
+  const btn = document.createElement('button');
+  btn.textContent = key;
+  btn.dataset.example = key;
+  if (key === currentExample) btn.classList.add('active');
+  btn.onclick = () => loadExample(key);
+  exBar.appendChild(btn);
+}
+
+function loadExample(name) {
+  currentExample = name;
+  if (editor) editor.setValue(EXAMPLES[name]);
+  document.querySelectorAll('.examples-bar button').forEach(b => {
+    b.classList.toggle('active', b.dataset.example === name);
+  });
+}
+
+// --- Output tabs ---
+document.getElementById('output-tabs').addEventListener('click', (e) => {
+  if (e.target.tagName !== 'BUTTON') return;
+  currentTab = e.target.dataset.tab;
+  document.querySelectorAll('#output-tabs button').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === currentTab);
+  });
+  renderOutput();
+});
+
+// --- Compile ---
+function compile(source) {
+  try {
+    lastResult = Graft.compilePlayground(source);
+  } catch (e) {
+    lastResult = {
+      success: false,
+      errors: [{ message: e.message, line: 1, column: 1, severity: 'error', formatted: e.message }],
+      warnings: [],
+    };
+  }
+  updateStatus();
+  renderOutput();
+  updateEditorMarkers();
+}
+
+function updateStatus() {
+  const el = document.getElementById('status');
+  if (!lastResult) { el.textContent = ''; return; }
+  if (lastResult.errors.length > 0) {
+    el.textContent = `✗ ${lastResult.errors.length} error${lastResult.errors.length > 1 ? 's' : ''}`;
+    el.className = 'status err';
+  } else if (lastResult.warnings.length > 0) {
+    el.textContent = `⚠ ${lastResult.warnings.length} warning${lastResult.warnings.length > 1 ? 's' : ''}`;
+    el.className = 'status warn';
+  } else {
+    const nodeCount = lastResult.program ? lastResult.program.nodes.length : 0;
+    const fileCount = lastResult.files ? lastResult.files.length : 0;
+    el.textContent = `✓ ${nodeCount} nodes → ${fileCount} files`;
+    el.className = 'status ok';
+  }
+}
+
+function updateEditorMarkers() {
+  if (!editor) return;
+  const model = editor.getModel();
+  const markers = [];
+  const allDiags = [...(lastResult?.errors || []), ...(lastResult?.warnings || [])];
+  for (const d of allDiags) {
+    markers.push({
+      severity: d.severity === 'warning' ? monaco.MarkerSeverity.Warning : monaco.MarkerSeverity.Error,
+      startLineNumber: d.line,
+      startColumn: d.column,
+      endLineNumber: d.line,
+      endColumn: d.column + 10,
+      message: d.message,
+    });
+  }
+  monaco.editor.setModelMarkers(model, 'graft', markers);
+}
+
+// --- Render ---
+function renderOutput() {
+  const el = document.getElementById('output-content');
+  if (!lastResult) { el.textContent = 'Type .gft code to see results...'; return; }
+
+  if (currentTab === 'errors') {
+    renderDiagnostics(el);
+  } else if (currentTab === 'files') {
+    renderFiles(el);
+  } else {
+    renderAnalysis(el);
+  }
+}
+
+function renderAnalysis(el) {
+  const r = lastResult;
+  let html = '';
+
+  if (r.errors.length > 0) {
+    html += '<span class="error-line">Compilation failed. See Diagnostics tab.</span>\n';
+    el.innerHTML = html;
+    return;
+  }
+
+  // Nodes
+  if (r.program) {
+    const graph = r.program.graphs[0];
+    if (graph) {
+      html += `<span style="color:var(--mauve);font-weight:600">Graph '${graph.name}'</span>\n\n`;
+    }
+    for (const node of r.program.nodes) {
+      const model = node.model || 'sonnet';
+      const budgetIn = node.budgetIn || 0;
+      const budgetOut = node.budgetOut || 0;
+      html += `<div class="node-row">`;
+      html += `<span class="node-icon" style="color:var(--green)">✓</span>`;
+      html += `<span class="node-name">${node.name}</span>`;
+      html += `<span class="node-model">${model}</span>`;
+      html += `<span class="node-tokens">${fmtK(budgetIn)}/${fmtK(budgetOut)}</span>`;
+      html += `</div>`;
+    }
+  }
+
+  // Token analysis
+  if (r.report) {
+    const best = r.report.bestCase || 0;
+    const worst = r.report.worstCase || 0;
+    const budget = r.report.totalBudget || worst;
+    const pct = budget > 0 ? Math.round((worst / budget) * 100) : 0;
+    const barColor = pct > 95 ? 'var(--red)' : pct > 80 ? 'var(--yellow)' : 'var(--green)';
+    html += `\n<div style="margin-top:12px;color:var(--subtext)">Token analysis</div>`;
+    html += `<div style="margin:4px 0">Best: ${fmtNum(best)} · Worst: ${fmtNum(worst)} / ${fmtNum(budget)} (${pct}%)</div>`;
+    html += `<div class="token-bar"><div class="bar"><div class="bar-fill" style="width:${Math.min(100, pct)}%;background:${barColor}"></div></div></div>`;
+
+    // Per-node estimates
+    if (r.report.nodes) {
+      html += `\n<div style="margin-top:8px;color:var(--subtext);font-size:12px">Per-node estimates:</div>`;
+      for (const n of r.report.nodes) {
+        html += `<div style="font-size:12px;color:var(--subtext)">  ${n.name}: in ~${fmtNum(n.estimatedInput)} out ~${fmtNum(n.estimatedOutput)}</div>`;
+      }
+    }
+  }
+
+  // Warnings
+  if (r.warnings.length > 0) {
+    html += `\n<div style="margin-top:12px">`;
+    for (const w of r.warnings) {
+      html += `<div class="warning-line">⚠ ${escHtml(w.message)}</div>`;
+    }
+    html += `</div>`;
+  }
+
+  // Files summary
+  if (r.files) {
+    html += `\n<div style="margin-top:12px;color:var(--subtext)">Generated ${r.files.length} files →</div>`;
+    for (const f of r.files) {
+      html += `<div style="color:var(--blue);font-size:12px">  ${f.path}</div>`;
+    }
+  }
+
+  el.innerHTML = html;
+}
+
+function renderFiles(el) {
+  if (!lastResult?.files || lastResult.files.length === 0) {
+    el.innerHTML = lastResult?.errors?.length > 0
+      ? '<span class="error-line">Fix errors to see generated files.</span>'
+      : '<span style="color:var(--subtext)">No files generated (missing graph declaration?).</span>';
+    return;
+  }
+  let html = '';
+  for (const f of lastResult.files) {
+    html += `<div class="file-header">${escHtml(f.path)}</div>`;
+    html += `<div class="file-content">${escHtml(f.content)}</div>`;
+  }
+  el.innerHTML = html;
+}
+
+function renderDiagnostics(el) {
+  const all = [...(lastResult?.errors || []), ...(lastResult?.warnings || [])];
+  if (all.length === 0) {
+    el.innerHTML = '<span style="color:var(--green)">No diagnostics. All clear.</span>';
+    return;
+  }
+  let html = '';
+  for (const d of all) {
+    const cls = d.severity === 'warning' ? 'warning-line' : 'error-line';
+    html += `<div class="${cls}">${escHtml(d.formatted)}</div>\n`;
+  }
+  el.innerHTML = html;
+}
+
+// --- Helpers ---
+function fmtNum(n) { return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n); }
+function fmtK(n) { return n >= 1000 ? Math.round(n / 1000) + 'k' : String(n); }
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// --- Monaco setup ---
+require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' }});
+
+require(['vs/editor/editor.main'], function () {
+  // Register .gft language
+  monaco.languages.register({ id: 'gft' });
+
+  monaco.languages.setMonarchTokensProvider('gft', {
+    keywords: ['context', 'node', 'edge', 'graph', 'memory', 'import', 'from',
+               'parallel', 'done', 'reads', 'produces', 'writes', 'tools', 'model',
+               'budget', 'max_tokens', 'storage', 'on_failure', 'when', 'else',
+               'foreach', 'let', 'if'],
+    typeKeywords: ['String', 'Int', 'Float', 'Bool', 'List', 'Map', 'Optional',
+                   'TokenBounded', 'FilePath', 'FileDiff', 'TestFile', 'IssueRef'],
+    models: ['haiku', 'sonnet', 'opus'],
+    operators: ['->', '|', '>=', '<=', '>', '<', '==', '!=', '..'],
+    tokenizer: {
+      root: [
+        [/\/\/.*$/, 'comment'],
+        [/\b(context|node|edge|graph|memory|import|from|parallel|done|reads|produces|writes|tools|model|budget|max_tokens|storage|on_failure|when|else|foreach|let|if)\b/, 'keyword'],
+        [/\b(String|Int|Float|Bool|List|Map|Optional|TokenBounded|FilePath|FileDiff|TestFile|IssueRef)\b/, 'type'],
+        [/\b(haiku|sonnet|opus)\b/, 'constant'],
+        [/\b(select|drop|compact|filter|truncate|retry|fallback|skip|abort|enum)\b/, 'support.function'],
+        [/\b(true|false)\b/, 'constant.language'],
+        [/\d+[kK]/, 'number'],
+        [/\d+(\.\d+)?/, 'number'],
+        [/->/, 'operator'],
+        [/\|/, 'operator'],
+        [/[>=<!]+/, 'operator'],
+        [/\.\./, 'operator'],
+        [/"[^"]*"/, 'string'],
+        [/[A-Z][a-zA-Z0-9_]*/, 'type.identifier'],
+        [/[a-z_][a-zA-Z0-9_]*/, 'identifier'],
+        [/[{}()\[\],:]/, 'delimiter'],
+      ],
+    },
+  });
+
+  // Editor theme
+  monaco.editor.defineTheme('graft-dark', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+      { token: 'keyword', foreground: 'cba6f7', fontStyle: 'bold' },
+      { token: 'type', foreground: '89b4fa' },
+      { token: 'type.identifier', foreground: '89b4fa' },
+      { token: 'constant', foreground: 'f9e2af' },
+      { token: 'constant.language', foreground: 'f9e2af' },
+      { token: 'support.function', foreground: 'a6e3a1' },
+      { token: 'number', foreground: 'fab387' },
+      { token: 'string', foreground: 'a6e3a1' },
+      { token: 'operator', foreground: '94e2d5' },
+      { token: 'comment', foreground: '6c7086', fontStyle: 'italic' },
+      { token: 'delimiter', foreground: '9399b2' },
+      { token: 'identifier', foreground: 'cdd6f4' },
+    ],
+    colors: {
+      'editor.background': '#1e1e2e',
+      'editor.foreground': '#cdd6f4',
+      'editor.lineHighlightBackground': '#313244',
+      'editorCursor.foreground': '#f5e0dc',
+      'editor.selectionBackground': '#45475a',
+    },
+  });
+
+  editor = monaco.editor.create(document.getElementById('editor-container'), {
+    value: EXAMPLES[currentExample],
+    language: 'gft',
+    theme: 'graft-dark',
+    minimap: { enabled: false },
+    fontSize: 14,
+    lineNumbers: 'on',
+    scrollBeyondLastLine: false,
+    automaticLayout: true,
+    tabSize: 2,
+    padding: { top: 8 },
+  });
+
+  // Compile on change (debounced)
+  let debounce;
+  editor.onDidChangeModelContent(() => {
+    clearTimeout(debounce);
+    debounce = setTimeout(() => compile(editor.getValue()), 150);
+  });
+
+  // Initial compile
+  compile(editor.getValue());
+});
+</script>
+</body>
+</html>

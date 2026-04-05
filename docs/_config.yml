@@ -4,6 +4,9 @@ theme: jekyll-theme-cayman
 baseurl: /graft
 url: https://jsleekr.github.io
 
+include:
+  - playground
+
 exclude:
   - node_modules
   - vendor
