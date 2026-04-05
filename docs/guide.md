@@ -1,6 +1,6 @@
 # Graft User Guide
 
-Graft compiles `.gft` files into multi-agent pipeline structures that Claude Code can execute directly.
+Graft compiles `.gft` files into multi-agent pipeline structures that Claude Code can execute directly. Best for natural-language I/O pipelines — code review, ideation, content generation, data analysis — where agents exchange structured JSON.
 
 ```
 Write .gft file → graft compile → .claude/ structure generated → Run in Claude Code

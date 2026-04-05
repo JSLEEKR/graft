@@ -6,7 +6,9 @@
 
 **Infrastructure as Code for Claude Code multi-agent pipelines.**
 
-Write `.gft` files to define multi-agent pipelines. The compiler generates `.claude/` harness structures — agents, hooks, orchestration plans, settings — with compile-time token budget analysis.
+Write `.gft` files to define natural-language I/O pipelines — code review, ideation, content generation, data analysis, debate architectures. The compiler generates `.claude/` harness structures — agents, hooks, orchestration plans, settings — with compile-time token budget analysis.
+
+> **Best for:** Pipelines where agents exchange structured JSON (reviews, analyses, reports). Not designed for coding automation where the primary output is filesystem side effects.
 
 **[Documentation](https://jsleekr.github.io/graft/)** | **[Playground](https://jsleekr.github.io/graft/playground/)** | **[User Guide](docs/guide.md)** | **[Examples](examples/)**
 
@@ -119,7 +121,7 @@ Claude Code reads the .claude/ structure and runs the pipeline
 |-------------|-----------------|---------|
 | `node` | `.claude/agents/*.md` | Agent with model, tools, output schema |
 | `edge \| transform` | `.claude/hooks/*.js` | Data transform between nodes |
-| `graph` | `.claude/CLAUDE.md` | Step-by-step orchestration plan |
+| `graph` | `.claude/orchestration.md` | Step-by-step orchestration plan |
 | `memory` | `.graft/memory/*.json` | Persistent state across runs |
 | config | `.claude/settings.json` | Model routing, budget, hook registration |
 
@@ -140,6 +142,7 @@ Claude Code reads the .claude/ structure and runs the pipeline
 graft init [name]                            # New project, or add Graft to current dir
 graft compile <file.gft> [--out-dir <dir>]   # Compile to .claude/ harness
 graft check <file.gft>                       # Parse + analyze only
+graft import [dir] [-o <file>]               # Reverse-compile .claude/ into .gft
 graft run <file.gft> --input <json>          # Compile and execute
 graft test <file.gft> [--input <json>]       # Test with mock data
 graft fmt <file.gft> [-w]                    # Format .gft source
@@ -221,12 +224,11 @@ Graft is a **compiler**, not a runtime orchestrator.
 
 ## Limitations
 
-- **Non-deterministic orchestration** — `CLAUDE.md` is an LLM prompt, not a state machine
+- **Natural-language pipelines only** — designed for agents that exchange structured JSON (reviews, analyses, reports). Not suited for coding automation where the primary output is filesystem side effects.
+- **Non-deterministic orchestration** — `orchestration.md` is an LLM prompt, not a state machine
 - **Claude Code dependency** — generates `.claude/` structures only
 - **Single provider** — Anthropic models only (multi-provider planned)
 - **Memory** — JSON file storage only (other backends planned)
-
-See `SPECIFICATION.md` for planned features.
 
 ## Development
 
@@ -234,7 +236,7 @@ See `SPECIFICATION.md` for planned features.
 git clone https://github.com/JSLEEKR/graft.git
 cd graft && npm install
 npm run build         # Compile TypeScript
-npm test              # Run all 1,712 tests
+npm test              # Run all 1,722 tests
 ```
 
 ## License

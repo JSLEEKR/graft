@@ -9,6 +9,8 @@ title: Graft
 
 Write `.gft` files — or just describe what you want in natural language — and Graft compiles them into [Claude Code](https://docs.anthropic.com/en/docs/claude-code) harness structures with compile-time token budget analysis, runtime quality validation, and automatic fix suggestions.
 
+> **Best for:** Natural-language I/O pipelines — code review, ideation, content generation, data analysis, debate architectures. Agents exchange structured JSON, not filesystem side effects.
+
 **77% fewer tokens, 200x faster than manual configuration. [Benchmarks](https://github.com/JSLEEKR/graft/tree/master/benchmarks)**
 
 ## Getting Started (2 minutes)
@@ -114,7 +116,7 @@ Quality: 75% (3/4 checks passed)
 |-------------|-----------------|---------|
 | `node` | `.claude/agents/*.md` | Agent with model, tools, output schema |
 | `edge \| transform` | `.claude/hooks/*.js` | Data transform between nodes |
-| `graph` | `.claude/CLAUDE.md` | Step-by-step orchestration plan |
+| `graph` | `.claude/orchestration.md` | Step-by-step orchestration plan |
 | `memory` | `.graft/memory/*.json` | Persistent state across runs |
 | config | `.claude/settings.json` | Model routing, budget, hook registration |
 
@@ -134,6 +136,7 @@ Quality: 75% (3/4 checks passed)
 graft init [name]              # New project, or add Graft to existing project
 graft compile <file.gft>      # Compile to .claude/ harness
 graft check <file.gft>        # Parse + analyze only
+graft import [dir] [-o file]  # Reverse-compile .claude/ into .gft
 graft run <file.gft>          # Compile, execute, validate, suggest fixes
 graft test <file.gft>         # Test with mock data
 graft fmt <file.gft> [-w]     # Format .gft source

@@ -5,12 +5,10 @@
 
 ## Project Info
 
-- **Goal**: Graft — graph-native language for AI agent harness engineering
+- **Goal**: Graft — IaC for natural-language I/O multi-agent pipelines
 - **Language**: TypeScript (hand-written recursive descent parser)
-- **Current Version**: v6.0.0
-- **Phase**: Productization (M2: real-world validation)
-- **Roadmap**: `docs/superpowers/specs/2026-04-03-graft-v6-productization-roadmap.md`
-- **Milestone Tracking**: `harness/milestones/M{N}/checklist.md`
+- **Current Version**: v6.2.0
+- **Scope**: NL pipelines (code review, ideation, content, data analysis). Not for coding automation.
 - **User Guide**: `docs/guide.md`
 - **Dev Notes**: `C:\Users\user\OneDrive\Documents\GraftDevNotes\graft-v1-development-notes.md`
 - **Blog**: `JSLEEKR/jslee-homepage` → `content/blog/`
