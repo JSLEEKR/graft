@@ -170,10 +170,11 @@ describe('v3.0-R3: backend-aware generate()', () => {
     const defaultFiles = generate(program, report, 'test.gft', index);
     const backendFiles = generate(program, report, 'test.gft', index, new ClaudeCodeBackend());
     expect(defaultFiles.map(f => f.path).sort()).toEqual(backendFiles.map(f => f.path).sort());
+    const stripTimestamp = (s: string) => s.replace(/"compiled_at":\s*"[^"]*"/, '"compiled_at": "STRIPPED"');
     for (const df of defaultFiles) {
       const bf = backendFiles.find(f => f.path === df.path);
       expect(bf).toBeDefined();
-      expect(bf!.content).toBe(df.content);
+      expect(stripTimestamp(bf!.content)).toBe(stripTimestamp(df.content));
     }
   });
 });
